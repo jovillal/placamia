@@ -1,0 +1,41 @@
+### Root `.gitignore`
+
+```gitignore
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.python-version
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# FastAPI / tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Alembic / logs
+*.log
+
+# Node/mobile future
+node_modules/
+dist/
+build/
+
+# Mac/Linux temp
+*.swp
+*.swo
