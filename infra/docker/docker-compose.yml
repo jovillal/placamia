@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    container_name: placamia_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: placamia
+      POSTGRES_PASSWORD: placamia
+      POSTGRES_DB: placamia
+    ports:
+      - "5432:5432"
+    volumes:
+      - placamia_pgdata:/var/lib/postgresql/data
+
+volumes:
+  placamia_pgdata:
