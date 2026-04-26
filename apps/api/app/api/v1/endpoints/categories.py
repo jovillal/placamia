@@ -22,7 +22,9 @@ class CategoryListResponse(BaseModel):
     summary="List catalog categories",
     description="Returns the catalog categories that group sellable signage products.",
 )
-async def list_categories(db: Session = Depends(get_db)) -> dict[str, list[CategoryRead]]:
+async def list_categories(
+    db: Session = Depends(get_db),
+) -> dict[str, list[CategoryRead]]:
     """Return catalog categories ordered by name.
 
     Args:
@@ -35,9 +37,4 @@ async def list_categories(db: Session = Depends(get_db)) -> dict[str, list[Categ
     category_service = CategoryService(category_repository)
     categories = category_service.list_categories()
 
-    return {
-        "data": [
-            CategoryRead.model_validate(category)
-            for category in categories
-        ]
-    }
+    return {"data": [CategoryRead.model_validate(category) for category in categories]}

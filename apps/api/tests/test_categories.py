@@ -89,6 +89,7 @@ def test_list_categories_endpoint_returns_catalog_categories():
     app.dependency_overrides[get_db] = override_get_db
 
     try:
+
         async def get_categories():
             transport = httpx.ASGITransport(app=app)
             async with httpx.AsyncClient(
