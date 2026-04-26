@@ -1,6 +1,3 @@
-### Root `.gitignore`
-
-```gitignore
 # Python
 __pycache__/
 *.py[cod]
@@ -23,6 +20,7 @@ htmlcov/
 # IDEs
 .vscode/
 .idea/
+.codex
 
 # OS
 .DS_Store
