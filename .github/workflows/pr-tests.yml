@@ -14,13 +14,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: apps/api/pyproject.toml
-
       - name: Check for API project
         id: api_project
         run: |
@@ -30,6 +23,14 @@ jobs:
             echo "available=false" >> "$GITHUB_OUTPUT"
             echo "apps/api/pyproject.toml is empty, so API tests are not available yet."
           fi
+
+      - name: Set up Python
+        if: steps.api_project.outputs.available == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/api/pyproject.toml
 
       - name: Install Python deps
         if: steps.api_project.outputs.available == 'true'
