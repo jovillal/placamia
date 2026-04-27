@@ -16,6 +16,8 @@ venv/
 .ruff_cache/
 .coverage
 htmlcov/
+/pyproject.toml
+/uv.lock
 
 # IDEs
 .vscode/

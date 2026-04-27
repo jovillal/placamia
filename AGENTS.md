@@ -155,6 +155,119 @@ A task is complete only if:
 
 ---
 
+## Security Rules
+
+Security is mandatory for every implementation.
+
+Before writing or modifying code, check whether the change affects:
+
+- authentication
+- authorization
+- pricing
+- checkout
+- payments
+- orders
+- user data
+- supplier integration
+- file/image handling
+- admin behavior
+- environment variables or secrets
+
+If yes, the implementation must include security validation and tests.
+
+### Mandatory Security Requirements
+
+- Never hardcode secrets, credentials, tokens, or API keys.
+- Never commit `.env` files.
+- Never trust frontend-calculated prices.
+- Never trust frontend ownership claims such as `user_id`, `role`, or `is_admin`.
+- Never expose another user's data.
+- Never create admin behavior without explicit authorization checks.
+- Never store payment card data.
+- Never log passwords, tokens, secrets, or full payment data.
+- Validate all API input with explicit schemas.
+- Use backend-side authorization checks on protected endpoints.
+- Use Alembic for database schema changes.
+- Add or update tests for security-relevant behavior.
+
+### Pricing and Checkout Rules
+
+The backend is the source of truth for all pricing.
+
+The frontend may request a quote using product, material, size, quantity, and kit selections, but the backend must calculate the final amount.
+
+Order creation must use backend-calculated prices only.
+
+Any implementation involving checkout must consider:
+
+- price tampering
+- invalid product options
+- inactive products
+- quantity abuse
+- payment confirmation spoofing
+
+### Authorization Rules
+
+Protected endpoints must derive the current user from the authenticated request.
+
+Do not accept `user_id`, `role`, or ownership fields from the frontend as proof of authorization.
+
+Users may only access their own resources unless the endpoint is explicitly admin-only.
+
+### Admin Rules
+
+Admin endpoints must require admin authorization.
+
+Admin changes must be logged when they affect:
+
+- products
+- kits
+- prices
+- discounts
+- orders
+- supplier integration
+- users
+
+### File Handling Rules
+
+Uploaded or generated files must be validated.
+
+Check:
+
+- file type
+- file size
+- extension
+- storage destination
+
+S3 buckets must not be public by default.
+
+### Logging Rules
+
+Logs should support debugging and incident investigation, but must not leak sensitive data.
+
+Do not log:
+
+- passwords
+- JWTs
+- refresh tokens
+- payment card data
+- secrets
+- full environment variables
+
+### Security Test Expectations
+
+When applicable, add tests for:
+
+- unauthenticated access rejected
+- unauthorized access rejected
+- user cannot access another user's resources
+- non-admin cannot perform admin actions
+- frontend-supplied price is ignored
+- invalid inputs are rejected
+- invalid payment webhook signatures are rejected
+
+---
+
 ## Migration Rules
  - Always use Alembic for schema changes
  - Always generate migrations with autogenerate
