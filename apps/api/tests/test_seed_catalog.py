@@ -59,7 +59,9 @@ def test_seed_catalog_creates_mvp_categories_and_products():
     try:
         seed_catalog_module.seed_catalog(db)
 
-        categories = db.execute(select(Category).order_by(Category.name)).scalars().all()
+        categories = (
+            db.execute(select(Category).order_by(Category.name)).scalars().all()
+        )
         products = db.execute(select(Product).order_by(Product.name)).scalars().all()
 
         assert [category.name for category in categories] == [
