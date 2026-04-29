@@ -87,39 +87,67 @@ def test_user_repository_gets_user_by_id():
 
 def test_get_current_user_endpoint_rejects_missing_credentials(monkeypatch):
     monkeypatch.setattr(settings, "AUTH_TOKEN_SECRET", "test-token-secret")
+    db = build_session()
 
-    async def get_current_user_response():
-        transport = httpx.ASGITransport(app=app)
-        async with httpx.AsyncClient(
-            transport=transport,
-            base_url="http://testserver",
-        ) as client:
-            return await client.get("/api/v1/auth/me")
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
 
-    response = asyncio.run(get_current_user_response())
+    app.dependency_overrides[get_db] = override_get_db
 
-    assert response.status_code == 401
-    assert response.json() == {"detail": "Invalid authentication credentials"}
+    try:
+
+        async def get_current_user_response():
+            transport = httpx.ASGITransport(app=app)
+            async with httpx.AsyncClient(
+                transport=transport,
+                base_url="http://testserver",
+            ) as client:
+                return await client.get("/api/v1/auth/me")
+
+        response = asyncio.run(get_current_user_response())
+
+        assert response.status_code == 401
+        assert response.json() == {"detail": "Invalid authentication credentials"}
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
 
 
 def test_get_current_user_endpoint_rejects_invalid_credentials(monkeypatch):
     monkeypatch.setattr(settings, "AUTH_TOKEN_SECRET", "test-token-secret")
+    db = build_session()
 
-    async def get_current_user_response():
-        transport = httpx.ASGITransport(app=app)
-        async with httpx.AsyncClient(
-            transport=transport,
-            base_url="http://testserver",
-        ) as client:
-            return await client.get(
-                "/api/v1/auth/me",
-                headers={"Authorization": "Bearer invalid-token"},
-            )
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
 
-    response = asyncio.run(get_current_user_response())
+    app.dependency_overrides[get_db] = override_get_db
 
-    assert response.status_code == 401
-    assert response.json() == {"detail": "Invalid authentication credentials"}
+    try:
+
+        async def get_current_user_response():
+            transport = httpx.ASGITransport(app=app)
+            async with httpx.AsyncClient(
+                transport=transport,
+                base_url="http://testserver",
+            ) as client:
+                return await client.get(
+                    "/api/v1/auth/me",
+                    headers={"Authorization": "Bearer invalid-token"},
+                )
+
+        response = asyncio.run(get_current_user_response())
+
+        assert response.status_code == 401
+        assert response.json() == {"detail": "Invalid authentication credentials"}
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
 
 
 def test_get_current_user_endpoint_returns_authenticated_user(monkeypatch):
