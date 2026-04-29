@@ -36,6 +36,16 @@ Rules:
 
 Never rely on mobile-app controls for authorization.
 
+Current backend authentication resolves users through a reusable FastAPI
+dependency that verifies backend-signed bearer tokens and loads the current
+active user from the database. Protected endpoints must use this dependency
+instead of accepting `user_id`, `role`, `is_admin`, or ownership fields from
+frontend payloads.
+
+`AUTH_TOKEN_SECRET` must be provided by the runtime environment. Example files
+may include placeholder local values, but real token secrets must not be
+committed or logged.
+
 ### 2. Server-Side Pricing Integrity
 
 Pricing must always be calculated by the backend.

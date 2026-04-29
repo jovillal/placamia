@@ -1,0 +1,269 @@
+# Testing Architecture
+
+## Purpose
+
+This document defines how PlacamIA tests backend behavior as authentication,
+authorization, pricing, checkout, orders, and admin workflows are added.
+
+The goal is to keep security meaningful without making every integration test
+slow or hard to read.
+
+## Principles
+
+- Test business rules at the service layer first.
+- Test API wiring with focused integration tests.
+- Test security-sensitive rejected behavior as explicitly as accepted behavior.
+- Keep authentication parsing behind reusable dependencies.
+- Override dependencies in most endpoint tests instead of creating real tokens
+  for every request.
+- Use real authentication validation only where the authentication path itself
+  is under test.
+- Critical business invariants (pricing, orders, payments) must be tested explicitly.
+
+## Test Boundaries
+
+### Unit and Service Tests
+
+Use unit or service tests for business behavior that does not need HTTP.
+
+Examples:
+
+- pricing calculations
+- invalid product options
+- inactive product rejection
+- ownership checks
+- admin permission checks
+- audit log creation
+- webhook signature verification helpers
+
+Service tests should receive explicit inputs, such as a user object or user id,
+instead of depending on FastAPI request state.
+
+### API Integration Tests
+
+Use API integration tests for route behavior and request/response contracts.
+
+Examples:
+
+- unauthenticated requests are rejected
+- unauthorized users receive the correct error
+- request schemas reject invalid input
+- endpoints return documented response shapes
+- dependency wiring resolves the current user correctly
+
+Endpoint tests may override `get_current_user` or similar dependencies when the
+test is not specifically about token parsing.
+
+### Full Authentication Path Tests
+
+Use a small number of tests for real authentication parsing and validation.
+
+Examples:
+
+- missing authorization headers are rejected
+- malformed credentials are rejected
+- expired or invalid tokens are rejected
+- valid credentials resolve the expected current user
+
+Do not require every endpoint test to mint or verify real tokens.
+
+## Authentication Testing Pattern
+
+Authentication should be exposed to endpoints through one reusable dependency,
+such as `get_current_user`.
+
+Most endpoint tests should use FastAPI dependency overrides:
+
+```python
+async def override_get_current_user():
+    return test_user
+
+
+app.dependency_overrides[get_current_user] = override_get_current_user
+```
+
+Use this pattern when the test is about endpoint behavior after authentication
+has already succeeded.
+
+Do not use this shortcut when the test is about:
+
+- missing credentials
+- invalid credentials
+- token verification
+- current-user lookup failure
+- protected endpoints rejecting unauthenticated requests
+
+## Fixture Conventions
+
+Prefer clear fixture names that describe the security posture:
+
+- `test_user`
+- `admin_user`
+- `other_user`
+- `authenticated_client`
+- `admin_client`
+- `auth_headers`
+- `admin_auth_headers`
+
+Fixtures should avoid hardcoded production-like secrets. Test-only secrets may
+be defined in test configuration or monkeypatched environment variables.
+
+## Security Test Expectations
+
+When applicable, add tests for:
+
+- unauthenticated access rejected
+- unauthorized access rejected
+- user cannot access another user's resources
+- non-admin cannot perform admin actions
+- frontend-supplied price is ignored
+- invalid inputs are rejected
+- inactive products cannot be ordered
+- invalid payment webhook signatures are rejected
+
+Security-sensitive tests must verify that rejected requests do not mutate
+database state or trigger external side effects.
+
+## Pull Request Expectations
+
+Every implementation PR should explain:
+
+- which service tests were added or updated
+- which API integration tests were added or updated
+- which security rejection paths are covered
+- why tests were not added, if the change is documentation-only
+
+Documentation-only PRs do not need runtime tests, but should still be reviewed
+for consistency with `AGENTS.md`, `docs/architecture/security.md`, and the
+issue acceptance criteria.
+
+## Critical Business Security Tests
+
+The following test categories are mandatory for PlacamIA due to the nature of
+pricing, checkout, and supplier fulfillment.
+
+### Pricing Integrity
+
+- Backend ignores any frontend-supplied price, subtotal, discount, or total.
+- Pricing is recalculated based only on:
+  - product id
+  - material
+  - size
+  - quantity
+  - kit composition
+- Modified or inconsistent pricing inputs are rejected or ignored.
+- Price mismatches are logged without sensitive data or full request payloads.
+
+### Order Integrity
+
+- Orders cannot be created with:
+  - inactive products
+  - invalid combinations of product/material/size
+  - manipulated quantities outside allowed ranges
+- Orders must be created only from validated backend state.
+- Repeated order submissions (same payload) do not create duplicate orders
+  unless explicitly allowed.
+
+### Payment Integrity
+
+- Payment webhook or confirmation endpoints:
+  - reject invalid signatures
+  - reject missing signatures
+  - reject replayed events (if idempotency is implemented)
+- Orders are not marked as paid without verified payment provider confirmation.
+
+### Supplier Handoff Integrity
+
+- Supplier payloads are generated only from persisted backend data.
+- Tests verify that:
+  - frontend input is not directly forwarded to supplier
+  - all required production fields are present
+  - payload structure matches expected contract
+
+### Data Isolation
+
+- Users cannot:
+  - access other users’ orders
+  - access other users’ addresses
+  - infer existence of other users’ resources via error messages
+
+### Admin Protection
+
+- Non-admin users cannot:
+  - modify products
+  - modify kits
+  - modify pricing rules
+  - update order status
+- Admin actions are logged.
+
+## State Mutation Guarantees
+
+Security-sensitive tests must verify that rejected requests do not mutate
+application state.
+
+For any rejected request:
+
+- no database records are created
+- no existing records are modified
+- no side effects are triggered (e.g. supplier calls, logs, external requests)
+
+Examples:
+
+- unauthorized order access does not update business records or create
+  misleading audit entries
+- invalid checkout does not create a pending order
+- failed payment webhook does not update order status
+
+## Idempotency and Replay Protection
+
+Endpoints that create or mutate critical state must be resilient to retries and
+duplicate requests.
+
+Examples:
+
+- checkout/order creation
+- payment confirmation webhooks
+- supplier order submission
+
+Tests should verify:
+
+- duplicate requests do not create duplicate orders unless intended
+- repeated webhook events do not reapply state changes
+- idempotency keys (if implemented) behave correctly
+
+## Abuse and Rate Limiting
+
+Where rate limiting or throttling is implemented, tests should verify:
+
+- excessive requests are rejected or throttled
+- critical endpoints are protected:
+  - login
+  - checkout
+  - pricing/quote endpoints
+  - payment confirmation
+
+At minimum, service-level protections (such as request guards) should be tested.
+
+## Data Leakage Prevention
+
+Tests should verify that API responses do not expose:
+
+- internal identifiers not part of the public API contract
+- sensitive fields (tokens, secrets, internal flags)
+- unnecessary personal data
+
+Error responses should not reveal:
+
+- whether a resource exists for another user
+- internal system details
+- stack traces in production mode
+
+## Secrets and Environment Safety
+
+Tests and configuration must ensure:
+
+- no real credentials are used in tests
+- environment variables can be overridden safely in tests
+- missing required environment variables fail fast
+
+Test environments should not depend on production secrets.
