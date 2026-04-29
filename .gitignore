@@ -39,3 +39,4 @@ build/
 # Mac/Linux temp
 *.swp
 *.swo
+*.tmp
