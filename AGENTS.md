@@ -129,6 +129,7 @@ When modifying or adding functionality:
  - Prefer unit tests for services and business logic
  - Add integration tests for API endpoints
  - Do NOT mark work complete without tests
+ - Follow `docs/architecture/testing.md` for test structure, fixture conventions, and authentication testing patterns
 
  ---
 

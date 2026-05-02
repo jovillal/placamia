@@ -21,4 +21,5 @@
 
 ## Implemented endpoints
 - `GET /api/v1/health/`
+- `GET /api/v1/auth/me`
 - `GET /api/v1/catalog/categories`
