@@ -8,6 +8,11 @@ authorization, pricing, checkout, orders, and admin workflows are added.
 The goal is to keep security meaningful without making every integration test
 slow or hard to read.
 
+This document is the testing source of truth for security-sensitive feature
+work. It must stay consistent with `docs/architecture/security.md`,
+`docs/flows/main-flow.md`, and security-critical flow documents such as
+`docs/flows/checkout-flow.md`.
+
 ## Principles
 
 - Test business rules at the service layer first.
@@ -24,7 +29,8 @@ slow or hard to read.
 
 ### Unit and Service Tests
 
-Use unit or service tests for business behavior that does not need HTTP.
+Use unit or service tests for deterministic business behavior that does not
+need HTTP, FastAPI routing, or token parsing.
 
 Examples:
 
@@ -37,11 +43,14 @@ Examples:
 - webhook signature verification helpers
 
 Service tests should receive explicit inputs, such as a user object or user id,
-instead of depending on FastAPI request state.
+instead of depending on FastAPI request state. They should assert the direct
+business outcome and, for rejected security-sensitive actions, assert that no
+database mutation or external side effect occurred.
 
 ### API Integration Tests
 
-Use API integration tests for route behavior and request/response contracts.
+Use API integration tests for route behavior, dependency wiring,
+request/response contracts, and database-visible API outcomes.
 
 Examples:
 
@@ -52,11 +61,16 @@ Examples:
 - dependency wiring resolves the current user correctly
 
 Endpoint tests may override `get_current_user` or similar dependencies when the
-test is not specifically about token parsing.
+test is not specifically about token parsing. API integration tests should still
+exercise the real route, schema validation, repository/database behavior, and
+error response shape.
 
 ### Full Authentication Path Tests
 
-Use a small number of tests for real authentication parsing and validation.
+Use full authentication-path tests for real authentication parsing, token
+validation, and current-user resolution. These tests should cover the reusable
+authentication dependency itself and a small representative set of protected
+endpoints.
 
 Examples:
 
@@ -64,6 +78,7 @@ Examples:
 - malformed credentials are rejected
 - expired or invalid tokens are rejected
 - valid credentials resolve the expected current user
+- inactive or missing users referenced by otherwise valid credentials are rejected
 
 Do not require every endpoint test to mint or verify real tokens.
 
@@ -83,7 +98,9 @@ app.dependency_overrides[get_current_user] = override_get_current_user
 ```
 
 Use this pattern when the test is about endpoint behavior after authentication
-has already succeeded.
+has already succeeded. Good examples include ownership checks, request schema
+validation, order state transitions, pricing tamper rejection, and admin-only
+authorization behavior.
 
 Do not use this shortcut when the test is about:
 
@@ -92,6 +109,10 @@ Do not use this shortcut when the test is about:
 - token verification
 - current-user lookup failure
 - protected endpoints rejecting unauthenticated requests
+- authentication headers or token payload formats
+
+When a dependency override is used, the test must not claim to verify real
+authentication. Name the test and fixtures so the boundary is clear.
 
 ## Fixture Conventions
 
@@ -123,6 +144,23 @@ When applicable, add tests for:
 
 Security-sensitive tests must verify that rejected requests do not mutate
 database state or trigger external side effects.
+
+Required rejection coverage by area:
+
+| Area | Required rejection tests |
+| --- | --- |
+| Authentication | Missing, malformed, expired, invalid, or unresolvable credentials are rejected. |
+| Authorization | Users cannot access or mutate resources they do not own. |
+| Pricing | Frontend-supplied price, subtotal, discount, tax, or total is ignored or rejected. |
+| Checkout | Invalid product options, inactive products, invalid quantities, and price tampering do not create orders or payment attempts. |
+| Orders | Unauthorized order reads or updates are rejected and do not reveal another user's data. |
+| Payments | Missing, invalid, spoofed, or replayed payment confirmations do not mark orders as paid. |
+| Admin behavior | Non-admin users cannot perform admin actions, and accepted admin mutations are auditable. |
+
+Security-sensitive areas include pricing, order creation, payment confirmation,
+and supplier handoff. Treat changes in those areas as security-relevant even
+when the endpoint or service appears operational rather than authentication
+focused.
 
 ## Pull Request Expectations
 
@@ -205,7 +243,8 @@ For any rejected request:
 
 - no database records are created
 - no existing records are modified
-- no side effects are triggered (e.g. supplier calls, logs, external requests)
+- no external side effects are triggered, such as supplier calls, payment
+  provider calls, emails, file writes, or other outbound requests
 
 Examples:
 

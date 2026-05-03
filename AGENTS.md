@@ -129,7 +129,8 @@ When modifying or adding functionality:
  - Prefer unit tests for services and business logic
  - Add integration tests for API endpoints
  - Do NOT mark work complete without tests
- - Follow `docs/architecture/testing.md` for test structure, fixture conventions, and authentication testing patterns
+ - Follow `docs/architecture/testing.md` for test structure, fixture conventions, authentication testing patterns, and security-sensitive rejection test expectations
+ - Tests should align with system flows defined in `docs/flows/*.md`, especially for security-sensitive paths such as checkout and payment confirmation.
 
  ---
 
@@ -265,7 +266,9 @@ When applicable, add tests for:
 - non-admin cannot perform admin actions
 - frontend-supplied price is ignored
 - invalid inputs are rejected
+- checkout and order creation reject tampered or invalid inputs without creating records
 - invalid payment webhook signatures are rejected
+- rejected security-sensitive requests do not mutate database state or trigger external side effects
 
 ---
 
