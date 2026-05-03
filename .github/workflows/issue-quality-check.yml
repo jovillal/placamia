@@ -1,0 +1,159 @@
+name: Issue quality check
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+
+jobs:
+  check-issue-template:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check implementation task template
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.issue.body || "";
+            const issueNumber = context.payload.issue.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const labelName = "needs-issue-template-fix";
+            const commentMarker = "<!-- issue-quality-check -->";
+
+            const requiredSections = [
+              "## Source of truth",
+              "## Problem",
+              "## Scope",
+              "## Acceptance Criteria",
+              "## Tests Required",
+              "## Documentation Required",
+              "## Out of Scope"
+            ];
+
+            const missingSections = requiredSections.filter(section => !body.includes(section));
+
+            function sectionContent(sectionTitle) {
+              const escapedTitle = sectionTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const match = body.match(new RegExp(`${escapedTitle}\\s*\\n([\\s\\S]*?)(?=\\n##\\s|$)`, "m"));
+              return match ? match[1].trim() : "";
+            }
+
+            function hasMeaningfulText(content) {
+              const stripped = content
+                .replace(/<!--[\s\S]*?-->/g, "")
+                .replace(/-\s*\[\s*\]\s*$/gm, "")
+                .trim();
+              return stripped.length > 0;
+            }
+
+            function hasChecklistItemText(content) {
+              return /-\s*\[[ xX]\]\s+\S+/.test(content);
+            }
+
+            const invalidFields = [];
+            const sourceOfTruth = sectionContent("## Source of truth");
+            const planningDocMatch = sourceOfTruth.match(/Planning doc \(required\):\s*(.+)/i);
+
+            if (!planningDocMatch || planningDocMatch[1].trim().length === 0) {
+              invalidFields.push("Add a planning document under `## Source of truth`.");
+            }
+
+            for (const section of ["## Problem", "## Scope", "## Out of Scope"]) {
+              if (!hasMeaningfulText(sectionContent(section))) {
+                invalidFields.push(`Fill in ${section}.`);
+              }
+            }
+
+            for (const section of ["## Acceptance Criteria", "## Tests Required", "## Documentation Required"]) {
+              const content = sectionContent(section);
+              if (!hasChecklistItemText(content) && !/\b(n\/a|not applicable|none)\b/i.test(content)) {
+                invalidFields.push(`Add at least one concrete item under ${section}.`);
+              }
+            }
+
+            const isValid = missingSections.length === 0 && invalidFields.length === 0;
+
+            async function ensureLabelExists() {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name: labelName });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({
+                  owner,
+                  repo,
+                  name: labelName,
+                  color: "d73a4a",
+                  description: "Issue must be updated to match the implementation task template."
+                });
+              }
+            }
+
+            async function upsertQualityComment(message) {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                per_page: 100
+              });
+
+              const existing = comments.find(comment =>
+                comment.user.type === "Bot" && comment.body.includes(commentMarker)
+              );
+
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner,
+                  repo,
+                  comment_id: existing.id,
+                  body: message
+                });
+                return;
+              }
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                body: message
+              });
+            }
+
+            if (isValid) {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  name: labelName
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+              return;
+            }
+
+            await ensureLabelExists();
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              labels: [labelName]
+            });
+
+            const details = [
+              ...missingSections.map(section => `- Missing section: ${section}`),
+              ...invalidFields.map(field => `- ${field}`)
+            ].join("\n");
+
+            const message = [
+              commentMarker,
+              "This issue does not yet meet the implementation task format.",
+              "",
+              details,
+              "",
+              `Please update it using \`.github/ISSUE_TEMPLATE/implementation_task.md\`. The \`${labelName}\` label will be removed automatically when the issue is fixed.`
+            ].join("\n");
+
+            await upsertQualityComment(message);
