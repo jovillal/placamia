@@ -269,6 +269,47 @@ When applicable, add tests for:
 
 ---
 
+## Source of Truth Hierarchy
+
+PlacamIA uses a layered source of truth model.
+
+### 1. Planning Documents (Primary)
+
+Located under:
+
+- `docs/flows/*.md`
+- `docs/planning/*.md`
+
+These define:
+
+- system behavior (flows)
+- domain concepts
+- feature scope
+- constraints
+- security expectations
+
+All implementation must follow these documents.
+
+### 2. GitHub Issues (Execution Layer)
+
+Issues represent executable work derived from planning documents.
+
+Each issue must:
+
+- reference a planning document
+- include clear acceptance criteria
+- remain scoped to a single concern
+
+Issues must not redefine system behavior.
+
+### 3. Mermaid Diagrams (Derived)
+
+Mermaid diagrams inside `docs/flows/*.md` are the canonical visual representation of system behavior.
+
+Manual diagrams (e.g. diagrams.net) are optional and must not be treated as authoritative.
+
+---
+
 ## Migration Rules
  - Always use Alembic for schema changes
  - Always generate migrations with autogenerate
@@ -276,8 +317,23 @@ When applicable, add tests for:
 
 ---
 
-## When implementing a task from GitHub issues:
-- Treat the GitHub issue acceptance criteria as the source of truth
+## Implementation Rules (Updated)
+
+Before implementing any issue:
+
+1. Read the referenced planning document
+2. Review `docs/flows/main-flow.md`
+3. Ensure implementation aligns with defined flow and constraints
+
+If discrepancies are found:
+
+- do not guess
+- do not silently adjust behavior
+- update planning docs or raise a question in the issue
+
+---
+
+### When implementing a task from GitHub issues:
 - In the pull request description, explicitly list which acceptance criteria were implemented
 - If any acceptance criterion was not implemented, state it clearly
 - If the issue lacks acceptance criteria, do not guess silently; keep implementation minimal and document assumptions in the PR
@@ -316,6 +372,19 @@ When adding or modifying code:
 - For each CRUD resource:
   - ensure it is discoverable via FastAPI docs (/docs)
 
+Any change that affects:
+
+- system flow
+- domain behavior
+- API contracts
+
+must update:
+
+- relevant planning document
+- and/or `docs/flows/main-flow.md`
+
+---
+
 ## Git Workflow Rules
 
 When working on a task:
@@ -327,6 +396,8 @@ When working on a task:
 - Make small, clear commits
 - Use descriptive commit messages (feat:, fix:, test:, etc.)
 - Keep changes scoped to the issue
+
+---
 
 ## Pull Request Rules
 
@@ -350,6 +421,8 @@ Each PR description must contain:
 - State any assumptions made due to ambiguity in the issue
 - State any related work intentionally left out of scope
 
+---
+
 ## Issue quality requirements
 
 Implementation issues should include:
@@ -360,6 +433,8 @@ Implementation issues should include:
 
 If these are missing, do not silently expand scope.
 
+---
+
 ## What NOT to do
  - Do not introduce AI features unless explicitly requested
  - Do not redesign architecture
@@ -368,8 +443,122 @@ If these are missing, do not silently expand scope.
 
 ---
 
+## Prohibited Behaviors
+
+- Implementing features not defined in planning documents
+- Treating GitHub issues as the source of truth for system design
+- Bypassing backend validation rules defined in planning docs
+- Introducing flow changes without updating Mermaid diagrams
+
+---
+
 ## When in doubt
 
  - prefer simplicity
  - prefer readability
  - prefer MVP constraints
+
+---
+
+## Codex Execution Protocol (Strict Mode)
+
+Codex must follow this protocol for every implementation task.
+
+### 1. Pre-Implementation Checklist (MANDATORY)
+
+Before writing any code, Codex must verify:
+
+- A planning document is referenced
+- The flow in `docs/flows/main-flow.md` is understood
+- The issue contains acceptance criteria
+
+If any of these are missing or unclear:
+
+- STOP
+- Do not implement blindly
+- Document assumptions in the PR
+
+---
+
+### 2. Scope Control
+
+Codex must:
+
+- implement ONLY what is explicitly required
+- NOT expand scope based on assumptions
+- NOT introduce new behavior without documentation updates
+
+If a required dependency is missing:
+
+- implement the minimum needed
+- clearly state the limitation in the PR
+
+---
+
+### 3. Deterministic Behavior
+
+Codex must ensure:
+
+- all business logic is deterministic
+- no hidden or implicit behavior is introduced
+- all decisions are traceable to:
+  - planning docs
+  - issue acceptance criteria
+
+---
+
+### 4. Validation Before Completion
+
+Before marking a task as complete, Codex must verify:
+
+- tests exist and pass
+- API behavior matches expected contract
+- no security rules were violated
+- no flow contradictions exist with Mermaid diagrams
+
+---
+
+### 5. Mandatory PR Self-Review
+
+Before submitting a PR, Codex must internally validate:
+
+- Did I deviate from the planning document?
+- Did I introduce behavior not explicitly defined?
+- Did I skip any acceptance criteria?
+- Did I update docs if behavior changed?
+
+If any answer is "yes":
+
+- explicitly document it in the PR
+
+---
+
+### 6. Stop Conditions (CRITICAL)
+
+Codex must STOP and NOT proceed if:
+
+- domain behavior is ambiguous
+- planning docs contradict each other
+- issue scope is unclear or incomplete
+- required security behavior is undefined
+
+In these cases:
+
+- implement minimal safe behavior OR
+- document assumptions clearly in the PR
+
+Never silently guess.
+
+---
+
+### 7. Output Expectations
+
+All implementations must produce:
+
+- working code
+- passing tests
+- updated documentation (if needed)
+- clear PR description with:
+  - acceptance criteria coverage
+  - assumptions
+  - limitations

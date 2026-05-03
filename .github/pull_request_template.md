@@ -33,3 +33,14 @@ Link the GitHub issue.
 - [ ] Tests added or updated
 - [ ] Docs updated if needed
 - [ ] MVP scope respected
+
+## Flow Alignment
+
+- [ ] Implementation follows the referenced flow
+- [ ] No flow steps were skipped or reordered
+- [ ] No new behavior was introduced outside the defined flow
+
+If flow changes were required:
+
+- [ ] Flow documentation updated (`docs/flows/...`)
+- [ ] Change explained in this PR
