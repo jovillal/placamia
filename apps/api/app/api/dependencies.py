@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthenticationError, AuthService
 
@@ -54,3 +54,29 @@ async def get_current_user(
         raise unauthorized_exception
 
     return user
+
+
+async def require_admin_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Require the authenticated current user to have the admin role.
+
+    Args:
+        current_user: Active user resolved from the authenticated request.
+
+    Returns:
+        The authenticated admin user.
+
+    Side effects:
+        None.
+
+    Raises:
+        HTTPException: When the current user is authenticated but not an admin.
+    """
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges are required",
+        )
+
+    return current_user
