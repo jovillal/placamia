@@ -11,6 +11,7 @@ venv/
 !.env.example
 
 # FastAPI / tooling
+*.egg-info/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
