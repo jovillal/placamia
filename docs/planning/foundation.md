@@ -60,16 +60,23 @@ tested properly, and maintained over time.
 - PostgreSQL database configured
 - Alembic migrations working
 - Base models (User, Category, Product)
+- Authentication and current-user dependency foundation
+- Admin authorization and audit logging foundation
 - Health endpoint implemented
-- Basic catalog endpoint implemented
+- Catalog category, product list, and product detail endpoints implemented
+- API style and endpoint structure documentation standardized
+- Security-focused testing architecture documented
 
-## Child Issues
+## Completed Issues
 
 - #11 finalize backend baseline and developer commands
+- #12 add AGENTS.md and architecture conventions
 - #13 standardize API style and endpoint structure docs
-- #38 Database diagram
+- #14 add pytest baseline and health endpoint integration test
+- #45 add security architecture and secure coding rules
 - #50 Add authorization and audit logging foundation
-- #59 document security-focused testing architecture
+- #54 Align MVP scope documentation with current no-AI MVP rules
+- #55 Align MVP scope documentation with current no-AI MVP rules
 
 ## Constraints
 

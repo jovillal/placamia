@@ -42,17 +42,20 @@ See `docs/architecture/domain-model.md`
 
 ## Child Issues
 
-- Send order to provider
-- define structured provider handoff payload
+- #34 Define structured provider handoff payload
 
-## Missing Issues
+Related Orders milestone:
 
-- Send order to provider (API/email/manual)
-- Handle provider response (accepted/rejected)
-- Implement retry logic for failed transmissions
-- Add logging for provider communication
-- Add validation for payload completeness
-- Add tests ensuring payload is built from persisted data only
+- #61 Send order to provider
+
+## Future Issues
+
+- Future issue required: handle provider response accepted/rejected states
+- Future issue required: implement retry logic for failed transmissions
+- Future issue required: add logging for provider communication
+- Future issue required: add validation for payload completeness
+- Future issue required: add tests ensuring payload is built from persisted data
+  only
 
 ## Constraints
 

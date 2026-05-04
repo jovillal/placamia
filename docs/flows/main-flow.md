@@ -96,11 +96,17 @@ stateDiagram-v2
 
 ## Planning Documents
 - `docs/planning/foundation.md`
+- `docs/planning/catalog.md`
+- `docs/planning/kits.md`
 - `docs/planning/templates-designs.md`
 - `docs/planning/pricing.md`
 - `docs/planning/orders.md`
 - `docs/planning/payments.md`
 - `docs/planning/provider.md`
+- `docs/planning/security.md`
+- `docs/planning/admin-backoffice.md`
+- `docs/planning/docs.md`
+- `docs/planning/mobile-placeholder.md`
 
 ## Rule
 

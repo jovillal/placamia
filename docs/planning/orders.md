@@ -59,15 +59,21 @@ See docs/api/endpoint-structure.md.
 - #30 Create Order and OrderItem models, migrations, and tests
 - #31 Create POST order endpoint with tests
 - #32 Create GET order status endpoint with tests
+- #33 Create GET order status endpoint with tests
 - #35 Implement order export service
+- #61 Send order to provider
 
-## Missing Issues
+Note: #32 and #33 currently overlap and should be reconciled before
+implementation.
 
-- Add order ownership / authorization checks
-- Add tests that rejected order creation does not mutate database state
-- Add idempotency/retry protection for order creation
-- Add explicit link between successful payment and order confirmation
-- Add provider handoff issue if not already tracked separately
+## Future Issues
+
+- Future issue required: add order ownership and authorization checks
+- Future issue required: add tests that rejected order creation does not mutate
+  database state
+- Future issue required: add idempotency/retry protection for order creation
+- Future issue required: add explicit link between successful payment and order
+  confirmation
 
 ## Constraints
 

@@ -43,8 +43,7 @@ This is a critical system that directly impacts revenue and security.
 
 ## Related Endpoints
 
-- POST /api/v1/quotes
-  (or pricing preview endpoint depending on naming)
+- POST /api/v1/pricing/quotes
 
 (See docs/api/endpoint-structure.md)
 
@@ -54,11 +53,16 @@ This is a critical system that directly impacts revenue and security.
 - #27 Implement pricing preview logic
 - #28 Create POST pricing preview endpoint with tests
 
-## Missing Issues
+## Related Security Milestone
 
-- Add pricing validation tests for edge cases
-- Add rejection logic for invalid configurations
-- Add logging for pricing mismatches (without sensitive data)
+- #51 Add server-side quote and checkout pricing test foundation
+
+## Future Issues
+
+- Future issue required: add pricing validation tests for edge cases
+- Future issue required: add rejection logic for invalid configurations
+- Future issue required: add logging for pricing mismatches without sensitive
+  data
 
 ## Constraints
 

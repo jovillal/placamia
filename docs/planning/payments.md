@@ -45,16 +45,20 @@ See `docs/api/endpoint-structure.md`.
 
 ## Child Issues
 
-- Define payment status lifecycle
+- #62 Define payment status lifecycle
 
-## Missing Issues
+## Related Security Milestone
 
-- Create Payment model, migration, and tests
-- Create payment initialization endpoint
-- Create payment webhook endpoint
-- Add webhook signature validation tests
-- Add replay/idempotency tests
-- Add order confirmation transition after verified payment
+- #53 Add payment webhook signature verification test foundation
+
+## Future Issues
+
+- Future issue required: create Payment model, migration, and tests
+- Future issue required: create payment initialization endpoint
+- Future issue required: create payment webhook endpoint
+- Future issue required: add replay/idempotency tests
+- Future issue required: add order confirmation transition after verified
+  payment
 
 ## Constraints
 
