@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -42,3 +42,42 @@ async def list_products(
     products = product_service.list_products()
 
     return {"data": [ProductRead.model_validate(product) for product in products]}
+
+
+@router.get(
+    "/{product_id}",
+    response_model=ProductRead,
+    summary="Get catalog product",
+    description="Returns one active catalog product by id.",
+    responses={404: {"description": "Product not found"}},
+)
+async def get_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+) -> ProductRead:
+    """Return one active catalog product by id.
+
+    Args:
+        product_id: Product identifier from the request path.
+        db: SQLAlchemy session provided by FastAPI dependency injection.
+
+    Returns:
+        The matching public product response.
+
+    Side effects:
+        None.
+
+    Raises:
+        HTTPException: When no active product exists for the requested id.
+    """
+    product_repository = ProductRepository(db)
+    product_service = ProductService(product_repository)
+    product = product_service.get_product(product_id)
+
+    if product is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found",
+        )
+
+    return ProductRead.model_validate(product)

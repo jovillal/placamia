@@ -125,6 +125,43 @@ def test_product_repository_lists_active_products_by_name():
         db.close()
 
 
+def test_product_repository_gets_active_product_by_id():
+    db = build_session()
+    try:
+        category = Category(name="Emergency", description=None)
+        db.add_all(
+            [
+                Product(
+                    name="Exit route sign",
+                    description=None,
+                    category=category,
+                    base_price=Decimal("12.50"),
+                ),
+                Product(
+                    name="Retired sign",
+                    description=None,
+                    category=category,
+                    base_price=Decimal("10.00"),
+                    is_active=False,
+                ),
+            ]
+        )
+        db.commit()
+
+        repository = ProductRepository(db)
+
+        active_product = repository.get_active_product_by_id(1)
+        inactive_product = repository.get_active_product_by_id(2)
+        missing_product = repository.get_active_product_by_id(999)
+
+        assert active_product is not None
+        assert active_product.name == "Exit route sign"
+        assert inactive_product is None
+        assert missing_product is None
+    finally:
+        db.close()
+
+
 def test_product_service_lists_products_from_repository():
     class FakeProductRepository:
         def get_active_products(self):
@@ -145,6 +182,9 @@ def test_product_service_lists_products_from_repository():
             return []
 
         def get_product_by_id(self, product_id):
+            return None
+
+        def get_active_product_by_id(self, product_id):
             return None
 
     service = ProductService(FakeProductRepository())
@@ -172,6 +212,9 @@ def test_product_service_gets_product_from_repository():
             return []
 
         def get_product_by_id(self, product_id):
+            return None
+
+        def get_active_product_by_id(self, product_id):
             assert product_id == 1
             return expected_product
 
@@ -258,3 +301,140 @@ def test_list_products_endpoint_is_documented_in_openapi():
     operation = schema["paths"]["/api/v1/catalog/products"]["get"]
     assert operation["summary"] == "List catalog products"
     assert "200" in operation["responses"]
+
+
+def test_get_product_endpoint_returns_active_catalog_product():
+    db = build_session()
+    category = Category(name="Warning", description="Warning signs")
+    db.add(
+        Product(
+            name="Electrical hazard sign",
+            description="Warning sign for electrical risk.",
+            category=category,
+            base_price=Decimal("20.00"),
+        )
+    )
+    db.commit()
+
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+
+        async def get_product():
+            transport = httpx.ASGITransport(app=app)
+            async with httpx.AsyncClient(
+                transport=transport,
+                base_url="http://testserver",
+            ) as client:
+                return await client.get("/api/v1/catalog/products/1")
+
+        response = asyncio.run(get_product())
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "id": 1,
+            "name": "Electrical hazard sign",
+            "description": "Warning sign for electrical risk.",
+            "category_id": 1,
+            "base_price": "20.00",
+        }
+        assert "is_active" not in response.json()
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_get_product_endpoint_returns_404_for_missing_product():
+    db = build_session()
+
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+
+        async def get_product():
+            transport = httpx.ASGITransport(app=app)
+            async with httpx.AsyncClient(
+                transport=transport,
+                base_url="http://testserver",
+            ) as client:
+                return await client.get("/api/v1/catalog/products/999")
+
+        response = asyncio.run(get_product())
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Product not found"}
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_get_product_endpoint_returns_404_for_inactive_product():
+    db = build_session()
+    category = Category(name="Warning", description="Warning signs")
+    db.add(
+        Product(
+            name="Retired warning sign",
+            description="No longer sold.",
+            category=category,
+            base_price=Decimal("15.00"),
+            is_active=False,
+        )
+    )
+    db.commit()
+
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+
+        async def get_product():
+            transport = httpx.ASGITransport(app=app)
+            async with httpx.AsyncClient(
+                transport=transport,
+                base_url="http://testserver",
+            ) as client:
+                return await client.get("/api/v1/catalog/products/1")
+
+        response = asyncio.run(get_product())
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Product not found"}
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_get_product_endpoint_is_documented_in_openapi():
+    async def get_openapi_schema():
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/openapi.json")
+
+    response = asyncio.run(get_openapi_schema())
+
+    assert response.status_code == 200
+    schema = response.json()
+    operation = schema["paths"]["/api/v1/catalog/products/{product_id}"]["get"]
+    assert operation["summary"] == "Get catalog product"
+    assert "200" in operation["responses"]
+    assert "404" in operation["responses"]

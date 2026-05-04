@@ -27,12 +27,13 @@ class ProductService:
         return self.product_repository.get_active_products()
 
     def get_product(self, product_id: int) -> Product | None:
-        """Get a single catalog product by identifier.
+        """Get a single active catalog product by identifier.
 
         Args:
             product_id: Product identifier to look up.
 
         Returns:
-            The matching product model instance, or None when no product exists.
+            The matching active product model instance, or None when no active
+            product exists.
         """
-        return self.product_repository.get_product_by_id(product_id)
+        return self.product_repository.get_active_product_by_id(product_id)
