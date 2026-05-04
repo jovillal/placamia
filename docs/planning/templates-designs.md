@@ -42,11 +42,11 @@ A Design must always be based on a Template.
 - #22 Create TemplateField model, migration, and tests
 - #23 Define MVP design lifecycle
 
-## Missing Issues
+## Future Issues
 
-- Create Design model, migration, and tests
-- Create design creation endpoint with tests
-- Create design detail endpoint with tests
+- Future issue required: create Design model, migration, and tests
+- Future issue required: create design creation endpoint with tests
+- Future issue required: create design detail endpoint with tests
 
 ## Constraints
 

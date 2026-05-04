@@ -1,4 +1,4 @@
-# Catalog Flow
+# Catalog
 
 ## Goal
 
@@ -10,47 +10,72 @@ This is the entry point of the MVP and must be simple, fast, and aligned with th
 
 - Categories
 - Products
-- Kits (read-only in this phase)
+- Product filters and pagination only after a dedicated issue defines the
+  supported parameters
+- Kit browsing is related catalog behavior, but kit-specific model and endpoint
+  work is tracked in `docs/planning/kits.md`
 
 ## Related Domain Concepts
 
 - Product = sellable item
-- Kit = bundle of products
+- Kit = bundle of products; see `docs/planning/kits.md`
 - Category = grouping for browsing
 
 ## Endpoints
 
+Implemented:
+
 - GET /api/v1/catalog/categories
-- GET /api/v1/catalog/products (active products only; no filters until a
-  dedicated issue defines them)
-- GET /api/v1/catalog/products/{id}
-- GET /api/v1/catalog/kits (future)
+- GET /api/v1/catalog/products
+- GET /api/v1/catalog/products/{product_id}
+
+Planned:
+
+- GET /api/v1/catalog/products with filtering and pagination
 
 ## Child Issues
+
+Completed:
 
 - #15 Create Category model, migration, and tests
 - #16 Create Product model, migration, and tests
 - #17 Add catalog seed data
 - #18 Create GET categories endpoint with tests
-- #19 Create GET products endpoint with filters and tests
+- #19 Create GET products endpoint with tests
 - #20 Create GET product detail endpoint with tests
+
+Planned:
+
+- #77 GET catalog products with filtering and pagination
+
+Related Kits milestone:
+
+- #24 Create Kit and KitItem models, migrations, and tests
+- #25 Create GET kits endpoint with tests
+
+Related Security milestone:
+
+- #52 Define inactive product behavior for customer catalog and ordering
 
 ## Constraints
 
 - Catalog endpoints are public (no auth required)
 - Only active products should be visible
 - No write operations in MVP (admin handled later)
+- Product listing filters and pagination must not be added until their accepted
+  query parameters and validation behavior are documented
 
 ## Security Considerations
 
 - Do not expose internal fields
 - Validate all query parameters
 - Prevent data leakage
+- Return inactive products as absent from public catalog responses
 
 ## Done When
 
 - Categories and products can be browsed
-- Product filters are implemented only after a dedicated issue defines the
-  supported filter parameters
-- Only valid products are returned
-- All endpoints are tested
+- Product detail can be retrieved for active products
+- Inactive products are excluded from public catalog responses
+- Product filters and pagination are implemented after #77 defines the contract
+- All catalog endpoints are tested
