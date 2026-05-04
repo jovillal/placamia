@@ -18,12 +18,13 @@ class ProductService:
         self.product_repository = product_repository
 
     def list_products(self) -> list[Product]:
-        """List catalog products available to the application.
+        """List active catalog products available to customers.
 
         Returns:
-            Products returned by the repository, currently ordered by name.
+            Active products returned by the repository, currently ordered by
+            name.
         """
-        return self.product_repository.get_products()
+        return self.product_repository.get_active_products()
 
     def get_product(self, product_id: int) -> Product | None:
         """Get a single catalog product by identifier.

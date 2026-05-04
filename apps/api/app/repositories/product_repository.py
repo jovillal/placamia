@@ -28,6 +28,17 @@ class ProductRepository:
         result = self.db.execute(select(Product).order_by(Product.name))
         return list(result.scalars().all())
 
+    def get_active_products(self) -> list[Product]:
+        """Return active products ordered by name.
+
+        Returns:
+            A list of active product model instances sorted alphabetically.
+        """
+        result = self.db.execute(
+            select(Product).where(Product.is_active.is_(True)).order_by(Product.name)
+        )
+        return list(result.scalars().all())
+
     def get_product_by_id(self, product_id: int) -> Product | None:
         """Return one product by primary key.
 
