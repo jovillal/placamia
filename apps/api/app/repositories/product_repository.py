@@ -49,3 +49,21 @@ class ProductRepository:
             The matching product model instance, or None when no product exists.
         """
         return self.db.get(Product, product_id)
+
+    def get_active_product_by_id(self, product_id: int) -> Product | None:
+        """Return one active product by primary key.
+
+        Args:
+            product_id: Product identifier to look up.
+
+        Returns:
+            The matching active product model instance, or None when no active
+            product exists.
+        """
+        result = self.db.execute(
+            select(Product).where(
+                Product.id == product_id,
+                Product.is_active.is_(True),
+            )
+        )
+        return result.scalar_one_or_none()
