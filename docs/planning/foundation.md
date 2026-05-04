@@ -29,7 +29,7 @@ tested properly, and maintained over time.
 - `docs/architecture/security.md` — security baseline and mandatory security rules
 - `docs/architecture/environment-strategy.md` — local/test/prod environment strategy
 - `docs/api/endpoint-structure.md` — API groups and implemented endpoint inventory
-- `docs/architecture/api-style.md` — API naming, request, response, and error conventions
+- `docs/api/api-style.md` — API naming, request, response, and error conventions
 - `docs/architecture/database-diagram.dbml` — database diagram source
 
 ## Key Decisions
