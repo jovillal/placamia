@@ -1,11 +1,14 @@
+import asyncio
 from datetime import UTC, datetime
 from decimal import Decimal
 
+import httpx
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.core.database import Base
+from app.core.database import Base, get_db
+from app.main import app
 from app.models.category import Category
 from app.models.product import Product
 from app.repositories.product_repository import ProductRepository
@@ -90,9 +93,41 @@ def test_product_repository_lists_products_by_name_and_gets_by_id():
         db.close()
 
 
+def test_product_repository_lists_active_products_by_name():
+    db = build_session()
+    try:
+        category = Category(name="Emergency", description=None)
+        db.add_all(
+            [
+                Product(
+                    name="Exit route sign",
+                    description=None,
+                    category=category,
+                    base_price=Decimal("12.50"),
+                ),
+                Product(
+                    name="Assembly point sign",
+                    description="Outdoor assembly point sign",
+                    category=category,
+                    base_price=Decimal("18.00"),
+                    is_active=False,
+                ),
+            ]
+        )
+        db.commit()
+
+        repository = ProductRepository(db)
+
+        products = repository.get_active_products()
+
+        assert [product.name for product in products] == ["Exit route sign"]
+    finally:
+        db.close()
+
+
 def test_product_service_lists_products_from_repository():
     class FakeProductRepository:
-        def get_products(self):
+        def get_active_products(self):
             return [
                 Product(
                     id=1,
@@ -105,6 +140,9 @@ def test_product_service_lists_products_from_repository():
                     updated_at=datetime(2026, 4, 26, tzinfo=UTC),
                 )
             ]
+
+        def get_products(self):
+            return []
 
         def get_product_by_id(self, product_id):
             return None
@@ -142,3 +180,81 @@ def test_product_service_gets_product_from_repository():
     product = service.get_product(1)
 
     assert product == expected_product
+
+
+def test_list_products_endpoint_returns_active_catalog_products():
+    db = build_session()
+    category = Category(name="Warning", description="Warning signs")
+    db.add_all(
+        [
+            Product(
+                name="Electrical hazard sign",
+                description="Warning sign for electrical risk.",
+                category=category,
+                base_price=Decimal("20.00"),
+            ),
+            Product(
+                name="Retired warning sign",
+                description="No longer sold.",
+                category=category,
+                base_price=Decimal("15.00"),
+                is_active=False,
+            ),
+        ]
+    )
+    db.commit()
+
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+
+        async def get_products():
+            transport = httpx.ASGITransport(app=app)
+            async with httpx.AsyncClient(
+                transport=transport,
+                base_url="http://testserver",
+            ) as client:
+                return await client.get("/api/v1/catalog/products")
+
+        response = asyncio.run(get_products())
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "data": [
+                {
+                    "id": 1,
+                    "name": "Electrical hazard sign",
+                    "description": "Warning sign for electrical risk.",
+                    "category_id": 1,
+                    "base_price": "20.00",
+                }
+            ]
+        }
+        assert "is_active" not in response.json()["data"][0]
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_list_products_endpoint_is_documented_in_openapi():
+    async def get_openapi_schema():
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/openapi.json")
+
+    response = asyncio.run(get_openapi_schema())
+
+    assert response.status_code == 200
+    schema = response.json()
+    operation = schema["paths"]["/api/v1/catalog/products"]["get"]
+    assert operation["summary"] == "List catalog products"
+    assert "200" in operation["responses"]

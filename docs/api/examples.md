@@ -51,6 +51,26 @@ GET /api/v1/catalog/categories
 }
 ```
 
+## Catalog Products
+
+```http
+GET /api/v1/catalog/products
+```
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "Emergency exit sign",
+      "description": "Standard sign for marking emergency exits.",
+      "category_id": 1,
+      "base_price": "18000.00"
+    }
+  ]
+}
+```
+
 ## Authentication Error
 
 ```json

@@ -21,7 +21,8 @@ This is the entry point of the MVP and must be simple, fast, and aligned with th
 ## Endpoints
 
 - GET /api/v1/catalog/categories
-- GET /api/v1/catalog/products
+- GET /api/v1/catalog/products (active products only; no filters until a
+  dedicated issue defines them)
 - GET /api/v1/catalog/products/{id}
 - GET /api/v1/catalog/kits (future)
 
@@ -49,6 +50,7 @@ This is the entry point of the MVP and must be simple, fast, and aligned with th
 ## Done When
 
 - Categories and products can be browsed
-- Filters work correctly
+- Product filters are implemented only after a dedicated issue defines the
+  supported filter parameters
 - Only valid products are returned
 - All endpoints are tested
