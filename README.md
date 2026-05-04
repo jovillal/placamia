@@ -67,6 +67,29 @@ Start the local PostgreSQL database:
 docker compose -f infra/docker/docker-compose.yml up -d
 ```
 
+If Docker reports `permission denied while trying to connect to the docker API`,
+run the command with `sudo` once or add your user to the `docker` group:
+
+```bash
+sudo usermod -aG docker "$USER"
+```
+
+Then log out and back in before retrying without `sudo`.
+
+If Docker reports that port `5432` is already in use, another local PostgreSQL
+server is already listening on the default port. Check it with:
+
+```bash
+sudo ss -ltnp 'sport = :5432'
+```
+
+Use one of these options:
+
+- Use the existing local PostgreSQL server and create the `placamia` database
+  and user there.
+- Change the Docker Compose port mapping to `5433:5432`, then update
+  `apps/api/.env` so `DATABASE_URL` and `DB_PORT` use port `5433`.
+
 Apply migrations:
 
 ```bash
