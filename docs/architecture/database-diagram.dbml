@@ -49,3 +49,22 @@ Table categories {
     name [unique, name: "ix_categories_name"]
   }
 }
+
+Table products {
+  id integer [pk, increment]
+  name varchar(255) [not null]
+  description text
+  category_id integer [not null]
+  base_price numeric(10, 2) [not null]
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    id [name: "ix_products_id"]
+    name [name: "ix_products_name"]
+    category_id [name: "ix_products_category_id"]
+  }
+}
+
+Ref: products.category_id > categories.id
