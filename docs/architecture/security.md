@@ -221,7 +221,25 @@ Admin actions include:
 - order status changes
 - supplier integration actions
 
-Every admin action must be logged.
+Every admin action must be logged. Admin endpoints must use the reusable admin
+authorization dependency after the current user has been resolved from a
+backend-verified bearer token and loaded from the database. Admin checks must
+read the backend-owned user role and must not trust frontend-supplied `role`,
+`is_admin`, `user_id`, or ownership fields.
+
+Audit logs must include:
+
+- authenticated admin user id
+- stable action name
+- affected resource type
+- affected resource id when available
+- structured context needed for incident investigation
+- creation timestamp
+
+Audit logs must not include passwords, access tokens, refresh tokens, secrets,
+full payment card data, or full environment variables. Audit log writes should
+be part of the same database transaction as the admin change when possible so
+the business change and its audit record succeed or fail together.
 
 ### 12. Security Testing Requirements
 
