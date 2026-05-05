@@ -48,6 +48,8 @@ Current MVP relationship rules:
 - Template may have many TemplateFields
 - TemplateField defines allowed customization inputs
 - TemplateField does not store user customization values
+- MVP field_type values are text, select, number, and boolean
+- allowed_values is used only by field types that explicitly support it
 
 ### Design
 Represents a user-customized instance derived from a template.

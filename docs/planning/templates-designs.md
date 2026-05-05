@@ -24,6 +24,30 @@ Templates, TemplateFields, and Designs have separate responsibilities:
 - Design stores one user's validated customization values for one Template.
   Design records do not redefine Template metadata or TemplateField rules.
 
+## TemplateField Semantics
+
+MVP TemplateFields support this explicit `field_type` set:
+
+- `text`
+- `select`
+- `number`
+- `boolean`
+
+Unknown `field_type` values are invalid. Future field types require planning
+document updates before implementation.
+
+`allowed_values` is interpreted by `field_type`:
+
+| field_type | allowed_values interpretation |
+| --- | --- |
+| `text` | Must be null. The submitted value is free text, validated by backend text rules. |
+| `select` | Must be a non-empty list. The submitted value must match exactly one listed value. |
+| `number` | Must be null for MVP. The submitted value is numeric, with min/max rules deferred until explicitly planned. |
+| `boolean` | Must be null. The submitted value must be true or false. |
+
+Backend validation is the source of truth for `field_type`, `allowed_values`,
+and submitted customization values.
+
 ## Flow
 
 1. User selects a Template
