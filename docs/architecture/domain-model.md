@@ -20,6 +20,14 @@ Templates and Designs are separate entities.
 ### Template
 Represents a reusable, catalog-level base design.
 
+Current MVP data fields:
+- id
+- name
+- description
+- is_active
+- created_at
+- updated_at
+
 ### Design
 Represents a user-customized instance derived from a template.
 
