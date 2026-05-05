@@ -1,13 +1,12 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import create_engine, inspect
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
 from app.core.database import Base
 from app.models.template import Template
 from app.repositories.template_repository import TemplateRepository
 from app.services.template_service import TemplateService
+from sqlalchemy import create_engine, inspect
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 
 def build_session():
