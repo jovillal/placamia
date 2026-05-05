@@ -48,6 +48,7 @@ Templates, TemplateFields, and Designs have separate responsibilities:
      source of truth.
 4. Design persisted
    - Backend creates a Design only after validation succeeds.
+   - Design is immutable after creation (MVP assumption).
    - Rejected Design creation must not persist a Design record or partial
      customization data.
 5. Design available for pricing
@@ -58,6 +59,10 @@ Templates, TemplateFields, and Designs have separate responsibilities:
 ## Persistence Model
 
 Every Design must reference exactly one valid Template.
+
+Design is immutable after creation (MVP assumption). If a user needs a changed
+configuration, the backend should create a new Design instead of mutating the
+existing one.
 
 Minimum MVP Design fields:
 
@@ -109,6 +114,7 @@ pricing and order creation to validate and use the Design deterministically.
 - Invalid combinations must be rejected
 - No AI-based customization (MVP rule)
 - No Design record may be created for invalid customization input
+- Design is immutable after creation (MVP assumption)
 
 ## Security Considerations
 
