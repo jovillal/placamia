@@ -28,6 +28,29 @@ Current MVP data fields:
 - created_at
 - updated_at
 
+### TemplateField
+Represents a configurable input definition attached to a Template.
+
+Current MVP data fields:
+- id
+- template_id
+- field_name
+- field_type
+- is_required
+- allowed_values
+- display_order
+- is_active
+- created_at
+- updated_at
+
+Current MVP relationship rules:
+- TemplateField belongs to one Template
+- Template may have many TemplateFields
+- TemplateField defines allowed customization inputs
+- TemplateField does not store user customization values
+- MVP field_type values are text, select, number, and boolean
+- allowed_values is used only by field types that explicitly support it
+
 ### Design
 Represents a user-customized instance derived from a template.
 
