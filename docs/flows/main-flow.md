@@ -79,6 +79,20 @@ flowchart TD
     P2 -. rejected .-> R4[Mark provider rejection]
 ```
 
+## Design Lifecycle
+
+The MVP Design lifecycle is:
+
+1. Template selected
+2. Customization submitted
+3. Customization validated by the backend
+4. Design persisted only after successful validation
+5. Design available for backend pricing
+
+Rejected customization must not create a Design record. Templates and Designs
+remain separate domain concepts: a Template is reusable catalog data, while a
+Design is one validated customized instance derived from a Template.
+
 ## Order Status Lifecycle
 
 ```mermaid

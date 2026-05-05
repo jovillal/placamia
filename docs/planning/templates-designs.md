@@ -10,9 +10,19 @@ user-specific configurations that can be quoted and ordered.
 ## Core Concepts
 
 - Template = reusable base design
+- TemplateField = configurable input definition attached to a Template
 - Design = user-customized instance derived from a template
 
 A Design must always be based on a Template.
+
+Templates, TemplateFields, and Designs have separate responsibilities:
+
+- Template stores catalog-level reusable design metadata, such as name,
+  description, active state, and timestamps.
+- TemplateField stores the allowed customization inputs for a Template, such as
+  field name, field type, required state, allowed values, and display order.
+- Design stores one user's validated customization values for one Template.
+  Design records do not redefine Template metadata or TemplateField rules.
 
 ## Flow
 
@@ -21,6 +31,46 @@ A Design must always be based on a Template.
 3. Backend validates options
 4. Design is created and persisted
 5. Design is used for quote calculation
+
+## MVP Design Lifecycle
+
+1. Template selected
+   - User chooses one active Template.
+   - Backend verifies the Template exists and is available for customization.
+2. Customization submitted
+   - User submits values for the TemplateFields defined for that Template.
+   - The request must reference the selected Template.
+3. Customization validated
+   - Backend validates required fields, field types, allowed values, and
+     supported combinations.
+   - Backend rejects invalid customization combinations.
+   - Frontend validation is helpful for usability, but it is not trusted as the
+     source of truth.
+4. Design persisted
+   - Backend creates a Design only after validation succeeds.
+   - Rejected Design creation must not persist a Design record or partial
+     customization data.
+5. Design available for pricing
+   - Pricing can use the persisted Design and backend rules to calculate a
+     quote.
+   - Pricing must not trust frontend-calculated amounts.
+
+## Persistence Model
+
+Every Design must reference exactly one valid Template.
+
+Minimum MVP Design fields:
+
+- id
+- template_id
+- customization_values
+- created_at
+- updated_at
+
+`customization_values` stores the validated user selections for the referenced
+Template at a high level. The exact storage type will be defined by the Design
+model implementation issue, but it must preserve enough structured data for
+pricing and order creation to validate and use the Design deterministically.
 
 ## Scope
 
@@ -44,15 +94,21 @@ A Design must always be based on a Template.
 
 ## Future Issues
 
+- #22 Create TemplateField model, migration, and tests
 - Future issue required: create Design model, migration, and tests
-- Future issue required: create design creation endpoint with tests
-- Future issue required: create design detail endpoint with tests
+- Future issue required: create Design repository and service behavior with tests
+- Future issue required: create design creation endpoint with validation and
+  rejection tests
+- Future issue required: create design detail endpoint with ownership/security
+  tests
+- Future issue required: connect persisted Designs to backend pricing
 
 ## Constraints
 
 - Designs must always reference a valid Template
 - Invalid combinations must be rejected
 - No AI-based customization (MVP rule)
+- No Design record may be created for invalid customization input
 
 ## Security Considerations
 
@@ -60,6 +116,8 @@ A Design must always be based on a Template.
 - Do not trust frontend-provided values
 - Enforce allowed combinations of fields
 - Prevent injection of invalid design data
+- Do not trust frontend-provided ownership fields
+- Rejected design creation must not mutate persisted data
 
 ## Done When
 
