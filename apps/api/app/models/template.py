@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.template_field import TemplateField
 
 
 class Template(Base):
@@ -32,4 +36,8 @@ class Template(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+    template_fields: Mapped[list[TemplateField]] = relationship(
+        "TemplateField",
+        back_populates="template",
     )
