@@ -1,0 +1,17 @@
+vars {
+  base_url: http://localhost:8000
+  api_prefix: /api/v1
+  product_id: 1
+  access_token:
+}
+
+docs {
+  # PlacamIA API
+
+  Demo-ready Bruno collection for the local FastAPI backend.
+
+  Start the backend with `make dev`, select the `Local` environment, and run
+  the public catalog requests. The authenticated request uses the
+  `access_token` environment variable and is expected to fail with 401 until a
+  valid local token is provided.
+}

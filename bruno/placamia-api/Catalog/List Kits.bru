@@ -1,0 +1,16 @@
+meta {
+  name: List Kits
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{base_url}}{{api_prefix}}/catalog/kits
+  body: none
+  auth: none
+}
+
+docs {
+  Lists active public catalog kits. Kit contents include active product
+  references and quantities.
+}
