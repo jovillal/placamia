@@ -103,3 +103,35 @@ Table template_fields {
 }
 
 Ref: template_fields.template_id > templates.id
+
+Table kits {
+  id integer [pk, increment]
+  name varchar(255) [not null]
+  description text
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    id [name: "ix_kits_id"]
+    name [name: "ix_kits_name"]
+  }
+}
+
+Table kit_items {
+  id integer [pk, increment]
+  kit_id integer [not null]
+  product_id integer [not null]
+  quantity integer [not null]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    id [name: "ix_kit_items_id"]
+    kit_id [name: "ix_kit_items_kit_id"]
+    product_id [name: "ix_kit_items_product_id"]
+  }
+}
+
+Ref: kit_items.kit_id > kits.id
+Ref: kit_items.product_id > products.id
