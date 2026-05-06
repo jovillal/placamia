@@ -84,6 +84,9 @@ The current implemented API endpoints are:
 | `GET` | `/api/v1/catalog/products` | Catalog | Public | `{ "data": ProductRead[] }` |
 | `GET` | `/api/v1/catalog/products/{product_id}` | Catalog | Public | `ProductRead` object |
 
+The demo Bruno collection in `bruno/placamia-api` mirrors this implemented
+inventory for local manual testing and demos.
+
 ## Planned MVP Endpoint Groups
 
 The following groups are reserved by the MVP flow and planning documents, but

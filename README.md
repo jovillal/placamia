@@ -120,6 +120,21 @@ Useful URLs:
 - OpenAPI schema: `http://localhost:8000/openapi.json`
 - Health check: `http://localhost:8000/api/v1/health/`
 
+## Demo API collection
+
+A demo-ready Bruno collection lives at:
+
+```text
+bruno/placamia-api
+```
+
+Open that directory in Bruno and select the `Local` environment after starting
+the backend with `make dev`. The collection includes health, catalog categories,
+catalog products, catalog product detail, catalog kits, and current-user
+requests.
+
+See `docs/api/bruno.md` for details.
+
 ## Run tests
 
 ```bash

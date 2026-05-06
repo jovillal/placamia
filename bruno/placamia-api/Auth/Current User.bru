@@ -1,0 +1,20 @@
+meta {
+  name: Current User
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}{{api_prefix}}/auth/me
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+docs {
+  Returns the authenticated current user when `access_token` contains a valid
+  local bearer token. Without a token, this request should return 401.
+}

@@ -1,0 +1,15 @@
+meta {
+  name: Health Check
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}{{api_prefix}}/health/
+  body: none
+  auth: none
+}
+
+docs {
+  Confirms the local API is running.
+}
