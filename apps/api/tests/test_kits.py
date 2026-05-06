@@ -1,11 +1,14 @@
+import asyncio
 from datetime import UTC, datetime
 from decimal import Decimal
 
+import httpx
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.core.database import Base
+from app.core.database import Base, get_db
+from app.main import app
 from app.models.category import Category
 from app.models.kit import Kit
 from app.models.kit_item import KitItem
@@ -176,6 +179,56 @@ def test_kit_repository_excludes_inactive_kits():
         db.close()
 
 
+def test_kit_service_lists_public_items_for_active_products_only():
+    active_item = KitItem(
+        product=Product(
+            id=1,
+            name="Exit route sign",
+            description=None,
+            category_id=1,
+            base_price=Decimal("12.50"),
+            is_active=True,
+            created_at=datetime(2026, 5, 6, tzinfo=UTC),
+            updated_at=datetime(2026, 5, 6, tzinfo=UTC),
+        ),
+        product_id=1,
+        quantity=2,
+    )
+    inactive_item = KitItem(
+        product=Product(
+            id=2,
+            name="Retired sign",
+            description=None,
+            category_id=1,
+            base_price=Decimal("9.00"),
+            is_active=False,
+            created_at=datetime(2026, 5, 6, tzinfo=UTC),
+            updated_at=datetime(2026, 5, 6, tzinfo=UTC),
+        ),
+        product_id=2,
+        quantity=1,
+    )
+    kit = Kit(
+        id=1,
+        name="Emergency evacuation kit",
+        description=None,
+        is_active=True,
+        created_at=datetime(2026, 5, 6, tzinfo=UTC),
+        updated_at=datetime(2026, 5, 6, tzinfo=UTC),
+    )
+    kit.kit_items = [inactive_item, active_item]
+
+    class FakeKitRepository:
+        def get_active_kits(self):
+            return [kit]
+
+    service = KitService(FakeKitRepository())
+
+    items = service.list_public_kit_items(kit)
+
+    assert items == [active_item]
+
+
 def test_kit_service_lists_kits_from_repository():
     expected_kit = Kit(
         id=1,
@@ -195,3 +248,108 @@ def test_kit_service_lists_kits_from_repository():
     kits = service.list_kits()
 
     assert kits == [expected_kit]
+
+
+def test_list_kits_endpoint_returns_active_kits_with_active_product_items():
+    db = build_session()
+    category = Category(name="Emergency", description=None)
+    active_product = Product(
+        name="Exit route sign",
+        description=None,
+        category=category,
+        base_price=Decimal("12.50"),
+    )
+    inactive_product = Product(
+        name="Retired exit sign",
+        description=None,
+        category=category,
+        base_price=Decimal("9.00"),
+        is_active=False,
+    )
+    active_kit = Kit(
+        name="Emergency evacuation kit",
+        description="Common signage for evacuation routes.",
+    )
+    inactive_kit = Kit(
+        name="Retired kit",
+        description=None,
+        is_active=False,
+    )
+    db.add_all(
+        [
+            KitItem(
+                kit=active_kit,
+                product=active_product,
+                quantity=4,
+            ),
+            KitItem(
+                kit=active_kit,
+                product=inactive_product,
+                quantity=1,
+            ),
+            KitItem(
+                kit=inactive_kit,
+                product=active_product,
+                quantity=2,
+            ),
+        ]
+    )
+    db.commit()
+
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+
+        async def get_kits():
+            transport = httpx.ASGITransport(app=app)
+            async with httpx.AsyncClient(
+                transport=transport,
+                base_url="http://testserver",
+            ) as client:
+                return await client.get("/api/v1/catalog/kits")
+
+        response = asyncio.run(get_kits())
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "data": [
+                {
+                    "id": 1,
+                    "name": "Emergency evacuation kit",
+                    "description": "Common signage for evacuation routes.",
+                    "items": [
+                        {
+                            "product_id": active_product.id,
+                            "quantity": 4,
+                        }
+                    ],
+                }
+            ]
+        }
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_list_kits_endpoint_is_documented_in_openapi():
+    async def get_openapi_schema():
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/openapi.json")
+
+    response = asyncio.run(get_openapi_schema())
+
+    assert response.status_code == 200
+    schema = response.json()
+    operation = schema["paths"]["/api/v1/catalog/kits"]["get"]
+    assert operation["summary"] == "List catalog kits"
+    assert "200" in operation["responses"]

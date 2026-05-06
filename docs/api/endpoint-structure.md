@@ -80,6 +80,7 @@ The current implemented API endpoints are:
 | `GET` | `/api/v1/health/` | Health | Public | `{ "status": "ok" }` |
 | `GET` | `/api/v1/auth/me` | Auth | Required | `UserRead` object |
 | `GET` | `/api/v1/catalog/categories` | Catalog | Public | `{ "data": CategoryRead[] }` |
+| `GET` | `/api/v1/catalog/kits` | Catalog | Public | `{ "data": KitRead[] }` |
 | `GET` | `/api/v1/catalog/products` | Catalog | Public | `{ "data": ProductRead[] }` |
 | `GET` | `/api/v1/catalog/products/{product_id}` | Catalog | Public | `ProductRead` object |
 
@@ -90,7 +91,6 @@ their endpoints are not implemented by this standardization task:
 
 | Group | Expected Path Prefix | Flow Alignment |
 | --- | --- | --- |
-| Catalog kits | `/api/v1/catalog/kits` | User browses kit bundles. |
 | Templates | `/api/v1/templates` | User selects a template. |
 | Designs | `/api/v1/designs` | Backend validates customization and creates a design. |
 | Pricing | `/api/v1/pricing` | Backend calculates pricing from trusted catalog and rules data. |
