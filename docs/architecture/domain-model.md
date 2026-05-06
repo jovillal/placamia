@@ -2,6 +2,9 @@
 
 ## Core entities
 - User
+- Product
+- Kit
+- KitItem
 - Template
 - TemplateField
 - Design
@@ -16,6 +19,39 @@
 
 ## Critical rule
 Templates and Designs are separate entities.
+
+### Kit
+Represents a curated bundle of catalog products.
+
+Current MVP data fields:
+- id
+- name
+- description
+- is_active
+- created_at
+- updated_at
+
+Current MVP relationship rules:
+- Kit may have many KitItems
+- Kit is read-only in customer-facing MVP catalog behavior
+- Kit does not store pricing, discount, checkout, or provider handoff behavior
+
+### KitItem
+Represents one product entry inside a Kit.
+
+Current MVP data fields:
+- id
+- kit_id
+- product_id
+- quantity
+- created_at
+- updated_at
+
+Current MVP relationship rules:
+- KitItem belongs to one Kit
+- KitItem links to one existing Product
+- KitItem stores quantity metadata only
+- KitItem does not duplicate Product metadata or pricing
 
 ### Template
 Represents a reusable, catalog-level base design.
