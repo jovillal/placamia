@@ -28,6 +28,7 @@ Implemented:
 - GET /api/v1/catalog/categories
 - GET /api/v1/catalog/products
 - GET /api/v1/catalog/products/{product_id}
+- GET /api/v1/catalog/kits
 
 Planned:
 
@@ -53,6 +54,10 @@ Related Kits milestone:
 - #24 Create Kit and KitItem models, migrations, and tests
 - #25 Create GET kits endpoint with tests
 
+Related Phase 2 follow-up:
+
+- #87 Define kit public visibility rules
+
 Related Security milestone:
 
 - #52 Define inactive product behavior for customer catalog and ordering
@@ -75,7 +80,10 @@ Related Security milestone:
 ## Done When
 
 - Categories and products can be browsed
+- Kits can be browsed through the public catalog
 - Product detail can be retrieved for active products
 - Inactive products are excluded from public catalog responses
 - Product filters and pagination are implemented after #77 defines the contract
+- Kit public visibility refinements are handled by #87 when phase-2/mobile UX
+  needs require them
 - All catalog endpoints are tested
