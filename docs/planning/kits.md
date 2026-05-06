@@ -41,8 +41,26 @@ Completed:
 ## Future Issues
 
 - Future issue required: create kit detail endpoint with tests
-- Future issue required: define inactive product behavior inside kits
+- #87 Define kit public visibility rules
 - Future issue required: define kit pricing interaction with pricing rules
+
+## Current MVP Listing Behavior
+
+`GET /api/v1/catalog/kits` returns active Kits only.
+
+Kit contents expose active Product references only. Inactive Products are
+omitted from each Kit's `items` array and are not shown as available kit
+contents.
+
+Current public KitItem shape:
+
+- product_id
+- quantity
+
+Active Kits with zero active Product contents are currently returned with an
+empty `items` array. Whether those Kits should be hidden, and whether kit
+responses should include product summaries instead of only product identifiers,
+is tracked by #87 as phase-2 work.
 
 ## Constraints
 
@@ -66,3 +84,4 @@ Completed:
 - Kit responses include only documented public fields.
 - Inactive products are not exposed as available kit contents.
 - Kit endpoints are tested.
+- Phase-2 public visibility refinements are tracked by #87.
