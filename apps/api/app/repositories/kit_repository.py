@@ -1,7 +1,8 @@
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.kit import Kit
+from app.models.kit_item import KitItem
 
 
 class KitRepository:
@@ -21,12 +22,17 @@ class KitRepository:
         self.db = db
 
     def get_active_kits(self) -> list[Kit]:
-        """Return active kits ordered by name.
+        """Return active kits ordered by name with bundle item details loaded.
 
         Returns:
-            A list of active Kit model instances sorted alphabetically.
+            A list of active Kit model instances sorted alphabetically with
+            KitItems and their Products available for catalog response
+            filtering.
         """
         result = self.db.execute(
-            select(Kit).where(Kit.is_active.is_(True)).order_by(Kit.name)
+            select(Kit)
+            .options(selectinload(Kit.kit_items).selectinload(KitItem.product))
+            .where(Kit.is_active.is_(True))
+            .order_by(Kit.name)
         )
         return list(result.scalars().all())

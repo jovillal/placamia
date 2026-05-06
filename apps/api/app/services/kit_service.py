@@ -1,4 +1,5 @@
 from app.models.kit import Kit
+from app.models.kit_item import KitItem
 from app.repositories.kit_repository import KitRepository
 
 
@@ -25,3 +26,15 @@ class KitService:
             Active kits returned by the repository, currently ordered by name.
         """
         return self.kit_repository.get_active_kits()
+
+    def list_public_kit_items(self, kit: Kit) -> list[KitItem]:
+        """List public KitItems for one Kit.
+
+        Args:
+            kit: Kit whose bundle contents should be exposed.
+
+        Returns:
+            KitItems whose linked Product is active. Inactive Products are
+            treated as unavailable catalog contents and are excluded.
+        """
+        return [item for item in kit.kit_items if item.product.is_active]

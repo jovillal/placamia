@@ -23,7 +23,7 @@ remaining read-only in the MVP customer catalog.
 
 ## Endpoints
 
-Planned:
+Implemented:
 
 - GET /api/v1/catalog/kits
 
@@ -33,7 +33,7 @@ Future issue required:
 
 ## Child Issues
 
-Planned:
+Completed:
 
 - #24 Create Kit and KitItem models, migrations, and tests
 - #25 Create GET kits endpoint with tests

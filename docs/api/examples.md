@@ -87,6 +87,30 @@ GET /api/v1/catalog/products/1
 }
 ```
 
+## Catalog Kits
+
+```http
+GET /api/v1/catalog/kits
+```
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "Emergency evacuation kit",
+      "description": "Common signage for evacuation routes.",
+      "items": [
+        {
+          "product_id": 1,
+          "quantity": 4
+        }
+      ]
+    }
+  ]
+}
+```
+
 ## Authentication Error
 
 ```json
