@@ -76,8 +76,8 @@ and submitted customization values.
    - Rejected Design creation must not persist a Design record or partial
      customization data.
 5. Design available for pricing
-   - Pricing can use the persisted Design and backend rules to calculate a
-     quote.
+   - Pricing must use persisted validated Design data and backend pricing rules
+     to calculate a quote.
    - Pricing must not trust frontend-calculated amounts.
 
 ## Persistence Model
@@ -101,6 +101,22 @@ Template at a high level. The exact storage type will be defined by the Design
 model implementation issue, but it must preserve enough structured data for
 pricing and order creation to validate and use the Design deterministically.
 
+## Current MVP Assumptions
+
+The MVP intentionally keeps Design persistence simple.
+
+Current assumptions:
+
+- Designs are immutable after creation
+- Designs belong to exactly one Template
+- TemplateFields define the allowed customization structure
+- `customization_values` is validated at the service layer, not the database
+  layer
+- Design validation happens before persistence
+- Pricing will consume persisted validated Design data
+- Design editing/versioning is out of scope for MVP
+- Collaborative/shared Design workflows are out of scope for MVP
+
 ## Scope
 
 - Template retrieval (read-only)
@@ -117,20 +133,27 @@ pricing and order creation to validate and use the Design deterministically.
 
 ## Child Issues
 
+Completed:
+
 - #21 Create Template model, migration, and tests
 - #22 Create TemplateField model, migration, and tests
 - #23 Define MVP design lifecycle
 
+Planned:
+
+- #90 Define Design customization contract
+- #91 Create Design model, migration, repository/service, and tests
+- #92 Create Design validation service with rejection tests
+
 ## Future Issues
 
-- #22 Create TemplateField model, migration, and tests
-- Future issue required: create Design model, migration, and tests
-- Future issue required: create Design repository and service behavior with tests
-- Future issue required: create design creation endpoint with validation and
-  rejection tests
-- Future issue required: create design detail endpoint with ownership/security
-  tests
+- Future issue required: create POST /api/v1/designs endpoint with validation
+  and rejection tests
+- Future issue required: create GET /api/v1/designs/{id} endpoint with
+  ownership/security tests
 - Future issue required: connect persisted Designs to backend pricing
+- Future issue required: define Design serialization and normalization rules if
+  pricing/order requirements require stricter structure guarantees
 
 ## Constraints
 
@@ -148,6 +171,8 @@ pricing and order creation to validate and use the Design deterministically.
 - Prevent injection of invalid design data
 - Do not trust frontend-provided ownership fields
 - Rejected design creation must not mutate persisted data
+- Future user-specific Design endpoints must derive ownership from
+  authenticated requests, not frontend-provided identifiers
 
 ## Done When
 
