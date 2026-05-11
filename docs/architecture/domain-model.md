@@ -102,6 +102,8 @@ Current MVP relationship rules:
 - Template may have many Designs
 - Design stores validated user customization values
 - Design does not store TemplateField definitions
+- Design customization values are keyed by TemplateField field_name
+- Design customization values contain only backend-validated field values
 - AI-assisted variation generation is out of scope for MVP
 
 ## Early relationship ideas
