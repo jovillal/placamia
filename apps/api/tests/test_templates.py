@@ -131,6 +131,39 @@ def test_template_repository_gets_active_template_by_id():
         db.close()
 
 
+def test_template_repository_gets_template_by_id_regardless_of_active_state():
+    db = build_session()
+    try:
+        db.add_all(
+            [
+                Template(
+                    name="Emergency exit template",
+                    description=None,
+                ),
+                Template(
+                    name="Retired template",
+                    description="No longer available for new Designs.",
+                    is_active=False,
+                ),
+            ]
+        )
+        db.commit()
+
+        repository = TemplateRepository(db)
+
+        active_template = repository.get_template_by_id(1)
+        inactive_template = repository.get_template_by_id(2)
+        missing_template = repository.get_template_by_id(999)
+
+        assert active_template is not None
+        assert active_template.is_active is True
+        assert inactive_template is not None
+        assert inactive_template.is_active is False
+        assert missing_template is None
+    finally:
+        db.close()
+
+
 def test_template_service_lists_templates_from_repository():
     class FakeTemplateRepository:
         def get_active_templates(self):

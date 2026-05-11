@@ -1,7 +1,6 @@
+from app.models.template import Template
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
-from app.models.template import Template
 
 
 class TemplateRepository:
@@ -46,4 +45,17 @@ class TemplateRepository:
                 Template.is_active.is_(True),
             )
         )
+        return result.scalar_one_or_none()
+
+    def get_template_by_id(self, template_id: int) -> Template | None:
+        """Return one reusable base template by primary key regardless of state.
+
+        Args:
+            template_id: Template identifier to look up.
+
+        Returns:
+            The matching Template model instance, or None when no template
+            exists.
+        """
+        result = self.db.execute(select(Template).where(Template.id == template_id))
         return result.scalar_one_or_none()
