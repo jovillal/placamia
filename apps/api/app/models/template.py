@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 if TYPE_CHECKING:
+    from app.models.design import Design
     from app.models.template_field import TemplateField
 
 
@@ -39,5 +40,9 @@ class Template(Base):
     )
     template_fields: Mapped[list[TemplateField]] = relationship(
         "TemplateField",
+        back_populates="template",
+    )
+    designs: Mapped[list[Design]] = relationship(
+        "Design",
         back_populates="template",
     )
