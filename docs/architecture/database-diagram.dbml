@@ -104,6 +104,21 @@ Table template_fields {
 
 Ref: template_fields.template_id > templates.id
 
+Table designs {
+  id integer [pk, increment]
+  template_id integer [not null]
+  customization_values json [not null]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    id [name: "ix_designs_id"]
+    template_id [name: "ix_designs_template_id"]
+  }
+}
+
+Ref: designs.template_id > templates.id
+
 Table kits {
   id integer [pk, increment]
   name varchar(255) [not null]
