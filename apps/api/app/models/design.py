@@ -3,10 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, ForeignKey, JSON, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.core.database import Base
+from sqlalchemy import JSON, DateTime, ForeignKey, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
     from app.models.template import Template

@@ -1,14 +1,13 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import create_engine, inspect
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
 from app.core.database import Base
 from app.models.design import Design
 from app.models.template import Template
 from app.repositories.design_repository import DesignRepository
 from app.services.design_service import DesignService
+from sqlalchemy import create_engine, inspect
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 
 def build_session():
@@ -66,9 +65,7 @@ def test_design_model_persists_customization_values_for_template():
 def test_design_model_table_matches_mvp_fields():
     db = build_session()
     try:
-        columns = {
-            column["name"] for column in inspect(db.bind).get_columns("designs")
-        }
+        columns = {column["name"] for column in inspect(db.bind).get_columns("designs")}
 
         assert columns == {
             "id",
