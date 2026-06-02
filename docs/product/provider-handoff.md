@@ -1,13 +1,17 @@
-# Provider Handoff (Relieves de Colombia)
+# Provider Handoff
 
 ## Goal
 
 Ensure orders are transmitted clearly for manufacturing.
 
 The MVP follows Path A: this handoff happens only after verified customer
-payment. Relieves de Colombia accepts or rejects a paid order after handoff; it
-does not provide a pre-checkout quote confirmation for direct-checkout MVP
-items.
+payment. The assigned manufacturing provider accepts or rejects a paid order
+after handoff; it does not provide a pre-checkout quote confirmation for
+direct-checkout MVP items.
+
+Partner-specific validation findings may name the provider that supplied them,
+but handoff data, status transitions, and authorization rules must remain
+provider-neutral.
 
 ---
 
@@ -69,5 +73,5 @@ Each order must include:
 - provider acceptance/rejection can be manual or API later
 - QR pickup scan is preferred for shipment; authorized operator update is the
   fallback until carrier validation is complete
-- customer invoicing, Relieves invoicing, provider payout, and SLA consequences
+- customer invoicing, provider invoicing, provider payout, and SLA consequences
   must be documented before automation

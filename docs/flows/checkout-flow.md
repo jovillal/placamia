@@ -38,7 +38,7 @@ flowchart TD
 
     B8 --> D3
     B8 --> B9[Prepare paid-order handoff]
-    B9 --> P1[Send paid order to Relieves]
+    B9 --> P1[Send paid order to assigned provider]
 
     B1 -. not eligible .-> R2[Reject checkout]
     B2 -. invalid pricing input .-> R3[Reject checkout]
@@ -62,8 +62,8 @@ flowchart TD
 - No order is confirmed without verified payment
 - Invalid payments must not mutate order state
 - Replayed payment events must not duplicate state changes
-- Relieves confirmation must not be used as a pre-payment checkout gate in the
-  MVP direct-checkout path
+- Manufacturing provider confirmation must not be used as a pre-payment
+  checkout gate in the MVP direct-checkout path
 - Products or configurations that require manual provider confirmation must be
   unavailable for direct checkout until canonical docs define their behavior
 

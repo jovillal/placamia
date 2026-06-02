@@ -8,7 +8,7 @@ Kits are sellable bundles that reduce friction for common signage needs while
 remaining read-only in the MVP customer catalog.
 
 For the direct-checkout MVP path, a kit may be purchasable only when every
-required item in the kit is active, compatible with current provider
+required item in the kit is active, compatible with assigned-provider
 availability, and backend-priceable.
 
 ## Scope
@@ -61,7 +61,7 @@ contents.
 
 Direct-checkout eligibility is stricter than public listing. A listed Kit must
 not be purchasable unless its required contents are active, compatible with
-current Relieves availability, and priceable by backend rules.
+current assigned-provider availability, and priceable by backend rules.
 
 Current public KitItem shape:
 

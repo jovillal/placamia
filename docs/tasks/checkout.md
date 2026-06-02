@@ -5,7 +5,7 @@
 Track executable checkout work for the Path A MVP.
 
 Path A means backend pricing and direct-checkout eligibility are validated
-before payment. Relieves acceptance or rejection happens after verified customer
+before payment. Provider acceptance or rejection happens after verified customer
 payment as part of paid-order handoff.
 
 ## Source Documents
@@ -17,6 +17,9 @@ payment as part of paid-order handoff.
 - `docs/planning/payments.md`
 - `docs/planning/provider.md`
 - `docs/planning/security.md`
+- `docs/validation/pricing-model.md`
+- `docs/validation/availability-model.md`
+- `docs/validation/commercial-model.md`
 - `docs/research/legal-business-questions.md`
 
 ## Current Baseline
@@ -26,19 +29,21 @@ Known planning issues:
 - pricing model/service/endpoint are planned but not Path A-complete
 - order lifecycle needs `ready_for_pickup` and `cancellation_requested`
 - payment webhook work must distinguish payment-provider confirmation from
-  Relieves acceptance
+  manufacturing-provider acceptance
 - provider handoff must be generated only after verified payment
 - cancellation/refund terms need legal/business validation before real checkout
 
-## Relieves and Legal Validation Tasks
+## Provider and Legal Validation Tasks
 
 These should be closed before production checkout depends on them.
+Answers may name the specific validation partner that provided them, but policy
+and implementation must be recorded in provider-neutral terms.
 
 - Confirm cancellation/refund/warranty terms shown before payment.
-- Confirm what happens when Relieves rejects a paid order.
+- Confirm what happens when the assigned provider rejects a paid order.
 - Confirm whether provider payout happens at dispatch, delivery, invoice
   receipt, or another milestone.
-- Confirm who invoices the customer and when Relieves invoices PlacamIA.
+- Confirm who invoices the customer and when providers invoice PlacamIA.
 - Confirm SLA consequences before automating penalties or compensation.
 - Confirm QR pickup feasibility or define authorized operator fallback.
 
@@ -106,7 +111,8 @@ Acceptance criteria:
 
 ### 6. Paid-Order Provider Handoff
 
-Send a complete paid-order payload to Relieves after verified payment.
+Send a complete paid-order payload to the assigned provider after verified
+payment.
 
 Acceptance criteria:
 
@@ -123,7 +129,7 @@ Implement fulfillment statuses through `ready_for_pickup`, `shipped`, and
 
 Acceptance criteria:
 
-- Relieves/operator can mark accepted, rejected, in production, ready for
+- Provider/operator can mark accepted, rejected, in production, ready for
   pickup, and delivered according to authorization rules
 - `ready_for_pickup -> shipped` requires valid QR pickup event or authorized
   operator fallback

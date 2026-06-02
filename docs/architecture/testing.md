@@ -158,7 +158,7 @@ Required rejection coverage by area:
 | Admin behavior | Non-admin users cannot perform admin actions, and accepted admin mutations are auditable. |
 
 Security-sensitive areas include pricing, order creation, payment confirmation,
-and supplier handoff. Treat changes in those areas as security-relevant even
+and provider handoff. Treat changes in those areas as security-relevant even
 when the endpoint or service appears operational rather than authentication
 focused.
 
@@ -178,7 +178,7 @@ issue acceptance criteria.
 ## Critical Business Security Tests
 
 The following test categories are mandatory for PlacamIA due to the nature of
-pricing, checkout, and supplier fulfillment.
+pricing, checkout, and provider fulfillment.
 
 ### Pricing Integrity
 
@@ -210,11 +210,11 @@ pricing, checkout, and supplier fulfillment.
   - reject replayed events (if idempotency is implemented)
 - Orders are not marked as paid without verified payment provider confirmation.
 
-### Supplier Handoff Integrity
+### Provider Handoff Integrity
 
-- Supplier payloads are generated only from persisted backend data.
+- Provider payloads are generated only from persisted backend data.
 - Tests verify that:
-  - frontend input is not directly forwarded to supplier
+  - frontend input is not directly forwarded to provider
   - all required production fields are present
   - payload structure matches expected contract
 
@@ -243,7 +243,7 @@ For any rejected request:
 
 - no database records are created
 - no existing records are modified
-- no external side effects are triggered, such as supplier calls, payment
+- no external side effects are triggered, such as provider handoff calls, payment
   provider calls, emails, file writes, or other outbound requests
 
 Examples:
@@ -262,7 +262,7 @@ Examples:
 
 - checkout/order creation
 - payment confirmation webhooks
-- supplier order submission
+- provider order submission
 
 Tests should verify:
 

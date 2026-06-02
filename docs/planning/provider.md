@@ -2,18 +2,24 @@
 
 ## Goal
 
-Transmit validated orders to the manufacturing provider (Relieves de Colombia)
-in a clear, structured, and reliable way.
+Transmit validated orders to the assigned manufacturing provider in a clear,
+structured, and reliable way.
 
 This is a critical boundary between PlacamIA and real-world production.
 
-The MVP follows Path A: Relieves receives a paid-order handoff only after
-customer payment is verified. Relieves acceptance or rejection happens after
-payment; it is not a pre-checkout RFQ gate for fully parametrizable MVP items.
+The MVP follows Path A: the assigned provider receives a paid-order handoff only
+after customer payment is verified. Provider acceptance or rejection happens
+after payment; it is not a pre-checkout RFQ gate for fully parametrizable MVP
+items.
+
+Partner-specific validation findings may name the provider that supplied them,
+but the system must be designed so additional manufacturing providers can be
+onboarded later without changing the customer checkout flow.
 
 ## Core Principles
 
 - Provider payloads must be generated from persisted backend data
+- Provider assignment must be backend-owned
 - Do not forward raw frontend input
 - Payload must be complete and unambiguous
 - Transmission must be reliable and traceable
@@ -23,20 +29,28 @@ payment; it is not a pre-checkout RFQ gate for fully parametrizable MVP items.
 See `docs/product/provider-handoff.md` and
 `docs/flows/provider-fulfillment-flow.md`.
 
+Related validation docs:
+
+- `docs/validation/provider-onboarding-checklist.md`
+- `docs/validation/product-classification.md`
+- `docs/validation/availability-model.md`
+- `docs/validation/commercial-model.md`
+
 ## Flow
 
 1. Order is confirmed after verified customer payment
 2. Backend prepares paid-order payload from Order, OrderItems, and Design data
-3. Backend sends the paid-order payload to Relieves
-4. Relieves accepts or rejects the paid order
-5. Relieves manufactures accepted orders
-6. Relieves prepares the package and attaches the order QR when available
+3. Backend sends the paid-order payload to the assigned provider
+4. Provider accepts or rejects the paid order
+5. Provider manufactures accepted orders
+6. Provider prepares the package and attaches the order QR when available
 7. Carrier pickup scan, or operator fallback, marks the order shipped
 8. Backend updates order status and customer notifications accordingly
 
 ## Scope
 
 - Provider payload transmission
+- Backend-owned provider assignment for paid-order handoff
 - Provider response handling
 - Order status updates based on provider feedback
 - Error handling and retries
@@ -44,6 +58,12 @@ See `docs/product/provider-handoff.md` and
 
 ## Related Concepts
 
+- Provider = configured manufacturing partner that can receive paid-order
+  handoffs
+- Provider assignment = backend-owned decision about which configured provider
+  will fulfill a direct-checkout order item or order
+- Provider availability = provider-specific operational signal for the current
+  catalog period
 - Order
 - OrderItem
 - Design
@@ -70,17 +90,18 @@ Related Orders milestone:
   only
 - Future issue required: validate QR pickup scan or define operator shipment
   fallback before implementing automated shipment updates
-- Future issue required: document customer invoicing, Relieves invoicing,
-  PlacamIA payment to Relieves, and SLA consequences before automating them
+- Future issue required: document customer invoicing, provider invoicing,
+  PlacamIA payment to providers, and SLA consequences before automating them
 
 ## Constraints
 
 - Do not send incomplete orders
 - Do not send unvalidated data
 - Do not allow frontend to influence provider payload directly
+- Do not allow frontend to choose or spoof the assigned provider
 - Provider communication must be idempotent where possible
 - Do not send provider handoff before verified payment
-- Do not use Relieves acceptance as a checkout prerequisite for MVP direct
+- Do not use provider acceptance as a checkout prerequisite for MVP direct
   checkout items
 - Do not automate accounting, payout, or SLA consequences until legal and
   accounting policy is documented

@@ -58,8 +58,8 @@ flowchart TD
     D7[(Order status)]
 
     %% Provider lane
-    P1[Relieves receives paid order]
-    P2{Relieves accepts order?}
+    P1[Assigned provider receives paid order]
+    P2{Provider accepts order?}
     P3[Manufacture order]
     P4[Prepare package with QR]
     P5[Carrier scans QR at pickup]
@@ -154,8 +154,10 @@ stateDiagram-v2
 ## Fulfillment Notes
 
 PlacamIA owns the customer relationship, customer payment, customer
-notifications, and order tracking. Relieves de Colombia acts as the
-manufacturing provider and does not contact the customer directly in the MVP.
+notifications, and order tracking. The assigned manufacturing provider produces
+and prepares the order, but does not contact the customer directly in the MVP.
+Partner-specific validation findings may name the provider that supplied them,
+but this flow must remain provider-neutral.
 
 The carrier QR scan is the canonical trigger for moving an accepted order from
 `ready_for_pickup` to `shipped`, once the QR mechanism is technically validated
@@ -164,7 +166,8 @@ record the equivalent shipment event without changing the status lifecycle.
 
 Customer cancellation after payment is a request, not an automatic mutation.
 The approval rule depends on the order state and the cancellation/refund policy
-agreed with Relieves. The customer must see the applicable terms before payment.
+agreed with the assigned provider and documented by PlacamIA. The customer must
+see the applicable terms before payment.
 
 ## Planning Documents
 - `docs/planning/foundation.md`

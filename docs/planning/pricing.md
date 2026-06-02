@@ -35,7 +35,7 @@ backend-owned rules without manual provider quoting.
    - options are valid
    - product is active
    - product or kit is eligible for direct checkout
-   - current provider availability allows sale
+   - assigned-provider availability allows sale
 4. Backend calculates:
    - base price
    - adjustments (material, size)
@@ -49,6 +49,12 @@ backend-owned rules without manual provider quoting.
 - Pricing calculation service
 - Pricing preview endpoint
 - Direct-checkout eligibility validation for pricing requests
+
+## Related Validation Docs
+
+- `docs/validation/pricing-model.md`
+- `docs/validation/product-classification.md`
+- `docs/validation/availability-model.md`
 
 ## Related Endpoints
 
@@ -83,7 +89,7 @@ backend-owned rules without manual provider quoting.
   - designs
 - Pricing must reject any product, kit, design, material, size, finish,
   quantity, or customization value that cannot be deterministically priced
-- Products or configurations that require manual Relieves confirmation must not
+- Products or configurations that require manual provider confirmation must not
   return a checkout-ready price in MVP
 
 ## Security Considerations

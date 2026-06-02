@@ -21,7 +21,12 @@ RFQ/provider-confirmed checkout remains future work for manual/custom products.
 - Kit model and listing foundation
 - Path A flow/planning/research reconciliation
 
-## Phase 1 — Relieves Validation
+## Phase 1 — Provider Validation
+
+Phase 1 outputs must be captured as provider-neutral data from the current
+validation partner so PlacamIA can onboard additional manufacturing providers
+later. Findings may name the specific partner that provided them; the work plan
+must not.
 
 ### 1. Direct-Checkout Catalog Validation
 
@@ -37,7 +42,9 @@ Outputs:
 
 Source docs:
 
-- `docs/research/relieves-partner-question-checklist.md`
+- `docs/validation/product-classification.md`
+- `docs/validation/provider-onboarding-checklist.md`
+- `docs/research/provider-partner-question-log.md`
 - `docs/tasks/catalog.md`
 
 ### 2. Pricing and Availability Validation
@@ -47,7 +54,7 @@ eligibility.
 
 Outputs:
 
-- Relieves pricing table owner
+- validation partner pricing table owner
 - first pricing table by product/family
 - weekly availability states and process
 - availability update owner and cadence
@@ -55,6 +62,8 @@ Outputs:
 
 Source docs:
 
+- `docs/validation/pricing-model.md`
+- `docs/validation/availability-model.md`
 - `docs/planning/pricing.md`
 - `docs/planning/catalog.md`
 - `docs/tasks/catalog.md`
@@ -68,12 +77,13 @@ Outputs:
 
 - customer cancellation/refund/warranty terms
 - merchant/seller/invoice model
-- Relieves invoice and payout process
+- validation partner invoice and payout process
 - SLA consequences
 - safe compliance/recommendation language
 
 Source docs:
 
+- `docs/validation/commercial-model.md`
 - `docs/research/legal-business-questions.md`
 - `docs/tasks/checkout.md`
 
@@ -150,7 +160,7 @@ Related docs:
 Implement:
 
 - paid-order payload generation
-- handoff to Relieves
+- handoff to assigned provider
 - provider acceptance/rejection
 - in-production and ready-for-pickup status
 - QR shipment event or authorized operator fallback

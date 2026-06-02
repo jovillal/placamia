@@ -11,7 +11,7 @@ and audit logging foundation.
 ## Scope
 
 - Admin endpoint grouping and authorization requirements
-- Admin-only product, kit, price, order, supplier, and user workflows
+- Admin-only product, kit, price, order, provider, and user workflows
 - Audit logging for security-relevant admin actions
 - Current-user and role handling for protected admin routes
 
@@ -43,7 +43,7 @@ Open, but needs issue-template cleanup before implementation:
 
 - Admin endpoints must require admin authorization.
 - Admin mutations must be auditable when they affect products, kits, prices,
-  discounts, orders, supplier integration, or users.
+  discounts, orders, provider integration, or users.
 - Do not introduce a full RBAC system unless a planning document and issue
   explicitly define it.
 - Do not expose admin behavior through customer-facing catalog endpoints.
