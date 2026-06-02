@@ -6,6 +6,10 @@ Allow users to browse a curated catalog of products and kits.
 
 This is the entry point of the MVP and must be simple, fast, and aligned with the goal of reducing friction in selecting required signage.
 
+The MVP follows Path A: catalog items may be presented for direct checkout only
+when they are active, compatible with current provider availability, and fully
+priceable by backend rules.
+
 ## Scope
 
 - Categories
@@ -14,12 +18,15 @@ This is the entry point of the MVP and must be simple, fast, and aligned with th
   supported parameters
 - Kit browsing is related catalog behavior, but kit-specific model and endpoint
   work is tracked in `docs/planning/kits.md`
+- Provider availability visibility for direct-checkout eligibility
 
 ## Related Domain Concepts
 
 - Product = sellable item
 - Kit = bundle of products; see `docs/planning/kits.md`
 - Category = grouping for browsing
+- Provider availability = soft operational signal from Relieves for the current
+  catalog period, not exact inventory reservation
 
 ## Endpoints
 
@@ -66,6 +73,10 @@ Related Security milestone:
 
 - Catalog endpoints are public (no auth required)
 - Only active products should be visible
+- Public catalog must not expose unavailable, manual-quote-only, or
+  non-priceable products as directly purchasable
+- Weekly Relieves availability is a soft operational input and does not imply
+  exact inventory reservation
 - No write operations in MVP (admin handled later)
 - Product listing filters and pagination must not be added until their accepted
   query parameters and validation behavior are documented
@@ -76,6 +87,9 @@ Related Security milestone:
 - Validate all query parameters
 - Prevent data leakage
 - Return inactive products as absent from public catalog responses
+- Return unavailable or manual-quote-only products as absent from direct
+  checkout responses unless a future documented flow defines a non-checkout
+  presentation mode
 
 ## Done When
 
@@ -83,6 +97,8 @@ Related Security milestone:
 - Kits can be browsed through the public catalog
 - Product detail can be retrieved for active products
 - Inactive products are excluded from public catalog responses
+- Unavailable and manual-quote-only products are not exposed as directly
+  purchasable
 - Product filters and pagination are implemented after #77 defines the contract
 - Kit public visibility refinements are handled by #87 when phase-2/mobile UX
   needs require them

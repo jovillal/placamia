@@ -217,8 +217,7 @@ Minimum MVP Design fields:
 - updated_at
 
 `customization_values` stores the validated user selections for the referenced
-Template at a high level. The exact storage type will be defined by the Design
-model implementation issue, but it must preserve enough structured data for
+Template as structured JSON. It must preserve enough structured data for
 pricing and order creation to validate and use the Design deterministically.
 
 ## Current MVP Assumptions
@@ -258,9 +257,6 @@ Completed:
 - #21 Create Template model, migration, and tests
 - #22 Create TemplateField model, migration, and tests
 - #23 Define MVP design lifecycle
-
-Planned:
-
 - #90 Define Design customization contract
 - #91 Create Design model, migration, repository/service, and tests
 - #92 Create Design validation service with rejection tests

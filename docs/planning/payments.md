@@ -12,9 +12,11 @@ order based only on frontend confirmation.
 - Do not store card data.
 - Use a payment provider for payment processing.
 - Store only payment references, statuses, order id, amount, currency, and timestamps.
-- Verify provider confirmation before marking an order as paid.
+- Verify payment-provider confirmation before marking an order as paid.
 - Reject invalid or missing webhook signatures.
 - Replayed payment events must not reapply state changes.
+- Relieves acceptance or rejection happens after verified payment and must not
+  be treated as a payment confirmation.
 
 ## Flow
 
@@ -26,6 +28,7 @@ order based only on frontend confirmation.
 6. Backend updates Payment state
 7. Backend moves Order from `draft` to `confirmed`
 8. Confirmed order becomes eligible for provider handoff
+9. Relieves accepts or rejects the paid order after handoff
 
 ## Scope
 
@@ -64,8 +67,11 @@ See `docs/api/endpoint-structure.md`.
 
 - Do not store card data.
 - Do not trust frontend payment confirmation.
-- Do not mark orders as paid without verified provider confirmation.
+- Do not mark orders as paid without verified payment-provider confirmation.
 - Do not trigger provider handoff until payment is verified.
+- Do not wait for Relieves acceptance before confirming customer payment.
+- Do not initialize payment for inactive, unavailable, manual-quote-only, or
+  non-priceable checkout items.
 
 ## Security Considerations
 
@@ -79,6 +85,7 @@ Required protections:
 - no card storage
 - strict provider payload validation
 - no order state mutation on invalid webhook
+- no provider handoff on failed, invalid, missing, or replayed payment events
 
 See docs/architecture/security.md and docs/architecture/testing.md.
 
@@ -93,11 +100,13 @@ Payments must include tests for:
 - failed payment does not confirm order
 - frontend confirmation alone does not mark order as paid
 - invalid webhook does not mutate order/payment state
+- provider handoff is not triggered by invalid or failed payment
+- Relieves acceptance is not required to mark a verified payment as paid
 
 ## Done When
 
 - Payment lifecycle is documented
 - Payment records are persisted safely
-- Provider confirmation is verified
+- Payment-provider confirmation is verified
 - Orders are confirmed only after verified payment
 - Tests cover successful and rejected flows
