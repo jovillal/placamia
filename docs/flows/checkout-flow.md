@@ -2,39 +2,59 @@
 
 ## Purpose
 
-Define the process from pricing confirmation to order creation and payment verification.
+Define the process from backend pricing to order creation and payment
+verification.
 
 This flow is security-critical.
+
+The MVP checkout path is direct checkout for fully parametrizable catalog items.
+Checkout must not wait for provider quote confirmation, but it must reject any
+item that cannot be priced and validated by backend-owned rules.
 
 ## Flow Diagram
 
 ```mermaid
 flowchart TD
-    U1[User requests checkout] --> B1[Validate design and pricing]
+    U1[User requests checkout] --> B1[Validate direct-checkout eligibility]
 
     B1 --> D1[(Design)]
-    B1 --> D2[(Pricing rules)]
+    B1 --> D2[(Catalog, pricing rules, availability)]
 
-    B1 --> B2[Create draft order]
-    B2 --> D3[(Order)]
+    B1 --> B2[Recalculate backend price]
+    B2 --> B3[Show cancellation and refund terms]
+    B3 --> U2[User accepts terms and confirms checkout]
 
-    B2 --> B3[Initialize payment]
+    U2 --> B4[Create draft order]
+    B4 --> D3[(Order)]
 
-    U2[User completes payment] --> B4[Receive payment webhook]
+    B4 --> B5[Initialize payment]
 
-    B4 --> B5[Verify signature]
+    U3[User completes payment] --> B6[Receive payment webhook]
 
-    B5 -->|valid| B6[Confirm order]
-    B5 -->|invalid| R1[Reject payment]
+    B6 --> B7[Verify signature and replay safety]
 
-    B6 --> D3
+    B7 -->|valid| B8[Confirm order]
+    B7 -->|invalid| R1[Reject payment without mutation]
+
+    B8 --> D3
+    B8 --> B9[Prepare paid-order handoff]
+    B9 --> P1[Send paid order to Relieves]
+
+    B1 -. not eligible .-> R2[Reject checkout]
+    B2 -. invalid pricing input .-> R3[Reject checkout]
 ```
 ---
 
 ### Key Rules
 - Orders must be created from backend-validated data
 - Frontend price must be ignored
+- Checkout is allowed only for active, fully parametrizable, backend-priceable
+  products and kits
+- Manual quotes and provider-confirmed pricing are out of scope for the direct
+  checkout MVP path
+- Cancellation and refund terms must be shown before payment
 - Payment must be verified via provider webhook
+- Paid-order provider handoff happens only after verified payment
 
 ---
 
@@ -42,6 +62,10 @@ flowchart TD
 - No order is confirmed without verified payment
 - Invalid payments must not mutate order state
 - Replayed payment events must not duplicate state changes
+- Relieves confirmation must not be used as a pre-payment checkout gate in the
+  MVP direct-checkout path
+- Products or configurations that require manual provider confirmation must be
+  unavailable for direct checkout until canonical docs define their behavior
 
 ---
 
@@ -49,10 +73,13 @@ flowchart TD
 - `docs/planning/pricing.md`
 - `docs/planning/orders.md`
 - `docs/planning/payments.md`
+- `docs/planning/provider.md`
 
 ---
 
 ## Security Notes
 - Reject invalid signatures
 - Do not trust frontend confirmation
+- Do not trust frontend-supplied price, availability, quantity limits, or
+  ownership claims
 - Ensure idempotency in payment handling

@@ -1,11 +1,17 @@
 # MVP Scope
 
+## Product Decision
+
+The MVP follows Path A: direct checkout for products and kits that are fully
+parametrizable, compatible with current Relieves availability, and priceable by
+backend-owned rules.
+
 ## Included
 - user can browse the product and kit catalog
 - user can browse template catalog
 - user can create a design from a template
 - user can customize template fields through rules-based options
-- user can request quote/pricing
+- user can request backend pricing for direct-checkout items
 - user can complete checkout
 - user can place an order
 - user can track order status
@@ -18,9 +24,17 @@
 - multi-tenant admin tools
 - manufacturer optimization features
 - complex discount engines
+- RFQ/provider-confirmed checkout before payment
+- manual-quote products in direct checkout
+- exact provider inventory reservation
+- automated provider payout, invoicing, or SLA enforcement
 
 ## Post-MVP Notes
 
 AI-assisted features and credit systems may be reconsidered after the MVP, but
 they are not part of the current catalog, rules-based customization, pricing,
 checkout, or order tracking scope.
+
+RFQ flows and manual provider-confirmed pricing may be reconsidered after the
+direct-checkout MVP proves demand. Until then, products that require manual
+quoting or provider confirmation must not be sold through checkout.

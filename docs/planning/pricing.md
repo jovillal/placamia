@@ -9,12 +9,18 @@ frontend-provided totals.
 
 This is a critical system that directly impacts revenue and security.
 
+The MVP follows Path A: direct checkout is available only for products, kits,
+and design configurations that are fully parametrizable and can be priced by
+backend-owned rules without manual provider quoting.
+
 ## Core Principles
 
 - Backend is the single source of truth for pricing
 - Frontend-provided prices are ignored
 - Pricing must be recalculated on every request
 - Invalid configurations must be rejected
+- Manual quotes and provider-confirmed pricing are out of scope for direct
+  checkout MVP items
 
 (See AGENTS.md and Testing Architecture)
 
@@ -28,6 +34,8 @@ This is a critical system that directly impacts revenue and security.
    - template exists
    - options are valid
    - product is active
+   - product or kit is eligible for direct checkout
+   - current provider availability allows sale
 4. Backend calculates:
    - base price
    - adjustments (material, size)
@@ -40,6 +48,7 @@ This is a critical system that directly impacts revenue and security.
 - Pricing rule definition
 - Pricing calculation service
 - Pricing preview endpoint
+- Direct-checkout eligibility validation for pricing requests
 
 ## Related Endpoints
 
@@ -72,6 +81,10 @@ This is a critical system that directly impacts revenue and security.
   - products
   - kits
   - designs
+- Pricing must reject any product, kit, design, material, size, finish,
+  quantity, or customization value that cannot be deterministically priced
+- Products or configurations that require manual Relieves confirmation must not
+  return a checkout-ready price in MVP
 
 ## Security Considerations
 
@@ -79,6 +92,7 @@ This is a critical system that directly impacts revenue and security.
 - Validate all input fields
 - Reject invalid or inconsistent configurations
 - Prevent quantity abuse
+- Reject stale, unavailable, inactive, or manual-quote-only catalog items
 
 ## Testing Requirements
 
@@ -87,6 +101,7 @@ Pricing must include explicit tests for:
 - valid pricing calculation
 - invalid product options rejected
 - inactive products rejected
+- unavailable or manual-quote-only products rejected
 - frontend price ignored
 - edge cases for quantity and configuration
 
@@ -95,4 +110,5 @@ Pricing must include explicit tests for:
 - Pricing endpoint returns correct values
 - Invalid inputs are rejected
 - Pricing is consistent across repeated calls
+- Pricing rejects items that are not eligible for direct checkout
 - Tests cover all critical scenarios

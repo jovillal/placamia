@@ -17,6 +17,9 @@ test-coverage work.
 - Payment webhook verification test foundation
 - Inactive product behavior across catalog and ordering
 - Server-side quote and checkout pricing test foundation
+- Direct-checkout eligibility for active, available, backend-priceable catalog
+  items
+- Paid-order provider handoff after verified payment
 
 ## Related Docs
 
@@ -25,6 +28,8 @@ test-coverage work.
 - `docs/architecture/security-review-existing-backend.md`
 - `docs/flows/main-flow.md`
 - `docs/flows/checkout-flow.md`
+- `docs/flows/catalog-flow.md`
+- `docs/flows/provider-fulfillment-flow.md`
 
 ## Core Principles
 
@@ -33,6 +38,9 @@ test-coverage work.
 - Never expose another user's data.
 - Never log secrets, tokens, full payment data, or sensitive payloads.
 - Rejected security-sensitive requests must not mutate database state.
+- Never trust frontend availability, price, quantity, ownership, or order-state
+  claims.
+- Never trigger provider handoff before verified payment.
 
 ## Implemented Foundation
 
@@ -73,6 +81,8 @@ Needs issue-template cleanup before implementation:
 - Do not add payment, checkout, order, provider, or admin behavior from a
   security-hardening issue unless that behavior is explicitly scoped.
 - Keep security tests focused on actual risk and documented system flows.
+- Do not implement RFQ/provider-confirmed checkout as part of the MVP direct
+  checkout path unless canonical flow docs are explicitly changed first.
 
 ## Done When
 
@@ -81,4 +91,6 @@ Needs issue-template cleanup before implementation:
 - Role handling is documented and tested at the chosen level of strictness.
 - Pricing, checkout, payment, order, and admin issues include security test
   expectations before implementation.
+- Direct-checkout issues reject inactive, unavailable, manual-quote-only, and
+  non-priceable items without creating orders or triggering provider handoff.
 - Security planning stays aligned with architecture and testing docs.
