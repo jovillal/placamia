@@ -161,7 +161,7 @@ Log:
 - payment webhook events
 - unexpected pricing mismatches
 - admin actions
-- supplier order transmission events
+- provider order transmission events
 
 Do not log:
 
@@ -191,9 +191,9 @@ Rate limiting should be applied to:
 - payment confirmation
 - quote/pricing endpoints
 
-### 10. Supplier Integration Security
+### 10. Provider Integration Security
 
-Orders sent to Relieves de Colombia must be validated before transmission.
+Orders sent to a manufacturing provider must be validated before transmission.
 
 The order payload must include:
 
@@ -207,7 +207,8 @@ The order payload must include:
 - delivery information
 - customer contact data needed for fulfillment only
 
-The backend must generate the supplier payload from trusted database records, not directly from frontend input.
+The backend must generate the provider payload from trusted database records,
+not directly from frontend input.
 
 ### 11. Admin Security
 
@@ -219,7 +220,7 @@ Admin actions include:
 - kit creation/update
 - price changes
 - order status changes
-- supplier integration actions
+- provider integration actions
 
 Every admin action must be logged. Admin endpoints must use the reusable admin
 authorization dependency after the current user has been resolved from a
@@ -275,14 +276,16 @@ Before public launch:
 
 ## Known MVP Risks
 
-The MVP includes dynamic pricing, checkout, order tracking, and supplier fulfillment. These are high-value attack surfaces and must be treated as security-critical.
+The MVP includes dynamic pricing, checkout, order tracking, and provider
+fulfillment. These are high-value attack surfaces and must be treated as
+security-critical.
 
 The most important risks are:
 
 1. Price manipulation
 2. Unauthorized order access
 3. Payment spoofing
-4. Supplier order corruption
+4. Provider order corruption
 5. Secrets leakage
 6. Abuse of quote/pricing endpoints
 7. Excess AWS cost due to bot traffic

@@ -3,8 +3,12 @@
 ## Product Decision
 
 The MVP follows Path A: direct checkout for products and kits that are fully
-parametrizable, compatible with current Relieves availability, and priceable by
-backend-owned rules.
+parametrizable, compatible with current assigned-provider availability, and
+priceable by backend-owned rules.
+
+Partner-specific validation findings may name the provider that supplied them,
+but the MVP should model providers generically so future manufacturing
+providers can be added without changing customer checkout behavior.
 
 ## Included
 - user can browse the product and kit catalog

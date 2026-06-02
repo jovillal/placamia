@@ -17,7 +17,7 @@ confirmation is not part of the MVP order creation path.
 - Orders must not trust frontend-provided totals.
 - Orders must have an explicit status lifecycle.
 - Rejected order requests must not mutate database state.
-- Supplier/export payloads must be generated from persisted order data.
+- Provider export payloads must be generated from persisted order data.
 - Customer cancellation after payment is a request, not an automatic order
   mutation.
 
@@ -29,7 +29,7 @@ confirmation is not part of the MVP order creation path.
 3. Backend creates Order and OrderItems
 4. Payment flow confirms or rejects payment
 5. Paid/confirmed order becomes eligible for provider handoff
-6. Relieves accepts or rejects the paid order
+6. Assigned provider accepts or rejects the paid order
 7. Provider/production/shipment status updates order state
 8. User can track order status
 
@@ -52,6 +52,11 @@ be approved or rejected according to the documented cancellation/refund policy.
 
 See `docs/flows/main-flow.md`, `docs/flows/provider-fulfillment-flow.md`, and
 `docs/product/provider-handoff.md`.
+
+Related validation docs:
+
+- `docs/validation/commercial-model.md`
+- `docs/validation/pricing-model.md`
 
 ## Scope
 
@@ -121,7 +126,7 @@ Orders are security-sensitive because they affect payment, production, and custo
 - backend-calculated totals only
 - validation of products, kits, designs, quantities, and active status
 - no mutation on rejected requests
-- no supplier handoff from raw frontend payload
+- no provider handoff from raw frontend payload
 - no provider handoff before verified payment
 - no cross-user visibility into cancellation requests or shipment details
 

@@ -17,6 +17,14 @@ before translating them into PlacamIA domain concepts.
 
 This is a research/discovery artifact, not a final architecture document.
 
+## Research Scope
+
+This document analyzes the business model and operational semantics observed in Relieves de Colombia.
+
+The findings are used to discover domain concepts and workflows that may be relevant to PlacamIA.
+
+Provider-specific behaviors should not automatically become platform-wide assumptions.
+
 ## Path A Interpretation
 
 PlacamIA has selected Path A for the MVP: direct checkout only for fully

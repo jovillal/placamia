@@ -7,15 +7,16 @@ Define how users browse and retrieve catalog data.
 This is a read-only flow that exposes products, categories, and kits.
 
 For the direct-checkout MVP path, the public catalog must expose only items that
-are active and safe to present for the current catalog period. Relieves does not
-need real-time inventory sync for MVP; provider availability may be updated by
-a weekly operational process and reflected in backend catalog data.
+are active and safe to present for the current catalog period. A manufacturing
+provider does not need real-time inventory sync for MVP; provider availability
+may be updated by a weekly operational process and reflected in backend catalog
+data.
 
 ## Flow Diagram
 
 ```mermaid
 flowchart TD
-    O1[PlacamIA sends weekly availability form] --> P1[Relieves reports availability]
+    O1[PlacamIA sends weekly availability form] --> P1[Provider reports availability]
     P1 --> B0[Operator updates catalog availability]
     B0 --> D0[(Catalog availability)]
 
@@ -47,7 +48,7 @@ flowchart TD
 - Catalog is public (no authentication required)
 - Only active products must be returned
 - Public catalog must not present an item as directly purchasable unless it is
-  active, backend-priceable, and compatible with the current provider
+  active, backend-priceable, and compatible with the assigned provider's
   availability state
 - Weekly provider availability is a soft operational input, not exact inventory
   reservation

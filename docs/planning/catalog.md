@@ -7,8 +7,8 @@ Allow users to browse a curated catalog of products and kits.
 This is the entry point of the MVP and must be simple, fast, and aligned with the goal of reducing friction in selecting required signage.
 
 The MVP follows Path A: catalog items may be presented for direct checkout only
-when they are active, compatible with current provider availability, and fully
-priceable by backend rules.
+when they are active, compatible with current assigned-provider availability,
+and fully priceable by backend rules.
 
 ## Scope
 
@@ -19,14 +19,26 @@ priceable by backend rules.
 - Kit browsing is related catalog behavior, but kit-specific model and endpoint
   work is tracked in `docs/planning/kits.md`
 - Provider availability visibility for direct-checkout eligibility
+- Backend-owned provider eligibility/assignment data for direct-checkout items
 
 ## Related Domain Concepts
 
 - Product = sellable item
 - Kit = bundle of products; see `docs/planning/kits.md`
 - Category = grouping for browsing
-- Provider availability = soft operational signal from Relieves for the current
-  catalog period, not exact inventory reservation
+- Provider = configured manufacturing partner that can fulfill eligible catalog
+  items
+- Provider availability = soft operational signal from a configured
+  manufacturing provider for the current catalog period, not exact inventory
+  reservation
+- Direct-checkout eligibility = backend-derived state based on active catalog
+  data, provider availability, provider assignment, and deterministic pricing
+
+## Related Validation Docs
+
+- `docs/validation/product-classification.md`
+- `docs/validation/availability-model.md`
+- `docs/validation/provider-onboarding-checklist.md`
 
 ## Endpoints
 
@@ -75,8 +87,10 @@ Related Security milestone:
 - Only active products should be visible
 - Public catalog must not expose unavailable, manual-quote-only, or
   non-priceable products as directly purchasable
-- Weekly Relieves availability is a soft operational input and does not imply
+- Weekly provider availability is a soft operational input and does not imply
   exact inventory reservation
+- Customer-facing catalog behavior must not allow the frontend to choose,
+  spoof, or override provider assignment
 - No write operations in MVP (admin handled later)
 - Product listing filters and pagination must not be added until their accepted
   query parameters and validation behavior are documented

@@ -15,7 +15,7 @@ order based only on frontend confirmation.
 - Verify payment-provider confirmation before marking an order as paid.
 - Reject invalid or missing webhook signatures.
 - Replayed payment events must not reapply state changes.
-- Relieves acceptance or rejection happens after verified payment and must not
+- Provider acceptance or rejection happens after verified payment and must not
   be treated as a payment confirmation.
 
 ## Flow
@@ -28,7 +28,7 @@ order based only on frontend confirmation.
 6. Backend updates Payment state
 7. Backend moves Order from `draft` to `confirmed`
 8. Confirmed order becomes eligible for provider handoff
-9. Relieves accepts or rejects the paid order after handoff
+9. Assigned provider accepts or rejects the paid order after handoff
 
 ## Scope
 
@@ -69,7 +69,7 @@ See `docs/api/endpoint-structure.md`.
 - Do not trust frontend payment confirmation.
 - Do not mark orders as paid without verified payment-provider confirmation.
 - Do not trigger provider handoff until payment is verified.
-- Do not wait for Relieves acceptance before confirming customer payment.
+- Do not wait for provider acceptance before confirming customer payment.
 - Do not initialize payment for inactive, unavailable, manual-quote-only, or
   non-priceable checkout items.
 
@@ -101,7 +101,7 @@ Payments must include tests for:
 - frontend confirmation alone does not mark order as paid
 - invalid webhook does not mutate order/payment state
 - provider handoff is not triggered by invalid or failed payment
-- Relieves acceptance is not required to mark a verified payment as paid
+- Provider acceptance is not required to mark a verified payment as paid
 
 ## Done When
 

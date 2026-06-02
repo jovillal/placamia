@@ -5,7 +5,8 @@
 Track executable catalog work for the Path A MVP.
 
 Path A means direct checkout is available only for products and kits that are
-active, compatible with current Relieves availability, and backend-priceable.
+active, compatible with current assigned-provider availability, and
+backend-priceable.
 
 ## Source Documents
 
@@ -13,8 +14,11 @@ active, compatible with current Relieves availability, and backend-priceable.
 - `docs/planning/catalog.md`
 - `docs/planning/kits.md`
 - `docs/planning/pricing.md`
+- `docs/validation/product-classification.md`
+- `docs/validation/availability-model.md`
+- `docs/validation/provider-onboarding-checklist.md`
 - `docs/research/path-a-provider-research-summary.md`
-- `docs/research/relieves-partner-question-checklist.md`
+- `docs/research/provider-partner-question-log.md`
 
 ## Current Baseline
 
@@ -29,14 +33,17 @@ Implemented:
 Still needed for Path A:
 
 - direct-checkout eligibility model/rules
-- weekly Relieves availability capture
+- weekly provider availability capture
 - product and kit purchasability rules
 - seed/admin data updates for the selected MVP catalog
 - tests for unavailable/manual-quote-only visibility behavior
 
-## Relieves Validation Tasks
+## Provider Validation Tasks
 
 These should be closed before implementation issues depend on provider data.
+Answers may name the specific validation partner that provided them, but the
+questions and resulting implementation data should stay provider-neutral so
+future providers can be onboarded with the same checklist.
 
 - Confirm the initial direct-checkout product list.
 - Confirm products that are manual-quote-only and must stay out of checkout.
@@ -66,7 +73,7 @@ Acceptance criteria:
 
 ### 2. Provider Availability Data
 
-Add the minimum backend representation for weekly Relieves availability.
+Add the minimum backend representation for weekly provider availability.
 
 Acceptance criteria:
 
@@ -105,8 +112,8 @@ Acceptance criteria:
 
 ### 5. MVP Seed Data
 
-Update seed/catalog data after Relieves validates the first product and kit
-set.
+Update seed/catalog data after the initial provider validates the first product
+and kit set.
 
 Acceptance criteria:
 
@@ -130,6 +137,6 @@ Catalog issues that touch purchasability must include tests for:
 - RFQ submission
 - exact inventory reservation
 - provider dashboard
-- customer provider choice
+- customer provider choice unless explicitly scoped later
 - compliance-generated product recommendations
 - admin UI beyond the minimum needed for backend/operator data
