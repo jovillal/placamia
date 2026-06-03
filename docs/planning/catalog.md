@@ -7,8 +7,8 @@ Allow users to browse a curated catalog of products and kits.
 This is the entry point of the MVP and must be simple, fast, and aligned with the goal of reducing friction in selecting required signage.
 
 The MVP follows Path A: catalog items may be presented for direct checkout only
-when they are active, compatible with current assigned-provider availability,
-and fully priceable by backend rules.
+when they are active, compatible with provider adapter boundary responses, and
+fully priceable by backend rules.
 
 ## Scope
 
@@ -18,7 +18,8 @@ and fully priceable by backend rules.
   supported parameters
 - Kit browsing is related catalog behavior, but kit-specific model and endpoint
   work is tracked in `docs/planning/kits.md`
-- Provider availability visibility for direct-checkout eligibility
+- Provider adapter boundary responses for availability, direct-checkout
+  eligibility, lead time, and provider capability visibility
 - Backend-owned provider eligibility/assignment data for direct-checkout items
 
 ## Related Domain Concepts
@@ -28,14 +29,19 @@ and fully priceable by backend rules.
 - Category = grouping for browsing
 - Provider = configured manufacturing partner that can fulfill eligible catalog
   items
-- Provider availability = soft operational signal from a configured
-  manufacturing provider for the current catalog period, not exact inventory
-  reservation
+- Provider adapter boundary = backend contract used to obtain provider
+  availability, direct-checkout eligibility, lead time, and fulfillment
+  capability signals
+- Provider availability = soft operational signal from the provider adapter for
+  the current catalog period, not exact inventory reservation
 - Direct-checkout eligibility = backend-derived state based on active catalog
-  data, provider availability, provider assignment, and deterministic pricing
+  data, provider adapter responses, provider assignment, and deterministic
+  pricing
 
 ## Related Validation Docs
 
+- `docs/planning/provider.md`
+- `docs/planning/provider-adapter-contract.md`
 - `docs/validation/product-classification.md`
 - `docs/validation/availability-model.md`
 - `docs/validation/provider-onboarding-checklist.md`
@@ -87,10 +93,16 @@ Related Security milestone:
 - Only active products should be visible
 - Public catalog must not expose unavailable, manual-quote-only, or
   non-priceable products as directly purchasable
-- Weekly provider availability is a soft operational input and does not imply
-  exact inventory reservation
+- Provider availability, direct-checkout eligibility, and lead time must come
+  through the backend provider adapter boundary, starting with a local/mock
+  adapter for MVP backend development
+- Provider availability is a soft operational input and does not imply exact
+  inventory reservation
 - Customer-facing catalog behavior must not allow the frontend to choose,
-  spoof, or override provider assignment
+  spoof, or override provider assignment, availability, eligibility, or lead
+  time
+- Partner validation may update adapter fixtures and seed data later, but
+  catalog architecture must not wait for a real-provider integration
 - No write operations in MVP (admin handled later)
 - Product listing filters and pagination must not be added until their accepted
   query parameters and validation behavior are documented
@@ -104,6 +116,8 @@ Related Security milestone:
 - Return unavailable or manual-quote-only products as absent from direct
   checkout responses unless a future documented flow defines a non-checkout
   presentation mode
+- Ignore or reject frontend-supplied provider availability, eligibility, lead
+  time, provider assignment, or capability claims
 
 ## Done When
 

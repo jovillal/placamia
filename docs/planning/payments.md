@@ -15,8 +15,9 @@ order based only on frontend confirmation.
 - Verify payment-provider confirmation before marking an order as paid.
 - Reject invalid or missing webhook signatures.
 - Replayed payment events must not reapply state changes.
-- Provider acceptance or rejection happens after verified payment and must not
-  be treated as a payment confirmation.
+- Provider handoff and provider acceptance or rejection happen through the
+  provider adapter boundary after verified payment and must not be treated as
+  payment confirmation.
 
 ## Flow
 
@@ -27,8 +28,8 @@ order based only on frontend confirmation.
 5. Backend verifies signature and payload
 6. Backend updates Payment state
 7. Backend moves Order from `draft` to `confirmed`
-8. Confirmed order becomes eligible for provider handoff
-9. Assigned provider accepts or rejects the paid order after handoff
+8. Confirmed order becomes eligible for provider adapter handoff
+9. Provider adapter records provider acceptance or rejection after handoff
 
 ## Scope
 
@@ -45,6 +46,10 @@ order based only on frontend confirmation.
 - POST /api/v1/payments/webhook
 
 See `docs/api/endpoint-structure.md`.
+
+Provider adapter boundary:
+
+- `docs/planning/provider-adapter-contract.md`
 
 ## Child Issues
 
@@ -68,7 +73,9 @@ See `docs/api/endpoint-structure.md`.
 - Do not store card data.
 - Do not trust frontend payment confirmation.
 - Do not mark orders as paid without verified payment-provider confirmation.
-- Do not trigger provider handoff until payment is verified.
+- Do not trigger provider adapter handoff until payment is verified.
+- Do not record provider acceptance or rejection outside the provider adapter
+  boundary.
 - Do not wait for provider acceptance before confirming customer payment.
 - Do not initialize payment for inactive, unavailable, manual-quote-only, or
   non-priceable checkout items.
@@ -86,6 +93,8 @@ Required protections:
 - strict provider payload validation
 - no order state mutation on invalid webhook
 - no provider handoff on failed, invalid, missing, or replayed payment events
+- no provider acceptance or rejection from raw frontend payloads or unverified
+  payment events
 
 See docs/architecture/security.md and docs/architecture/testing.md.
 
@@ -101,6 +110,10 @@ Payments must include tests for:
 - frontend confirmation alone does not mark order as paid
 - invalid webhook does not mutate order/payment state
 - provider handoff is not triggered by invalid or failed payment
+- provider handoff is triggered only through the provider adapter after
+  verified payment
+- provider acceptance/rejection is recorded only through the provider adapter
+  boundary
 - Provider acceptance is not required to mark a verified payment as paid
 
 ## Done When

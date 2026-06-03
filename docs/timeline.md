@@ -21,16 +21,115 @@ RFQ/provider-confirmed checkout remains future work for manual/custom products.
 - Kit model and listing foundation
 - Path A flow/planning/research reconciliation
 
-## Phase 1 — Provider Validation
+## Phase 1 — Provider Contract Foundation
 
-Phase 1 outputs must be captured as provider-neutral data from the current
-validation partner so PlacamIA can onboard additional manufacturing providers
-later. Findings may name the specific partner that provided them; the work plan
-must not.
+Goal: define the provider adapter boundary that lets PlacamIA build Path A
+backend behavior without depending on one validation partner.
+
+The provider adapter starts inside the modular monolith. A real provider
+adapter may become an external service later only if operational complexity
+justifies that change.
+
+### 1. Provider Adapter Contract
+
+Define the normalized provider adapter contract for:
+
+- availability check
+- provider cost/pricing input
+- direct-checkout eligibility
+- lead time estimate
+- paid-order handoff
+- handoff status reconciliation
+- provider acceptance/rejection recording
+
+Outputs:
+
+- conceptual `ProviderAdapter` interface
+- request/response contracts for `AvailabilityResult`,
+  `ProviderPricingResult`, `EligibilityResult`, `LeadTimeResult`,
+  `HandoffResult`, `ProviderStatusResult`, and `AcceptanceResult`
+- error and retry semantics
+- idempotency expectations for paid-order handoff
+- security rules preventing frontend provider, provider cost, price,
+  availability, eligibility, and lead time spoofing
+- explicit rule that provider pricing output is provider-owned base
+  cost/capability data, while PlacamIA backend calculates customer price,
+  margin, taxes/fees, discounts, and checkout total
+
+Related docs:
+
+- `docs/flows/main-flow.md`
+- `docs/flows/checkout-flow.md`
+- `docs/flows/provider-fulfillment-flow.md`
+- `docs/planning/provider-adapter-contract.md`
+- `docs/planning/provider.md`
+- `docs/planning/catalog.md`
+- `docs/planning/kits.md`
+- `docs/planning/pricing.md`
+- `docs/planning/orders.md`
+- `docs/planning/payments.md`
+
+### 2. Local/Mock Provider Adapter
+
+Build first against a deterministic local/mock provider adapter so backend
+implementation can continue while partner validation is still in progress.
+
+Outputs:
+
+- local adapter behavior for available, unavailable, manual-quote-only, and
+  unsupported items
+- deterministic provider cost inputs
+- deterministic lead time estimates
+- paid-order handoff response with a local provider reference
+- handoff status, acceptance, rejection, retry, and failure fixtures for tests
+- explicit no-network behavior suitable for deterministic backend tests
+
+Related docs:
+
+- `docs/planning/provider-adapter-contract.md`
+- `docs/planning/provider.md`
+- `docs/tasks/catalog.md`
+- `docs/tasks/checkout.md`
+- `docs/validation/product-classification.md`
+- `docs/validation/pricing-model.md`
+- `docs/validation/availability-model.md`
+
+### 3. Adapter-Backed Eligibility and Pricing Foundation
+
+Use the local/mock adapter contract to unblock backend implementation of
+catalog eligibility and pricing preview.
+
+Outputs:
+
+- provider-neutral direct-checkout eligibility rules
+- backend-owned pricing composition using provider cost inputs
+- lead time display contract
+- catalog response fields for purchasability and availability state
+- tests proving frontend-supplied provider, price, availability, and lead time
+  are ignored or rejected
+- tests proving frontend-supplied provider cost and eligibility are ignored or
+  rejected
+
+Related docs:
+
+- `docs/planning/catalog.md`
+- `docs/planning/kits.md`
+- `docs/planning/pricing.md`
+- `docs/tasks/catalog.md`
+- `docs/tasks/checkout.md`
+
+## Parallel Track — Provider Validation
+
+Goal: gather real validation partner data without blocking provider-agnostic
+backend architecture.
+
+Findings may name the specific partner that provided them. The roadmap,
+contracts, and implementation issues must remain provider-neutral.
 
 ### 1. Direct-Checkout Catalog Validation
 
-Goal: determine what can safely be sold in the MVP.
+Goal: determine what can safely be sold in the MVP and map that data into the
+provider adapter contract.
 
 Outputs:
 
@@ -49,15 +148,15 @@ Source docs:
 
 ### 2. Pricing and Availability Validation
 
-Goal: get enough provider data to implement backend pricing and catalog
-eligibility.
+Goal: gather provider data that can populate adapter fixtures, seed data, and
+future real-provider mappings.
 
 Outputs:
 
-- validation partner pricing table owner
-- first pricing table by product/family
-- weekly availability states and process
-- availability update owner and cadence
+- validation partner pricing/cost input owner
+- first provider cost/pricing input table by product/family
+- provider availability states and update process
+- availability update owner and cadence for adapter fixture maintenance
 - rules for made-to-order parametrizable products
 
 Source docs:
@@ -77,7 +176,7 @@ Outputs:
 
 - customer cancellation/refund/warranty terms
 - merchant/seller/invoice model
-- validation partner invoice and payout process
+- validation partner invoice and payout findings
 - SLA consequences
 - safe compliance/recommendation language
 
@@ -94,7 +193,8 @@ Source docs:
 Implement backend representation and public behavior for:
 
 - direct-checkout eligibility
-- weekly provider availability
+- provider adapter availability
+- provider adapter lead time signal
 - manual-quote-only exclusion
 - kit purchasability
 
@@ -107,11 +207,13 @@ Related docs:
 ### 2. Pricing
 
 Implement deterministic backend pricing for eligible products, kits, and
-designs.
+designs using provider cost/capability inputs from the provider adapter
+contract.
 
 Security-critical requirements:
 
 - ignore frontend prices
+- ignore frontend provider cost inputs
 - reject inactive/unavailable/manual-quote-only items
 - reject invalid configurations
 - prevent quantity abuse
@@ -160,8 +262,9 @@ Related docs:
 Implement:
 
 - paid-order payload generation
-- handoff to assigned provider
-- provider acceptance/rejection
+- paid-order handoff through the provider adapter after verified payment
+- provider handoff status reconciliation through the provider adapter
+- provider acceptance/rejection recording through the provider adapter
 - in-production and ready-for-pickup status
 - QR shipment event or authorized operator fallback
 - delivered status
