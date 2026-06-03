@@ -5,7 +5,7 @@
 Create and track customer orders from validated backend state.
 
 Orders are the bridge between the customer purchase flow, payment verification,
-provider handoff, production, shipment, and customer tracking.
+provider adapter handoff, production, shipment, and customer tracking.
 
 The MVP follows Path A: orders are created from backend-validated direct
 checkout state for fully parametrizable products and kits. RFQ/provider quote
@@ -17,7 +17,9 @@ confirmation is not part of the MVP order creation path.
 - Orders must not trust frontend-provided totals.
 - Orders must have an explicit status lifecycle.
 - Rejected order requests must not mutate database state.
-- Provider export payloads must be generated from persisted order data.
+- Provider adapter payloads must be generated from persisted order data.
+- Provider handoff, acceptance, and rejection must go through the provider
+  adapter boundary after verified payment.
 - Customer cancellation after payment is a request, not an automatic order
   mutation.
 
@@ -28,8 +30,8 @@ confirmation is not part of the MVP order creation path.
    cancellation/refund terms acknowledgement
 3. Backend creates Order and OrderItems
 4. Payment flow confirms or rejects payment
-5. Paid/confirmed order becomes eligible for provider handoff
-6. Assigned provider accepts or rejects the paid order
+5. Paid/confirmed order becomes eligible for provider adapter handoff
+6. Provider adapter records provider acceptance or rejection of the paid order
 7. Provider/production/shipment status updates order state
 8. User can track order status
 
@@ -53,6 +55,10 @@ be approved or rejected according to the documented cancellation/refund policy.
 See `docs/flows/main-flow.md`, `docs/flows/provider-fulfillment-flow.md`, and
 `docs/product/provider-handoff.md`.
 
+Provider adapter boundary:
+
+- `docs/planning/provider-adapter-contract.md`
+
 Related validation docs:
 
 - `docs/validation/commercial-model.md`
@@ -64,7 +70,7 @@ Related validation docs:
 - Order and OrderItem models
 - Order creation endpoint
 - Order status endpoint
-- Order export/service preparation for provider handoff
+- Order payload/service preparation for provider adapter handoff
 - Cancellation request state handling
 - Shipment status transition from QR pickup scan or authorized fallback
 
@@ -108,7 +114,11 @@ implementation.
 - Do not accept frontend-calculated totals.
 - Do not expose another user’s orders.
 - Do not mark orders as paid without verified payment provider confirmation.
-- Keep provider export separate from order creation.
+- Keep provider adapter handoff separate from order creation.
+- Trigger provider handoff only through the provider adapter boundary after
+  verified payment.
+- Provider acceptance or rejection must be recorded through the provider
+  adapter boundary, not from raw frontend input.
 - Do not create orders for inactive, unavailable, manual-quote-only, or
   non-priceable products, kits, or designs.
 - Do not automatically cancel paid orders from customer input alone.
@@ -128,6 +138,7 @@ Orders are security-sensitive because they affect payment, production, and custo
 - no mutation on rejected requests
 - no provider handoff from raw frontend payload
 - no provider handoff before verified payment
+- no provider acceptance or rejection from raw frontend payload
 - no cross-user visibility into cancellation requests or shipment details
 
 See docs/architecture/security.md and docs/architecture/testing.md.
@@ -144,6 +155,8 @@ Orders must include tests for:
 - rejected order creation does not create records
 - status endpoint returns correct lifecycle state
 - paid customer cancellation request does not directly cancel the order
+- provider handoff is only attempted through the adapter after verified payment
+- provider acceptance/rejection is recorded only through the adapter boundary
 - QR shipment transition requires valid event or authorized fallback
 
 

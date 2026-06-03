@@ -170,7 +170,7 @@ Before writing or modifying code, check whether the change affects:
 - payments
 - orders
 - user data
-- supplier integration
+- provider integration
 - file/image handling
 - admin behavior
 - environment variables or secrets
@@ -227,7 +227,7 @@ Admin changes must be logged when they affect:
 - prices
 - discounts
 - orders
-- supplier integration
+- provider integration
 - users
 
 ### File Handling Rules

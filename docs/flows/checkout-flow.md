@@ -18,7 +18,7 @@ flowchart TD
     U1[User requests checkout] --> B1[Validate direct-checkout eligibility]
 
     B1 --> D1[(Design)]
-    B1 --> D2[(Catalog, pricing rules, availability)]
+    B1 --> D2[(Catalog, pricing rules, provider adapter responses)]
 
     B1 --> B2[Recalculate backend price]
     B2 --> B3[Show cancellation and refund terms]
@@ -38,7 +38,8 @@ flowchart TD
 
     B8 --> D3
     B8 --> B9[Prepare paid-order handoff]
-    B9 --> P1[Send paid order to assigned provider]
+    B9 --> A1[Provider adapter handoff]
+    A1 --> P1[Send paid order to assigned provider]
 
     B1 -. not eligible .-> R2[Reject checkout]
     B2 -. invalid pricing input .-> R3[Reject checkout]
@@ -54,7 +55,8 @@ flowchart TD
   checkout MVP path
 - Cancellation and refund terms must be shown before payment
 - Payment must be verified via provider webhook
-- Paid-order provider handoff happens only after verified payment
+- Paid-order provider handoff happens through the provider adapter boundary
+  only after verified payment
 
 ---
 
@@ -73,6 +75,7 @@ flowchart TD
 - `docs/planning/pricing.md`
 - `docs/planning/orders.md`
 - `docs/planning/payments.md`
+- `docs/planning/provider-adapter-contract.md`
 - `docs/planning/provider.md`
 
 ---

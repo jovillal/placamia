@@ -10,11 +10,12 @@ be generated from this flow, not maintained manually.
 ## MVP Product Decision
 
 The MVP follows Path A: direct checkout for products and kits that are fully
-parametrizable, available for the current catalog period, and priceable by
-backend-owned rules.
+parametrizable, compatible with provider adapter boundary responses, and
+priceable by backend-owned rules.
 
 The MVP does not use an RFQ gate before checkout. Provider acceptance or
-rejection happens after verified payment as part of the paid-order handoff.
+rejection happens through the provider adapter boundary after verified payment
+as part of the paid-order handoff.
 Products,
 configurations, or kits that require manual provider quoting must not be sold
 through direct checkout until their behavior is documented and approved.
@@ -45,14 +46,14 @@ flowchart TD
     B9[Verify payment webhook]
     B10[Confirm order]
     B11[Prepare paid-order provider payload]
-    B12[Send paid order to provider]
+    B12[Provider adapter handoff]
     B13[Update order status]
 
     %% Database lane
     D1[(Catalog data)]
     D2[(Templates)]
     D3[(Design)]
-    D4[(Pricing rules and availability)]
+    D4[(Pricing rules + provider adapter responses)]
     D5[(Order + OrderItems)]
     D6[(Payment)]
     D7[(Order status)]
@@ -120,7 +121,8 @@ Before pricing or checkout, the backend must verify that every product, kit, and
 design configuration is eligible for direct checkout:
 
 1. Product or kit is active in the public catalog
-2. Provider availability for the current catalog period is compatible with sale
+2. Provider adapter availability for the current catalog period is compatible
+   with sale
 3. Selected material, size, finish, quantity, and template fields are valid
 4. Backend pricing rules can calculate the final amount deterministically
 5. No manual quote, provider confirmation, unsupported file review, or custom
@@ -134,9 +136,9 @@ If any item fails these checks, checkout must not be initialized for that item.
 stateDiagram-v2
     [*] --> draft
     draft --> confirmed: verified payment
-    confirmed --> sent_to_provider: provider payload sent
-    sent_to_provider --> accepted: provider accepts
-    sent_to_provider --> cancelled: provider rejects
+    confirmed --> sent_to_provider: adapter handoff sent
+    sent_to_provider --> accepted: adapter records provider acceptance
+    sent_to_provider --> cancelled: adapter records provider rejection
     accepted --> in_production
     in_production --> ready_for_pickup
     ready_for_pickup --> shipped: carrier QR scan
@@ -177,6 +179,7 @@ see the applicable terms before payment.
 - `docs/planning/pricing.md`
 - `docs/planning/orders.md`
 - `docs/planning/payments.md`
+- `docs/planning/provider-adapter-contract.md`
 - `docs/planning/provider.md`
 - `docs/planning/security.md`
 - `docs/planning/admin-backoffice.md`

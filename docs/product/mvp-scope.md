@@ -3,12 +3,16 @@
 ## Product Decision
 
 The MVP follows Path A: direct checkout for products and kits that are fully
-parametrizable, compatible with current assigned-provider availability, and
+parametrizable, compatible with provider adapter boundary responses, and
 priceable by backend-owned rules.
 
 Partner-specific validation findings may name the provider that supplied them,
 but the MVP should model providers generically so future manufacturing
 providers can be added without changing customer checkout behavior.
+
+Availability, provider cost/capability inputs, direct-checkout eligibility,
+lead time, paid-order handoff, handoff status, and provider
+acceptance/rejection must go through the provider adapter boundary.
 
 ## Included
 - user can browse the product and kit catalog

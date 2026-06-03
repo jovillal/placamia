@@ -16,6 +16,7 @@ payment as part of paid-order handoff.
 - `docs/planning/orders.md`
 - `docs/planning/payments.md`
 - `docs/planning/provider.md`
+- `docs/planning/provider-adapter-contract.md`
 - `docs/planning/security.md`
 - `docs/validation/pricing-model.md`
 - `docs/validation/availability-model.md`
@@ -31,13 +32,20 @@ Known planning issues:
 - payment webhook work must distinguish payment-provider confirmation from
   manufacturing-provider acceptance
 - provider handoff must be generated only after verified payment
-- cancellation/refund terms need legal/business validation before real checkout
+- provider adapter boundary and local/mock adapter are needed before checkout
+  implementation depends on provider behavior
+- cancellation/refund terms can start with backend-owned placeholder policy and
+  must be updated from legal/business validation before production checkout
 
 ## Provider and Legal Validation Tasks
 
-These should be closed before production checkout depends on them.
+These run in parallel with backend implementation. Checkout implementation
+depends on the provider adapter boundary and local/mock adapter, not on a real
+provider integration or completed partner validation.
+
 Answers may name the specific validation partner that provided them, but policy
-and implementation must be recorded in provider-neutral terms.
+and implementation must be recorded in provider-neutral terms. Final production
+checkout terms must be updated from legal/business validation before launch.
 
 - Confirm cancellation/refund/warranty terms shown before payment.
 - Confirm what happens when the assigned provider rejects a paid order.
@@ -51,11 +59,14 @@ and implementation must be recorded in provider-neutral terms.
 
 ### 1. Pricing Rule Foundation
 
-Implement backend-owned pricing rules for direct-checkout items.
+Implement backend-owned pricing rules for direct-checkout items using provider
+cost/capability inputs from the provider adapter boundary.
 
 Acceptance criteria:
 
 - pricing can calculate products, kits, and designs
+- pricing can use local/mock adapter cost inputs without a real provider
+  integration
 - invalid options are rejected
 - inactive, unavailable, manual-quote-only, or non-priceable items are rejected
 - frontend price, subtotal, total, availability, and discounts are ignored
@@ -64,10 +75,12 @@ Acceptance criteria:
 ### 2. Checkout Eligibility Gate
 
 Validate direct-checkout eligibility immediately before draft order/payment
-initialization.
+initialization using backend catalog state and provider adapter boundary
+responses.
 
 Acceptance criteria:
 
+- checkout uses the local/mock adapter when no real provider adapter exists
 - checkout rejects stale or unavailable catalog state
 - checkout rejects unsupported design/customization values
 - checkout requires backend-calculated pricing
@@ -77,6 +90,9 @@ Acceptance criteria:
 ### 3. Cancellation and Refund Terms Acknowledgement
 
 Capture that the customer saw and accepted the applicable terms before payment.
+Initial implementation may use a backend-owned placeholder terms policy for
+local/mock adapter development; production terms must be updated from
+commercial/legal validation before launch.
 
 Acceptance criteria:
 
@@ -112,12 +128,14 @@ Acceptance criteria:
 ### 6. Paid-Order Provider Handoff
 
 Send a complete paid-order payload to the assigned provider after verified
-payment.
+payment through the provider adapter boundary. The local/mock adapter is the
+first implementation target.
 
 Acceptance criteria:
 
 - payload is generated from persisted order/order item/design data
 - raw frontend payload is never forwarded
+- handoff works with the local/mock adapter without a real provider integration
 - handoff is idempotent where possible
 - failed transmission does not corrupt order state
 - provider acceptance/rejection updates order state
@@ -125,12 +143,15 @@ Acceptance criteria:
 ### 7. Fulfillment and Shipment Status
 
 Implement fulfillment statuses through `ready_for_pickup`, `shipped`, and
-`delivered`.
+`delivered` using provider adapter status/decision responses and authorized
+operator fallback where documented.
 
 Acceptance criteria:
 
-- Provider/operator can mark accepted, rejected, in production, ready for
-  pickup, and delivered according to authorization rules
+- local/mock adapter can simulate accepted, rejected, in production, ready for
+  pickup, and delivered states
+- Provider/operator status mutations follow authorization rules when real
+  provider/operator integrations are introduced
 - `ready_for_pickup -> shipped` requires valid QR pickup event or authorized
   operator fallback
 - status endpoint returns customer-safe data only

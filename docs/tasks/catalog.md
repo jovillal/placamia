@@ -5,7 +5,7 @@
 Track executable catalog work for the Path A MVP.
 
 Path A means direct checkout is available only for products and kits that are
-active, compatible with current assigned-provider availability, and
+active, compatible with provider adapter boundary responses, and
 backend-priceable.
 
 ## Source Documents
@@ -14,6 +14,7 @@ backend-priceable.
 - `docs/planning/catalog.md`
 - `docs/planning/kits.md`
 - `docs/planning/pricing.md`
+- `docs/planning/provider-adapter-contract.md`
 - `docs/validation/product-classification.md`
 - `docs/validation/availability-model.md`
 - `docs/validation/provider-onboarding-checklist.md`
@@ -33,14 +34,17 @@ Implemented:
 Still needed for Path A:
 
 - direct-checkout eligibility model/rules
-- weekly provider availability capture
+- local/mock provider adapter availability fixtures
 - product and kit purchasability rules
-- seed/admin data updates for the selected MVP catalog
+- seed/admin data updates after validation partner findings are available
 - tests for unavailable/manual-quote-only visibility behavior
 
 ## Provider Validation Tasks
 
-These should be closed before implementation issues depend on provider data.
+These run in parallel with backend implementation. Catalog implementation can
+start against the local/mock provider adapter; validation partner answers should
+update adapter fixtures, seed data, and future real-provider mappings later.
+
 Answers may name the specific validation partner that provided them, but the
 questions and resulting implementation data should stay provider-neutral so
 future providers can be onboarded with the same checklist.
@@ -55,7 +59,7 @@ future providers can be onboarded with the same checklist.
 
 ## Implementation Slices
 
-### 1. Direct-Checkout Eligibility Contract
+### 1. Direct-Checkout Eligibility Boundary
 
 Define the data and response contract that distinguishes:
 
@@ -73,11 +77,15 @@ Acceptance criteria:
 
 ### 2. Provider Availability Data
 
-Add the minimum backend representation for weekly provider availability.
+Add the minimum backend representation for provider availability through the
+provider adapter boundary using the local/mock provider adapter first.
+Validation partner data can later replace or extend the adapter fixtures and
+seed data.
 
 Acceptance criteria:
 
 - availability state is backend-owned
+- implementation does not require a real provider integration
 - states support at least:
   - `available`
   - `made_to_order_parametrizable`
@@ -104,16 +112,17 @@ Define and implement purchasability rules for kits.
 
 Acceptance criteria:
 
-- kit is purchasable only when required contents are active, available, and
-  backend-priceable
+- kit is purchasable only when required contents are active, available through
+  the provider adapter boundary, and backend-priceable
 - kits do not expose inactive products as available contents
 - empty or partially unavailable kit behavior is documented and tested
-- frontend cannot override kit contents or availability
+- frontend cannot override kit contents, availability, eligibility, lead time,
+  or provider cost/capability claims
 
 ### 5. MVP Seed Data
 
-Update seed/catalog data after the initial provider validates the first product
-and kit set.
+Update seed/catalog data after validation partner findings identify the first
+MVP product and kit set.
 
 Acceptance criteria:
 

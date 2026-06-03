@@ -8,8 +8,8 @@ Kits are sellable bundles that reduce friction for common signage needs while
 remaining read-only in the MVP customer catalog.
 
 For the direct-checkout MVP path, a kit may be purchasable only when every
-required item in the kit is active, compatible with assigned-provider
-availability, and backend-priceable.
+required item in the kit is active, compatible with provider adapter boundary
+responses, and backend-priceable.
 
 ## Scope
 
@@ -19,14 +19,19 @@ availability, and backend-priceable.
 - Public kit listing endpoint
 - Active product visibility rules for kit contents
 - Direct-checkout eligibility rules for kits
+- Provider adapter boundary responses for kit availability, direct-checkout
+  eligibility, lead time, and fulfillment capability
 
 ## Related Domain Concepts
 
 - Kit = bundle of products
 - KitItem = product entry inside a kit with quantity metadata
 - Product = sellable item that may appear independently or inside a kit
+- Provider adapter boundary = backend contract used to obtain provider
+  availability, direct-checkout eligibility, lead time, provider cost inputs,
+  and fulfillment capability signals for kit contents
 - Direct-checkout kit = active kit whose required contents are active,
-  available, and deterministically priceable
+  available through provider adapter responses, and deterministically priceable
 
 ## Endpoints
 
@@ -49,7 +54,8 @@ Completed:
 
 - Future issue required: create kit detail endpoint with tests
 - #87 Define kit public visibility rules
-- Future issue required: define kit pricing interaction with pricing rules
+- Future issue required: define kit pricing interaction with pricing rules and
+  provider cost inputs from the provider adapter boundary
 
 ## Current MVP Listing Behavior
 
@@ -61,7 +67,7 @@ contents.
 
 Direct-checkout eligibility is stricter than public listing. A listed Kit must
 not be purchasable unless its required contents are active, compatible with
-current assigned-provider availability, and priceable by backend rules.
+provider adapter boundary responses, and priceable by backend rules.
 
 Current public KitItem shape:
 
@@ -80,8 +86,13 @@ is tracked by #87 as phase-2 work.
 - Kits must not expose inactive products as available for purchase.
 - Kits must not be directly purchasable when required contents are inactive,
   unavailable, manual-quote-only, or not backend-priceable.
+- Kit availability, direct-checkout eligibility, lead time, and provider
+  capability signals must come through the backend provider adapter boundary,
+  starting with a local/mock adapter for MVP backend development.
 - Admin kit creation/update/delete belongs to a future admin/backoffice scope.
 - Pricing calculations for kits belong to pricing scope, not catalog browsing.
+- Partner validation may update adapter fixtures and seed data later, but kit
+  eligibility architecture must not wait for a real-provider integration.
 
 ## Security Considerations
 
@@ -89,8 +100,9 @@ is tracked by #87 as phase-2 work.
 - Do not expose inactive products as available kit contents.
 - Validate kit identifiers and any future query parameters.
 - Do not accept frontend-provided prices or discounts.
-- Do not allow frontend-supplied kit contents or availability to influence
-  checkout eligibility.
+- Do not allow frontend-supplied kit contents, provider assignment,
+  availability, eligibility, lead time, provider cost, or fulfillment capability
+  claims to influence checkout eligibility.
 
 ## Done When
 
@@ -98,7 +110,7 @@ is tracked by #87 as phase-2 work.
 - Kits can be browsed through the public catalog.
 - Kit responses include only documented public fields.
 - Inactive products are not exposed as available kit contents.
-- Kit checkout eligibility follows active product, provider availability, and
-  backend pricing rules.
+- Kit checkout eligibility follows active product, provider adapter boundary,
+  and backend pricing rules.
 - Kit endpoints are tested.
 - Phase-2 public visibility refinements are tracked by #87.

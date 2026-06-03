@@ -22,12 +22,17 @@ Backend pricing
     ->
 Verified customer payment
     ->
-Paid-order handoff to Relieves
+Paid-order handoff to assigned provider
     ->
-Relieves acceptance, production, pickup, and delivery
+Provider acceptance, production, pickup, and delivery
 ```
 
 The MVP should not use RFQ/provider-confirmed checkout before payment.
+
+Relieves de Colombia is a reference provider for discovery and validation
+findings. This research document may name Relieves when describing source
+observations, but those observations should not be treated as platform-wide
+architecture.
 
 ## What Research Supports for MVP
 
@@ -36,11 +41,11 @@ The research supports a narrow, commerce-first MVP:
 - curated catalog of standard products and kits
 - simple rules-based customization
 - backend-owned price tables
-- weekly operational availability from Relieves
+- provider-supplied operational availability through a normalized contract
 - no exact inventory requirement
 - full payment before production
-- paid-order handoff to Relieves
-- Relieves acceptance or rejection after payment
+- paid-order handoff to the assigned provider
+- provider acceptance or rejection after payment
 - customer-facing order tracking
 - QR pickup scan when technically validated, with operator fallback
 
@@ -88,7 +93,11 @@ future RFQ/manual-quote path after the direct-checkout MVP proves demand.
 
 ## Immediate Partner Validation Needed
 
-Before implementing Path A features that depend on Relieves, validate:
+Partner validation should populate provider-neutral validation docs, adapter
+fixtures, seed data, and future real-provider mappings. It should not block the
+provider adapter contract or local/mock adapter foundation.
+
+For each validation partner, capture:
 
 1. Initial direct-checkout product list
 2. Products excluded as manual quote/future RFQ
