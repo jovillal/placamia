@@ -74,6 +74,31 @@ Current public KitItem shape:
 - product_id
 - quantity
 
+Planned public Kit direct-checkout signals:
+
+- `availability_state`
+- `direct_checkout_eligible`
+- `eligibility_reason`
+- `production_lead_time_days`
+- `dispatch_lead_time_days`
+
+These fields are backend-derived through the provider adapter boundary.
+Frontend-supplied kit contents, availability, eligibility, lead time, provider
+cost, or provider capability claims must not influence them.
+
+Kit direct checkout follows the catalog availability state contract in
+`docs/planning/catalog.md`. A Kit is eligible only when:
+
+- the Kit is active
+- every required KitItem product is active
+- every required KitItem product is compatible with provider adapter
+  availability and direct-checkout eligibility
+- every required KitItem product is backend-priceable
+- the Kit itself is compatible with provider adapter availability and
+  direct-checkout eligibility
+
+Implementation is tracked by #110.
+
 Active Kits with zero active Product contents are currently returned with an
 empty `items` array. Whether those Kits should be hidden, and whether kit
 responses should include product summaries instead of only product identifiers,

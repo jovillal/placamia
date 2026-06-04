@@ -7,6 +7,19 @@ backend-priceable products and kits.
 
 RFQ/provider-confirmed checkout remains future work for manual/custom products.
 
+Current critical path:
+
+1. Provider Adapter Foundation
+2. Direct-Checkout Eligibility
+3. Pricing
+4. Checkout
+5. Orders, Payments, and Provider Handoff
+
+Template and design concepts remain part of the domain, but standalone template
+endpoint expansion is supporting work. It should not block provider adapter,
+eligibility, pricing, or checkout implementation unless a specific critical-path
+issue depends on it.
+
 ## Phase 0 — Completed Foundation
 
 ### Completed
@@ -17,7 +30,7 @@ RFQ/provider-confirmed checkout remains future work for manual/custom products.
 - FastAPI backend foundation
 - Security architecture and testing docs
 - Catalog/category/product foundations
-- Template/design validation foundation
+- Template/design validation foundation as supporting infrastructure
 - Kit model and listing foundation
 - Path A flow/planning/research reconciliation
 
@@ -69,6 +82,11 @@ Related docs:
 - `docs/planning/orders.md`
 - `docs/planning/payments.md`
 
+Related issues:
+
+- #100 Define direct-checkout eligibility boundary and public catalog contract
+- #108 Implement local/mock provider adapter availability fixtures
+
 ### 2. Local/Mock Provider Adapter
 
 Build first against a deterministic local/mock provider adapter so backend
@@ -94,6 +112,10 @@ Related docs:
 - `docs/validation/pricing-model.md`
 - `docs/validation/availability-model.md`
 
+Related issues:
+
+- #108 Implement local/mock provider adapter availability fixtures
+
 ### 3. Adapter-Backed Eligibility and Pricing Foundation
 
 Use the local/mock adapter contract to unblock backend implementation of
@@ -117,6 +139,14 @@ Related docs:
 - `docs/planning/pricing.md`
 - `docs/tasks/catalog.md`
 - `docs/tasks/checkout.md`
+
+Related issues:
+
+- #109 Add product listing and detail eligibility fields
+- #110 Add kit direct-checkout eligibility behavior
+- #26 Define Path A pricing rule model and service contracts
+- #27 Implement Path A pricing preview service with unit tests
+- #28 Create POST pricing preview endpoint for Path A direct checkout
 
 ## Parallel Track — Provider Validation
 
@@ -204,6 +234,12 @@ Related docs:
 - `docs/planning/catalog.md`
 - `docs/planning/kits.md`
 
+Related issues:
+
+- #100 Define direct-checkout eligibility boundary and public catalog contract
+- #109 Add product listing and detail eligibility fields
+- #110 Add kit direct-checkout eligibility behavior
+
 ### 2. Pricing
 
 Implement deterministic backend pricing for eligible products, kits, and
@@ -223,6 +259,12 @@ Related docs:
 - `docs/tasks/checkout.md`
 - `docs/planning/pricing.md`
 
+Related issues:
+
+- #26 Define Path A pricing rule model and service contracts
+- #27 Implement Path A pricing preview service with unit tests
+- #28 Create POST pricing preview endpoint for Path A direct checkout
+
 ### 3. Checkout and Orders
 
 Implement:
@@ -239,6 +281,13 @@ Related docs:
 - `docs/tasks/checkout.md`
 - `docs/planning/orders.md`
 - `docs/flows/checkout-flow.md`
+
+Related issues:
+
+- #101 Implement checkout eligibility gate and terms acknowledgement
+- #30 Create Path A Order and OrderItem models, migrations, and tests
+- #31 Create POST order endpoint from Path A validated checkout state
+- #32 Create GET order status endpoint with Path A tracking tests
 
 ### 4. Payments
 
@@ -313,4 +362,5 @@ Future work:
 - CSV availability upload
 - secure provider links
 - exact inventory
+- standalone template endpoint expansion beyond critical checkout/design needs
 - AI-assisted recommendations or variations
