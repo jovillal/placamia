@@ -62,6 +62,23 @@ def test_local_adapter_returns_available_item_signals():
     assert lead_time.dispatch_days == 1
 
 
+def test_local_adapter_missing_fixture_is_not_purchasable():
+    adapter = LocalMockProviderAdapter()
+
+    availability = adapter.check_availability(build_product_request())
+    pricing = adapter.quote_pricing(build_product_request())
+    eligibility = adapter.check_direct_checkout_eligibility(build_product_request())
+    lead_time = adapter.estimate_lead_time(build_product_request())
+
+    assert availability.state is AvailabilityState.UNSUPPORTED
+    assert availability.reason_code == "missing_local_provider_fixture"
+    assert pricing.provider_cost is None
+    assert pricing.supports_requested_configuration is False
+    assert eligibility.state is EligibilityState.NOT_ELIGIBLE
+    assert eligibility.reason_code == "missing_local_provider_fixture"
+    assert lead_time.uncertainty_reason == "missing_local_provider_fixture"
+
+
 @pytest.mark.parametrize(
     ("availability_state", "expected_eligible"),
     [

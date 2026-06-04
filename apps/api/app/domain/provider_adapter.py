@@ -406,7 +406,13 @@ class LocalMockProviderAdapter:
         )
 
     def _fixture_for(self, request: ProviderItemRequest) -> LocalProviderFixture:
-        """Return a fixture for the request, falling back to an available item."""
+        """Return a fixture for the request, failing closed when none exists."""
         return self.fixtures.get(
-            (request.item_type, request.item_id), LocalProviderFixture()
+            (request.item_type, request.item_id),
+            LocalProviderFixture(
+                availability_state=AvailabilityState.UNSUPPORTED,
+                provider_cost=None,
+                supports_requested_configuration=False,
+                reason_code="missing_local_provider_fixture",
+            ),
         )

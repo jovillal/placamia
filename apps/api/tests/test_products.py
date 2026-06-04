@@ -259,7 +259,19 @@ def test_list_products_endpoint_returns_active_catalog_products():
         finally:
             pass
 
+    async def override_provider_adapter():
+        return LocalMockProviderAdapter(
+            {
+                (CatalogItemType.PRODUCT, 1): LocalProviderFixture(
+                    availability_state=AvailabilityState.AVAILABLE,
+                    provider_cost=Decimal("12.50"),
+                    supports_requested_configuration=True,
+                )
+            }
+        )
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_provider_adapter] = override_provider_adapter
 
     try:
 
@@ -333,7 +345,19 @@ def test_get_product_endpoint_returns_active_catalog_product():
         finally:
             pass
 
+    async def override_provider_adapter():
+        return LocalMockProviderAdapter(
+            {
+                (CatalogItemType.PRODUCT, 1): LocalProviderFixture(
+                    availability_state=AvailabilityState.AVAILABLE,
+                    provider_cost=Decimal("12.50"),
+                    supports_requested_configuration=True,
+                )
+            }
+        )
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_provider_adapter] = override_provider_adapter
 
     try:
 
@@ -361,6 +385,49 @@ def test_get_product_endpoint_returns_active_catalog_product():
             "dispatch_lead_time_days": 1,
         }
         assert "is_active" not in response.json()
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_get_product_endpoint_marks_missing_adapter_fixture_not_purchasable():
+    db = build_session()
+    category = Category(name="Warning", description="Warning signs")
+    db.add(
+        Product(
+            name="Electrical hazard sign",
+            description="Warning sign for electrical risk.",
+            category=category,
+            base_price=Decimal("20.00"),
+        )
+    )
+    db.commit()
+
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+
+        async def get_product():
+            transport = httpx.ASGITransport(app=app)
+            async with httpx.AsyncClient(
+                transport=transport,
+                base_url="http://testserver",
+            ) as client:
+                return await client.get("/api/v1/catalog/products/1")
+
+        response = asyncio.run(get_product())
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["availability_state"] == "unsupported"
+        assert payload["direct_checkout_eligible"] is False
+        assert payload["eligibility_reason"] == "missing_local_provider_fixture"
     finally:
         app.dependency_overrides.clear()
         db.close()
