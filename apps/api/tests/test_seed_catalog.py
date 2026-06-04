@@ -1,15 +1,14 @@
-from decimal import Decimal
-from pathlib import Path
 import importlib.util
 import sys
-
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from decimal import Decimal
+from pathlib import Path
 
 from app.core.database import Base
 from app.models.category import Category
 from app.models.product import Product
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 
 def load_seed_catalog_module():

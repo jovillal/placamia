@@ -1,11 +1,10 @@
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-
 from app.core.database import get_db
 from app.repositories.kit_repository import KitRepository
 from app.schemas.kit import KitItemRead, KitRead
 from app.services.kit_service import KitService
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/catalog/kits", tags=["catalog"])
 

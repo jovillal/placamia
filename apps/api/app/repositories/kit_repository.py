@@ -1,8 +1,7 @@
-from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
-
 from app.models.kit import Kit
 from app.models.kit_item import KitItem
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
 
 class KitRepository:

@@ -1,11 +1,6 @@
 import asyncio
 
 import httpx
-from fastapi import Depends, FastAPI
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
 from app.api.dependencies import require_admin_user
 from app.core.config import settings
 from app.core.database import Base, get_db
@@ -14,6 +9,10 @@ from app.models.user import User, UserRole
 from app.repositories.audit_log_repository import AuditLogRepository
 from app.services.audit_log_service import AuditLogService
 from app.services.auth_service import AuthService
+from fastapi import Depends, FastAPI
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 
 def build_session():

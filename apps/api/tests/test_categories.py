@@ -1,16 +1,15 @@
-from datetime import UTC, datetime
 import asyncio
+from datetime import UTC, datetime
 
 import httpx
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
 from app.core.database import Base, get_db
 from app.main import app
 from app.models.category import Category
 from app.repositories.category_repository import CategoryRepository
 from app.services.category_service import CategoryService
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 
 def build_session():

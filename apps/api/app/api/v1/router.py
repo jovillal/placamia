@@ -1,9 +1,9 @@
-from fastapi import APIRouter
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.categories import router as categories_router
 from app.api.v1.endpoints.health import router as health_router
 from app.api.v1.endpoints.kits import router as kits_router
 from app.api.v1.endpoints.products import router as products_router
+from fastapi import APIRouter
 
 router = APIRouter(prefix="/v1")
 

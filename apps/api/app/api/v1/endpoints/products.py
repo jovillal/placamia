@@ -1,11 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-
 from app.core.database import get_db
 from app.repositories.product_repository import ProductRepository
 from app.schemas.product import ProductRead
 from app.services.product_service import ProductService
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/catalog/products", tags=["catalog"])
 
