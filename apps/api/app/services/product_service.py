@@ -1,5 +1,10 @@
+from app.domain.provider_adapter import ProviderAdapter
 from app.models.product import Product
 from app.repositories.product_repository import ProductRepository
+from app.services.product_eligibility_service import (
+    ProductEligibility,
+    ProductEligibilityService,
+)
 
 
 class ProductService:
@@ -37,3 +42,22 @@ class ProductService:
             product exists.
         """
         return self.product_repository.get_active_product_by_id(product_id)
+
+    def get_product_eligibility(
+        self,
+        product: Product,
+        provider_adapter: ProviderAdapter,
+    ) -> ProductEligibility:
+        """Return backend-derived public eligibility for one Product.
+
+        Args:
+            product: Product whose public direct-checkout signals should be
+                derived.
+            provider_adapter: Backend-owned provider adapter boundary.
+
+        Returns:
+            Public eligibility fields derived from backend state and adapter
+            responses.
+        """
+        eligibility_service = ProductEligibilityService(provider_adapter)
+        return eligibility_service.evaluate_product(product)

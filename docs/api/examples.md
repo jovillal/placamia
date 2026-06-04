@@ -65,7 +65,12 @@ GET /api/v1/catalog/products
       "name": "Emergency exit sign",
       "description": "Standard sign for marking emergency exits.",
       "category_id": 1,
-      "base_price": "18000.00"
+      "base_price": "18000.00",
+      "availability_state": "available",
+      "direct_checkout_eligible": true,
+      "eligibility_reason": null,
+      "production_lead_time_days": 5,
+      "dispatch_lead_time_days": 1
     }
   ]
 }
@@ -83,7 +88,12 @@ GET /api/v1/catalog/products/1
   "name": "Emergency exit sign",
   "description": "Standard sign for marking emergency exits.",
   "category_id": 1,
-  "base_price": "18000.00"
+  "base_price": "18000.00",
+  "availability_state": "available",
+  "direct_checkout_eligible": true,
+  "eligibility_reason": null,
+  "production_lead_time_days": 5,
+  "dispatch_lead_time_days": 1
 }
 ```
 
