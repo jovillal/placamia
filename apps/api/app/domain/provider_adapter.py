@@ -342,9 +342,7 @@ class LocalMockProviderAdapter:
             idempotency_key=request.idempotency_key,
         )
         self.handoffs_by_key[request.idempotency_key] = result
-        self.status_by_reference[result.provider_reference] = (
-            ProviderOrderState.SENT_TO_PROVIDER
-        )
+        self.status_by_reference[result.provider_reference] = ProviderOrderState.SENT_TO_PROVIDER
         return result
 
     def get_handoff_status(
@@ -369,11 +367,7 @@ class LocalMockProviderAdapter:
     ) -> AcceptanceResult:
         """Record local provider acceptance or rejection for a handoff."""
         accepted = decision is AcceptanceDecision.ACCEPT
-        status = (
-            ProviderOrderState.ACCEPTED
-            if accepted
-            else ProviderOrderState.REJECTED
-        )
+        status = ProviderOrderState.ACCEPTED if accepted else ProviderOrderState.REJECTED
         self.status_by_reference[provider_reference] = status
         return AcceptanceResult(
             provider_reference=provider_reference,

@@ -11,12 +11,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
 from app.core.database import SessionLocal
 from app.models.category import Category
 from app.models.product import Product
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 
 @dataclass(frozen=True)

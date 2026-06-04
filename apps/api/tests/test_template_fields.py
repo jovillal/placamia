@@ -64,9 +64,7 @@ def test_template_field_model_persists_customization_definition():
 def test_template_field_model_table_matches_mvp_fields():
     db = build_session()
     try:
-        columns = {
-            column["name"] for column in inspect(db.bind).get_columns("template_fields")
-        }
+        columns = {column["name"] for column in inspect(db.bind).get_columns("template_fields")}
 
         assert columns == {
             "id",
@@ -162,9 +160,7 @@ def test_template_field_repository_returns_empty_for_inactive_or_missing_templat
 
         repository = TemplateFieldRepository(db)
 
-        inactive_fields = repository.get_active_fields_for_template(
-            inactive_template.id
-        )
+        inactive_fields = repository.get_active_fields_for_template(inactive_template.id)
         missing_fields = repository.get_active_fields_for_template(999)
 
         assert inactive_fields == []

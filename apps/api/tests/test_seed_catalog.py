@@ -1,15 +1,14 @@
-from decimal import Decimal
-from pathlib import Path
 import importlib.util
 import sys
-
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from decimal import Decimal
+from pathlib import Path
 
 from app.core.database import Base
 from app.models.category import Category
 from app.models.product import Product
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 
 def load_seed_catalog_module():
@@ -59,9 +58,7 @@ def test_seed_catalog_creates_mvp_categories_and_products():
     try:
         seed_catalog_module.seed_catalog(db)
 
-        categories = (
-            db.execute(select(Category).order_by(Category.name)).scalars().all()
-        )
+        categories = db.execute(select(Category).order_by(Category.name)).scalars().all()
         products = db.execute(select(Product).order_by(Product.name)).scalars().all()
 
         assert [category.name for category in categories] == [

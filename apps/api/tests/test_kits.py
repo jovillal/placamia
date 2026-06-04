@@ -3,10 +3,6 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import httpx
-from sqlalchemy import create_engine, inspect
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
 from app.core.database import Base, get_db
 from app.main import app
 from app.models.category import Category
@@ -15,6 +11,9 @@ from app.models.kit_item import KitItem
 from app.models.product import Product
 from app.repositories.kit_repository import KitRepository
 from app.services.kit_service import KitService
+from sqlalchemy import create_engine, inspect
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 
 def build_session():
@@ -95,12 +94,8 @@ def test_kit_item_model_links_kit_to_product_with_quantity():
 def test_kit_and_kit_item_tables_match_mvp_fields():
     db = build_session()
     try:
-        kit_columns = {
-            column["name"] for column in inspect(db.bind).get_columns("kits")
-        }
-        kit_item_columns = {
-            column["name"] for column in inspect(db.bind).get_columns("kit_items")
-        }
+        kit_columns = {column["name"] for column in inspect(db.bind).get_columns("kits")}
+        kit_item_columns = {column["name"] for column in inspect(db.bind).get_columns("kit_items")}
 
         assert kit_columns == {
             "id",

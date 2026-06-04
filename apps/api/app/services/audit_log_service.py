@@ -134,7 +134,4 @@ class AuditLogService:
             None.
         """
         normalized_key = key.lower()
-        return any(
-            sensitive_key in normalized_key
-            for sensitive_key in SENSITIVE_AUDIT_DETAIL_KEYS
-        )
+        return any(sensitive_key in normalized_key for sensitive_key in SENSITIVE_AUDIT_DETAIL_KEYS)

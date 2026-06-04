@@ -1,11 +1,10 @@
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-
 from app.core.database import get_db
 from app.repositories.category_repository import CategoryRepository
 from app.schemas.category import CategoryRead
 from app.services.category_service import CategoryService
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/catalog/categories", tags=["catalog"])
 

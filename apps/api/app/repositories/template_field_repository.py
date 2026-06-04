@@ -1,8 +1,7 @@
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
 from app.models.template import Template
 from app.models.template_field import TemplateField
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 
 class TemplateFieldRepository:

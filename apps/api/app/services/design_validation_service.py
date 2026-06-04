@@ -93,9 +93,7 @@ class DesignValidationService:
                 message="Template is inactive.",
             )
 
-        template_fields = self.template_field_repository.get_active_fields_for_template(
-            template_id
-        )
+        template_fields = self.template_field_repository.get_active_fields_for_template(template_id)
         fields_by_name = self._index_template_fields(template_fields)
         submitted_names = set(customization_values)
         field_names = set(fields_by_name)

@@ -1,7 +1,6 @@
+from app.models.product import Product
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
-from app.models.product import Product
 
 
 class ProductRepository:

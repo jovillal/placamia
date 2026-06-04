@@ -3,16 +3,15 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import httpx
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
 from app.core.database import Base, get_db
 from app.main import app
 from app.models.category import Category
 from app.models.product import Product
 from app.repositories.product_repository import ProductRepository
 from app.services.product_service import ProductService
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 
 def build_session():

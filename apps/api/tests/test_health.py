@@ -1,7 +1,6 @@
 import asyncio
 
 import httpx
-
 from app.main import app
 
 
