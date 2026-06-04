@@ -62,6 +62,15 @@ class ProviderOrderState(StrEnum):
     DELIVERED = "delivered"
 
 
+LOCAL_DIRECT_CHECKOUT_ELIGIBLE_STATES = frozenset(
+    {
+        AvailabilityState.AVAILABLE,
+        AvailabilityState.MADE_TO_ORDER_PARAMETRIZABLE,
+    }
+)
+"""Local/mock availability states that may continue through direct checkout."""
+
+
 @dataclass(frozen=True)
 class ProviderItemRequest:
     """Backend-validated catalog item request sent through the adapter boundary.
@@ -179,7 +188,23 @@ class AcceptanceResult:
 
 @dataclass(frozen=True)
 class LocalProviderFixture:
-    """Deterministic local adapter fixture for one catalog item."""
+    """Deterministic local adapter fixture for one backend-owned catalog item.
+
+    Attributes:
+        availability_state: Provider availability state returned for the item.
+        provider_cost: Provider-owned cost input. This is never a customer
+            price or checkout total.
+        supports_requested_configuration: Whether the provider can fulfill the
+            backend-validated item/options represented by this fixture.
+        production_days: Deterministic production lead-time estimate.
+        dispatch_days: Deterministic dispatch/pickup lead-time estimate.
+        reason_code: Stable machine-readable reason for unavailable or
+            unsupported fixture states.
+        effective_on: Optional effective date for the fixture's availability
+            state.
+        adjustments: Provider-owned cost adjustments for backend pricing tests.
+            These are not frontend/customer-facing prices.
+    """
 
     availability_state: AvailabilityState = AvailabilityState.AVAILABLE
     provider_cost: Decimal | None = Decimal("0.00")
@@ -187,6 +212,8 @@ class LocalProviderFixture:
     production_days: int | None = 5
     dispatch_days: int | None = 1
     reason_code: str | None = None
+    effective_on: date | None = None
+    adjustments: dict[str, Decimal] = field(default_factory=dict)
 
 
 class ProviderAdapter(Protocol):
@@ -253,7 +280,7 @@ class LocalMockProviderAdapter:
         Args:
             fixtures: Optional item fixture map keyed by item type and item id.
         """
-        self.fixtures = fixtures or {}
+        self.fixtures = dict(fixtures or {})
         self.handoffs_by_key: dict[str, HandoffResult] = {}
         self.status_by_reference: dict[str, ProviderOrderState] = {}
 
@@ -266,6 +293,7 @@ class LocalMockProviderAdapter:
         return AvailabilityResult(
             state=fixture.availability_state,
             reason_code=fixture.reason_code,
+            effective_on=fixture.effective_on,
         )
 
     def quote_pricing(
@@ -279,6 +307,7 @@ class LocalMockProviderAdapter:
             supports_requested_configuration=fixture.supports_requested_configuration,
             reason_code=fixture.reason_code,
             quote_reference=f"local-quote-{request.item_type}-{request.item_id}",
+            adjustments=dict(fixture.adjustments),
         )
 
     def check_direct_checkout_eligibility(
@@ -287,12 +316,8 @@ class LocalMockProviderAdapter:
     ) -> EligibilityResult:
         """Return direct-checkout eligibility from fixture availability/capability."""
         fixture = self._fixture_for(request)
-        eligible_states = {
-            AvailabilityState.AVAILABLE,
-            AvailabilityState.MADE_TO_ORDER_PARAMETRIZABLE,
-        }
         if (
-            fixture.availability_state in eligible_states
+            fixture.availability_state in LOCAL_DIRECT_CHECKOUT_ELIGIBLE_STATES
             and fixture.supports_requested_configuration
             and fixture.provider_cost is not None
         ):
