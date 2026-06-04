@@ -27,12 +27,12 @@ flowchart TD
     D1 --> B2[Return categories]
 
     U2 --> B3[Fetch products]
-    B3 --> D2[(Product data + availability)]
-    D2 --> B4[Return products]
+    B3 --> D2[(Product data + adapter-backed eligibility)]
+    D2 --> B4[Return products with backend-derived eligibility fields]
 
     U2 --> B5[Fetch kits]
-    B5 --> D3[(Kit data + active contents)]
-    D3 --> B6[Return kits]
+    B5 --> D3[(Kit data + active contents + adapter-backed eligibility)]
+    D3 --> B6[Return kits with backend-derived eligibility fields]
 
     D0 --> B3
     D0 --> B5
@@ -50,6 +50,9 @@ flowchart TD
 - Public catalog must not present an item as directly purchasable unless it is
   active, backend-priceable, and compatible with the assigned provider's
   availability state
+- Public product and kit eligibility fields are backend-derived through the
+  provider adapter boundary. Frontend-supplied availability, eligibility,
+  provider cost, lead time, or price claims must be ignored or rejected.
 - Weekly provider availability is a soft operational input, not exact inventory
   reservation
 - No write operations allowed

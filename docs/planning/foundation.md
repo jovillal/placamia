@@ -52,6 +52,10 @@ tested properly, and maintained over time.
 - API responses must follow the project API style guide.
 - New or changed API behavior must be reflected in the relevant docs.
 - Planning docs and flow docs are the primary source of truth for implementation.
+- Standalone template endpoint expansion is supporting work for the current
+  MVP. It must not take priority over the Provider Adapter Foundation →
+  Eligibility → Pricing → Checkout critical path unless a critical-path issue
+  explicitly requires it.
 
 ## Implemented Components
 
@@ -64,6 +68,8 @@ tested properly, and maintained over time.
 - Admin authorization and audit logging foundation
 - Health endpoint implemented
 - Catalog category, product list, and product detail endpoints implemented
+- Template/design validation foundation implemented as supporting
+  infrastructure
 - API style and endpoint structure documentation standardized
 - Security-focused testing architecture documented
 

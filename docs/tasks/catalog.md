@@ -33,11 +33,13 @@ Implemented:
 
 Still needed for Path A:
 
-- direct-checkout eligibility model/rules
-- local/mock provider adapter availability fixtures
-- product and kit purchasability rules
-- seed/admin data updates after validation partner findings are available
-- tests for unavailable/manual-quote-only visibility behavior
+- direct-checkout eligibility boundary and public catalog contract (#100)
+- local/mock provider adapter availability fixtures (#108)
+- product listing/detail eligibility fields (#109)
+- kit direct-checkout eligibility behavior (#110)
+- seed/admin data updates after validation partner findings are available (#111)
+- tests for unavailable/manual-quote-only purchasability behavior in
+  implementation issues
 
 ## Provider Validation Tasks
 
@@ -59,7 +61,7 @@ future providers can be onboarded with the same checklist.
 
 ## Implementation Slices
 
-### 1. Direct-Checkout Eligibility Boundary
+### 1. Direct-Checkout Eligibility Boundary (#100)
 
 Define the data and response contract that distinguishes:
 
@@ -73,9 +75,12 @@ Acceptance criteria:
 - planning docs and API examples define public fields
 - inactive and unavailable items cannot appear as purchasable
 - manual-quote-only items do not enter checkout
-- tests cover product and kit visibility
+- visibility and purchasability are documented as separate concepts
+- future implementation issues are identified for adapter fixtures, product
+  fields, kit behavior, and validation-driven seed data
+- no runtime tests required because this slice is documentation-only
 
-### 2. Provider Availability Data
+### 2. Local/Mock Provider Adapter Availability Fixtures (#108)
 
 Add the minimum backend representation for provider availability through the
 provider adapter boundary using the local/mock provider adapter first.
@@ -95,7 +100,7 @@ Acceptance criteria:
 - unavailable/manual-quote states block checkout eligibility
 - tests prove frontend-supplied availability is ignored
 
-### 3. Product Listing and Detail Eligibility
+### 3. Product Listing and Detail Eligibility (#109)
 
 Expose direct-checkout eligibility consistently in public catalog responses.
 
@@ -106,7 +111,7 @@ Acceptance criteria:
 - unavailable/manual-quote-only products are not shown as purchasable
 - query/filter behavior remains validated
 
-### 4. Kit Eligibility
+### 4. Kit Direct-Checkout Eligibility (#110)
 
 Define and implement purchasability rules for kits.
 
@@ -119,7 +124,7 @@ Acceptance criteria:
 - frontend cannot override kit contents, availability, eligibility, lead time,
   or provider cost/capability claims
 
-### 5. MVP Seed Data
+### 5. MVP Seed Data After Validation Findings (#111)
 
 Update seed/catalog data after validation partner findings identify the first
 MVP product and kit set.

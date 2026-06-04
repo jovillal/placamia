@@ -59,6 +59,44 @@ Planned:
 
 - GET /api/v1/catalog/products with filtering and pagination
 
+## Direct-Checkout Eligibility Contract
+
+Catalog visibility and direct-checkout purchasability are separate concepts.
+An item may be visible in the catalog while not being eligible for direct
+checkout.
+
+The public catalog contract uses these backend-derived fields for products and
+kits:
+
+- `availability_state`
+- `direct_checkout_eligible`
+- `eligibility_reason`
+- `production_lead_time_days`
+- `dispatch_lead_time_days`
+
+These fields are derived by the backend through the provider adapter boundary.
+They are not accepted from the frontend and must not be treated as customer
+price inputs. Provider pricing output remains provider-owned base
+cost/capability data; PlacamIA backend pricing services calculate customer
+price, margin, taxes/fees, discounts, and checkout totals.
+
+Initial availability states:
+
+| State | Direct checkout behavior |
+| --- | --- |
+| `available` | Eligible only when the product or kit is active, backend-priceable, and adapter-capable. |
+| `made_to_order_parametrizable` | Eligible only when the requested configuration is supported and backend-priceable. |
+| `temporarily_unavailable` | Not purchasable. |
+| `manual_quote_required` | Not purchasable in MVP checkout. Future RFQ/manual quote flow required. |
+| `outsourced_not_mvp_direct` | Not purchasable in MVP checkout. |
+
+Future implementation issues:
+
+- #108 Implement local/mock provider adapter availability fixtures.
+- #109 Add product listing and detail eligibility fields.
+- #110 Add kit direct-checkout eligibility behavior.
+- #111 Update MVP seed data after validation findings.
+
 ## Child Issues
 
 Completed:

@@ -28,6 +28,11 @@ payment as part of paid-order handoff.
 Known planning issues:
 
 - pricing model/service/endpoint are planned but not Path A-complete
+- checkout implementation is on the critical path after provider adapter
+  foundation, catalog eligibility, and pricing
+- direct-checkout eligibility boundary (#100), local/mock adapter fixtures
+  (#108), product eligibility fields (#109), and kit eligibility behavior
+  (#110) should be settled before checkout depends on catalog purchasability
 - order lifecycle needs `ready_for_pickup` and `cancellation_requested`
 - payment webhook work must distinguish payment-provider confirmation from
   manufacturing-provider acceptance
@@ -62,6 +67,12 @@ checkout terms must be updated from legal/business validation before launch.
 Implement backend-owned pricing rules for direct-checkout items using provider
 cost/capability inputs from the provider adapter boundary.
 
+Related issues:
+
+- #26 Define Path A pricing rule model and service contracts
+- #27 Implement Path A pricing preview service with unit tests
+- #28 Create POST pricing preview endpoint for Path A direct checkout
+
 Acceptance criteria:
 
 - pricing can calculate products, kits, and designs
@@ -77,6 +88,14 @@ Acceptance criteria:
 Validate direct-checkout eligibility immediately before draft order/payment
 initialization using backend catalog state and provider adapter boundary
 responses.
+
+Related issues:
+
+- #100 Define direct-checkout eligibility boundary and public catalog contract
+- #108 Implement local/mock provider adapter availability fixtures
+- #109 Add product listing and detail eligibility fields
+- #110 Add kit direct-checkout eligibility behavior
+- #101 Implement checkout eligibility gate and terms acknowledgement
 
 Acceptance criteria:
 
