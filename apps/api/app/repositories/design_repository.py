@@ -58,6 +58,8 @@ class DesignRepository:
             loaded, or None when no Design exists.
         """
         result = self.db.execute(
-            select(Design).options(selectinload(Design.template)).where(Design.id == design_id)
+            select(Design)
+            .options(selectinload(Design.template))
+            .where(Design.id == design_id)
         )
         return result.scalar_one_or_none()

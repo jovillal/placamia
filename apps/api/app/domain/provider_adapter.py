@@ -342,7 +342,9 @@ class LocalMockProviderAdapter:
             idempotency_key=request.idempotency_key,
         )
         self.handoffs_by_key[request.idempotency_key] = result
-        self.status_by_reference[result.provider_reference] = ProviderOrderState.SENT_TO_PROVIDER
+        self.status_by_reference[result.provider_reference] = (
+            ProviderOrderState.SENT_TO_PROVIDER
+        )
         return result
 
     def get_handoff_status(
@@ -367,7 +369,9 @@ class LocalMockProviderAdapter:
     ) -> AcceptanceResult:
         """Record local provider acceptance or rejection for a handoff."""
         accepted = decision is AcceptanceDecision.ACCEPT
-        status = ProviderOrderState.ACCEPTED if accepted else ProviderOrderState.REJECTED
+        status = (
+            ProviderOrderState.ACCEPTED if accepted else ProviderOrderState.REJECTED
+        )
         self.status_by_reference[provider_reference] = status
         return AcceptanceResult(
             provider_reference=provider_reference,
@@ -378,4 +382,6 @@ class LocalMockProviderAdapter:
 
     def _fixture_for(self, request: ProviderItemRequest) -> LocalProviderFixture:
         """Return a fixture for the request, falling back to an available item."""
-        return self.fixtures.get((request.item_type, request.item_id), LocalProviderFixture())
+        return self.fixtures.get(
+            (request.item_type, request.item_id), LocalProviderFixture()
+        )

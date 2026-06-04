@@ -94,8 +94,12 @@ def test_kit_item_model_links_kit_to_product_with_quantity():
 def test_kit_and_kit_item_tables_match_mvp_fields():
     db = build_session()
     try:
-        kit_columns = {column["name"] for column in inspect(db.bind).get_columns("kits")}
-        kit_item_columns = {column["name"] for column in inspect(db.bind).get_columns("kit_items")}
+        kit_columns = {
+            column["name"] for column in inspect(db.bind).get_columns("kits")
+        }
+        kit_item_columns = {
+            column["name"] for column in inspect(db.bind).get_columns("kit_items")
+        }
 
         assert kit_columns == {
             "id",

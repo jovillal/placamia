@@ -48,7 +48,9 @@ def test_template_model_persists_reusable_base_design():
 def test_template_model_table_matches_mvp_fields():
     db = build_session()
     try:
-        columns = {column["name"] for column in inspect(db.bind).get_columns("templates")}
+        columns = {
+            column["name"] for column in inspect(db.bind).get_columns("templates")
+        }
 
         assert columns == {
             "id",

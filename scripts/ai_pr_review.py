@@ -144,7 +144,11 @@ def build_prompt(
     files_summary: str,
 ) -> str:
     """Build the AI review prompt."""
-    issue_title = issue.get("title", "No linked issue found") if issue else "No linked issue found"
+    issue_title = (
+        issue.get("title", "No linked issue found")
+        if issue
+        else "No linked issue found"
+    )
     issue_body = issue.get("body", "") if issue else ""
 
     return f"""
@@ -263,7 +267,9 @@ def build_comment(review: dict[str, Any], issue_number: int | None) -> str:
     return (
         "## AI PR Review\n\n"
         f"{linked_issue_line}\n\n"
-        f"**Summary:** {summary}\n\n" + "\n\n".join(sections) + f"\n\n**Verdict:** `{verdict}`\n"
+        f"**Summary:** {summary}\n\n"
+        + "\n\n".join(sections)
+        + f"\n\n**Verdict:** `{verdict}`\n"
         "\n> Advisory review only. Human judgment remains required."
     )
 
@@ -303,7 +309,9 @@ def main() -> int:
 
         issue_number = extract_issue_number(pr_body)
         issue = (
-            get_issue(repository, issue_number, github_token) if issue_number is not None else None
+            get_issue(repository, issue_number, github_token)
+            if issue_number is not None
+            else None
         )
 
         files = get_pr_files(repository, pr_number, github_token)
