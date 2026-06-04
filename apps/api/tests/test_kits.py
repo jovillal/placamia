@@ -3,7 +3,14 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import httpx
+from app.api.dependencies import get_provider_adapter
 from app.core.database import Base, get_db
+from app.domain.provider_adapter import (
+    AvailabilityState,
+    CatalogItemType,
+    LocalMockProviderAdapter,
+    LocalProviderFixture,
+)
 from app.main import app
 from app.models.category import Category
 from app.models.kit import Kit
@@ -328,9 +335,87 @@ def test_list_kits_endpoint_returns_active_kits_with_active_product_items():
                             "quantity": 4,
                         }
                     ],
+                    "availability_state": "available",
+                    "direct_checkout_eligible": False,
+                    "eligibility_reason": "inactive_kit_item",
+                    "production_lead_time_days": 5,
+                    "dispatch_lead_time_days": 1,
                 }
             ]
         }
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_list_kits_endpoint_uses_backend_adapter_for_content_eligibility():
+    db = build_session()
+    category = Category(name="Emergency", description=None)
+    active_product = Product(
+        name="Exit route sign",
+        description=None,
+        category=category,
+        base_price=Decimal("12.50"),
+    )
+    kit = Kit(
+        name="Emergency evacuation kit",
+        description="Common signage for evacuation routes.",
+    )
+    db.add(KitItem(kit=kit, product=active_product, quantity=4))
+    db.commit()
+
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    async def override_provider_adapter():
+        return LocalMockProviderAdapter(
+            fixtures={
+                (
+                    CatalogItemType.PRODUCT,
+                    active_product.id,
+                ): LocalProviderFixture(
+                    availability_state=AvailabilityState.TEMPORARILY_UNAVAILABLE,
+                    reason_code="temporarily_unavailable",
+                )
+            }
+        )
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_provider_adapter] = override_provider_adapter
+
+    try:
+
+        async def get_kits():
+            transport = httpx.ASGITransport(app=app)
+            async with httpx.AsyncClient(
+                transport=transport,
+                base_url="http://testserver",
+            ) as client:
+                return await client.get(
+                    "/api/v1/catalog/kits",
+                    params={
+                        "items": "[]",
+                        "availability_state": "available",
+                        "direct_checkout_eligible": "true",
+                    },
+                )
+
+        response = asyncio.run(get_kits())
+
+        assert response.status_code == 200
+        payload = response.json()["data"][0]
+        assert payload["items"] == [
+            {
+                "product_id": active_product.id,
+                "quantity": 4,
+            }
+        ]
+        assert payload["availability_state"] == "available"
+        assert payload["direct_checkout_eligible"] is False
+        assert payload["eligibility_reason"] == "temporarily_unavailable"
     finally:
         app.dependency_overrides.clear()
         db.close()

@@ -1,6 +1,8 @@
+from app.api.dependencies import get_provider_adapter
 from app.core.database import get_db
 from app.repositories.kit_repository import KitRepository
 from app.schemas.kit import KitItemRead, KitRead
+from app.services.catalog_eligibility_service import CatalogEligibility
 from app.services.kit_service import KitService
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -23,11 +25,14 @@ class KitListResponse(BaseModel):
 )
 async def list_kits(
     db: Session = Depends(get_db),
+    provider_adapter=Depends(get_provider_adapter),
 ) -> dict[str, list[KitRead]]:
     """Return active catalog kits ordered by name.
 
     Args:
         db: SQLAlchemy session provided by FastAPI dependency injection.
+        provider_adapter: Backend-owned adapter used to derive public
+            availability and direct-checkout eligibility.
 
     Returns:
         A response payload containing public Kit records under the `data` key.
@@ -41,15 +46,33 @@ async def list_kits(
 
     return {
         "data": [
-            KitRead(
-                id=kit.id,
-                name=kit.name,
-                description=kit.description,
-                items=[
-                    KitItemRead.model_validate(item)
-                    for item in kit_service.list_public_kit_items(kit)
-                ],
+            _kit_read_from_eligibility(
+                kit=kit,
+                items=kit_service.list_public_kit_items(kit),
+                eligibility=kit_service.get_catalog_eligibility(
+                    kit=kit,
+                    provider_adapter=provider_adapter,
+                ),
             )
             for kit in kits
         ]
     }
+
+
+def _kit_read_from_eligibility(
+    kit,
+    items,
+    eligibility: CatalogEligibility,
+) -> KitRead:
+    """Build a public kit response with backend-derived eligibility."""
+    return KitRead(
+        id=kit.id,
+        name=kit.name,
+        description=kit.description,
+        items=[KitItemRead.model_validate(item) for item in items],
+        availability_state=eligibility.availability_state.value,
+        direct_checkout_eligible=eligibility.direct_checkout_eligible,
+        eligibility_reason=eligibility.eligibility_reason,
+        production_lead_time_days=eligibility.production_lead_time_days,
+        dispatch_lead_time_days=eligibility.dispatch_lead_time_days,
+    )

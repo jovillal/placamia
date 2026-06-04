@@ -1,5 +1,10 @@
 from app.models.product import Product
 from app.repositories.product_repository import ProductRepository
+from app.domain.provider_adapter import ProviderAdapter
+from app.services.catalog_eligibility_service import (
+    CatalogEligibility,
+    CatalogEligibilityService,
+)
 
 
 class ProductService:
@@ -37,3 +42,21 @@ class ProductService:
             product exists.
         """
         return self.product_repository.get_active_product_by_id(product_id)
+
+    def get_catalog_eligibility(
+        self,
+        product: Product,
+        provider_adapter: ProviderAdapter,
+    ) -> CatalogEligibility:
+        """Return public catalog eligibility signals for one Product.
+
+        Args:
+            product: Product whose eligibility should be derived.
+            provider_adapter: Adapter boundary used for backend-owned provider
+                responses.
+
+        Returns:
+            Adapter-backed eligibility information for the Product.
+        """
+        eligibility_service = CatalogEligibilityService(provider_adapter)
+        return eligibility_service.evaluate_product(product)

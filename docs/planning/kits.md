@@ -74,6 +74,17 @@ Current public KitItem shape:
 - product_id
 - quantity
 
+Current public Kit response direct-checkout signals:
+
+- availability_state
+- direct_checkout_eligible
+- eligibility_reason
+- production_lead_time_days
+- dispatch_lead_time_days
+
+These fields are derived by the backend through the provider adapter boundary.
+Frontend-supplied kit contents or eligibility claims must not influence them.
+
 Active Kits with zero active Product contents are currently returned with an
 empty `items` array. Whether those Kits should be hidden, and whether kit
 responses should include product summaries instead of only product identifiers,

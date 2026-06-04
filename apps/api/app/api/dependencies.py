@@ -1,5 +1,6 @@
 from app.core.config import settings
 from app.core.database import get_db
+from app.domain.provider_adapter import LocalMockProviderAdapter
 from app.models.user import User, UserRole
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthenticationError, AuthService
@@ -8,6 +9,19 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 bearer_scheme = HTTPBearer(auto_error=False)
+
+
+async def get_provider_adapter():
+    """Return the provider adapter used for backend-owned catalog decisions.
+
+    Returns:
+        The deterministic local/mock provider adapter used for MVP backend
+        development until a real provider adapter is implemented.
+
+    Side effects:
+        None.
+    """
+    return LocalMockProviderAdapter()
 
 
 async def get_current_user(

@@ -22,3 +22,8 @@ class KitRead(BaseModel):
     name: str
     description: str | None
     items: list[KitItemRead]
+    availability_state: str
+    direct_checkout_eligible: bool
+    eligibility_reason: str | None
+    production_lead_time_days: int | None
+    dispatch_lead_time_days: int | None

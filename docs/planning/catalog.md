@@ -59,6 +59,21 @@ Planned:
 
 - GET /api/v1/catalog/products with filtering and pagination
 
+## Public Product Response Contract
+
+Public product responses include backend-derived direct-checkout signals:
+
+- `availability_state`
+- `direct_checkout_eligible`
+- `eligibility_reason`
+- `production_lead_time_days`
+- `dispatch_lead_time_days`
+
+These fields are derived by the backend through the provider adapter boundary.
+They are not accepted from the frontend and must not be treated as customer
+price inputs. `base_price` remains a backend-owned catalog price field; future
+pricing services are responsible for final checkout totals.
+
 ## Child Issues
 
 Completed:

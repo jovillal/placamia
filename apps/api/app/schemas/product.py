@@ -15,5 +15,10 @@ class ProductRead(BaseModel):
     description: str | None
     category_id: int
     base_price: Decimal
+    availability_state: str
+    direct_checkout_eligible: bool
+    eligibility_reason: str | None
+    production_lead_time_days: int | None
+    dispatch_lead_time_days: int | None
 
     model_config = ConfigDict(from_attributes=True)

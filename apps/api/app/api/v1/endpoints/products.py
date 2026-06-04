@@ -1,6 +1,8 @@
+from app.api.dependencies import get_provider_adapter
 from app.core.database import get_db
 from app.repositories.product_repository import ProductRepository
 from app.schemas.product import ProductRead
+from app.services.catalog_eligibility_service import CatalogEligibility
 from app.services.product_service import ProductService
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -23,11 +25,14 @@ class ProductListResponse(BaseModel):
 )
 async def list_products(
     db: Session = Depends(get_db),
+    provider_adapter=Depends(get_provider_adapter),
 ) -> dict[str, list[ProductRead]]:
     """Return active catalog products ordered by name.
 
     Args:
         db: SQLAlchemy session provided by FastAPI dependency injection.
+        provider_adapter: Backend-owned adapter used to derive public
+            availability and direct-checkout eligibility.
 
     Returns:
         A response payload containing public product records under the `data`
@@ -40,7 +45,18 @@ async def list_products(
     product_service = ProductService(product_repository)
     products = product_service.list_products()
 
-    return {"data": [ProductRead.model_validate(product) for product in products]}
+    return {
+        "data": [
+            _product_read_from_eligibility(
+                product=product,
+                eligibility=product_service.get_catalog_eligibility(
+                    product=product,
+                    provider_adapter=provider_adapter,
+                ),
+            )
+            for product in products
+        ]
+    }
 
 
 @router.get(
@@ -53,12 +69,15 @@ async def list_products(
 async def get_product(
     product_id: int,
     db: Session = Depends(get_db),
+    provider_adapter=Depends(get_provider_adapter),
 ) -> ProductRead:
     """Return one active catalog product by id.
 
     Args:
         product_id: Product identifier from the request path.
         db: SQLAlchemy session provided by FastAPI dependency injection.
+        provider_adapter: Backend-owned adapter used to derive public
+            availability and direct-checkout eligibility.
 
     Returns:
         The matching public product response.
@@ -79,4 +98,29 @@ async def get_product(
             detail="Product not found",
         )
 
-    return ProductRead.model_validate(product)
+    return _product_read_from_eligibility(
+        product=product,
+        eligibility=product_service.get_catalog_eligibility(
+            product=product,
+            provider_adapter=provider_adapter,
+        ),
+    )
+
+
+def _product_read_from_eligibility(
+    product,
+    eligibility: CatalogEligibility,
+) -> ProductRead:
+    """Build a public product response with backend-derived eligibility."""
+    return ProductRead(
+        id=product.id,
+        name=product.name,
+        description=product.description,
+        category_id=product.category_id,
+        base_price=product.base_price,
+        availability_state=eligibility.availability_state.value,
+        direct_checkout_eligible=eligibility.direct_checkout_eligible,
+        eligibility_reason=eligibility.eligibility_reason,
+        production_lead_time_days=eligibility.production_lead_time_days,
+        dispatch_lead_time_days=eligibility.dispatch_lead_time_days,
+    )
