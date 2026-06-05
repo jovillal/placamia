@@ -115,7 +115,12 @@ GET /api/v1/catalog/kits
           "product_id": 1,
           "quantity": 4
         }
-      ]
+      ],
+      "availability_state": "available",
+      "direct_checkout_eligible": true,
+      "eligibility_reason": null,
+      "production_lead_time_days": 5,
+      "dispatch_lead_time_days": 1
     }
   ]
 }

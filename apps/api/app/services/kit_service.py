@@ -1,6 +1,11 @@
+from app.domain.provider_adapter import ProviderAdapter
 from app.models.kit import Kit
 from app.models.kit_item import KitItem
 from app.repositories.kit_repository import KitRepository
+from app.services.kit_eligibility_service import (
+    KitEligibility,
+    KitEligibilityService,
+)
 
 
 class KitService:
@@ -38,3 +43,21 @@ class KitService:
             treated as unavailable catalog contents and are excluded.
         """
         return [item for item in kit.kit_items if item.product.is_active]
+
+    def get_kit_eligibility(
+        self,
+        kit: Kit,
+        provider_adapter: ProviderAdapter,
+    ) -> KitEligibility:
+        """Return backend-derived public eligibility for one Kit.
+
+        Args:
+            kit: Kit whose public direct-checkout signals should be derived.
+            provider_adapter: Backend-owned provider adapter boundary.
+
+        Returns:
+            Public eligibility fields derived from backend-owned kit contents
+            and adapter responses.
+        """
+        eligibility_service = KitEligibilityService(provider_adapter)
+        return eligibility_service.evaluate_kit(kit)

@@ -3,7 +3,14 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import httpx
+from app.api.dependencies import get_provider_adapter
 from app.core.database import Base, get_db
+from app.domain.provider_adapter import (
+    AvailabilityState,
+    CatalogItemType,
+    LocalMockProviderAdapter,
+    LocalProviderFixture,
+)
 from app.main import app
 from app.models.category import Category
 from app.models.kit import Kit
@@ -29,6 +36,34 @@ def build_session():
         bind=engine,
     )
     return testing_session_local()
+
+
+async def request_kits(params: dict[str, str] | None = None):
+    """Call the public kit list endpoint through the ASGI test transport."""
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+    ) as client:
+        return await client.get("/api/v1/catalog/kits", params=params)
+
+
+def build_provider_adapter_override(fixtures):
+    """Build a FastAPI dependency override for deterministic adapter fixtures."""
+
+    async def override_provider_adapter():
+        return LocalMockProviderAdapter(fixtures)
+
+    return override_provider_adapter
+
+
+def available_fixture(cost: str = "12.50") -> LocalProviderFixture:
+    """Return a direct-checkout eligible local provider fixture."""
+    return LocalProviderFixture(
+        availability_state=AvailabilityState.AVAILABLE,
+        provider_cost=Decimal(cost),
+        supports_requested_configuration=True,
+    )
 
 
 def test_kit_model_persists_catalog_bundle():
@@ -302,18 +337,15 @@ def test_list_kits_endpoint_returns_active_kits_with_active_product_items():
             pass
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_provider_adapter] = build_provider_adapter_override(
+        {
+            (CatalogItemType.KIT, 1): available_fixture("20.00"),
+            (CatalogItemType.PRODUCT, active_product.id): available_fixture(),
+        }
+    )
 
     try:
-
-        async def get_kits():
-            transport = httpx.ASGITransport(app=app)
-            async with httpx.AsyncClient(
-                transport=transport,
-                base_url="http://testserver",
-            ) as client:
-                return await client.get("/api/v1/catalog/kits")
-
-        response = asyncio.run(get_kits())
+        response = asyncio.run(request_kits())
 
         assert response.status_code == 200
         assert response.json() == {
@@ -328,9 +360,327 @@ def test_list_kits_endpoint_returns_active_kits_with_active_product_items():
                             "quantity": 4,
                         }
                     ],
+                    "availability_state": "available",
+                    "direct_checkout_eligible": False,
+                    "eligibility_reason": "inactive_kit_item",
+                    "production_lead_time_days": 5,
+                    "dispatch_lead_time_days": 1,
                 }
             ]
         }
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_list_kits_endpoint_marks_eligible_kit_purchasable():
+    db = build_session()
+    category = Category(name="Emergency", description=None)
+    product = Product(
+        name="Exit route sign",
+        description=None,
+        category=category,
+        base_price=Decimal("12.50"),
+    )
+    kit = Kit(
+        name="Emergency evacuation kit",
+        description="Common signage for evacuation routes.",
+    )
+    db.add(KitItem(kit=kit, product=product, quantity=4))
+    db.commit()
+
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_provider_adapter] = build_provider_adapter_override(
+        {
+            (CatalogItemType.KIT, kit.id): available_fixture("20.00"),
+            (CatalogItemType.PRODUCT, product.id): available_fixture(),
+        }
+    )
+
+    try:
+        response = asyncio.run(request_kits())
+
+        assert response.status_code == 200
+        payload = response.json()["data"][0]
+        assert payload["direct_checkout_eligible"] is True
+        assert payload["eligibility_reason"] is None
+        assert payload["availability_state"] == "available"
+        assert payload["production_lead_time_days"] == 5
+        assert payload["dispatch_lead_time_days"] == 1
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_list_kits_endpoint_marks_empty_kit_not_purchasable():
+    db = build_session()
+    kit = Kit(
+        name="Empty kit",
+        description="Still visible under current public behavior.",
+    )
+    db.add(kit)
+    db.commit()
+
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_provider_adapter] = build_provider_adapter_override(
+        {(CatalogItemType.KIT, kit.id): available_fixture("20.00")}
+    )
+
+    try:
+        response = asyncio.run(request_kits())
+
+        assert response.status_code == 200
+        payload = response.json()["data"][0]
+        assert payload["items"] == []
+        assert payload["direct_checkout_eligible"] is False
+        assert payload["eligibility_reason"] == "empty_kit"
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_list_kits_endpoint_marks_unavailable_content_not_purchasable():
+    db = build_session()
+    category = Category(name="Emergency", description=None)
+    product = Product(
+        name="Exit route sign",
+        description=None,
+        category=category,
+        base_price=Decimal("12.50"),
+    )
+    kit = Kit(name="Emergency evacuation kit", description=None)
+    db.add(KitItem(kit=kit, product=product, quantity=4))
+    db.commit()
+
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_provider_adapter] = build_provider_adapter_override(
+        {
+            (CatalogItemType.KIT, kit.id): available_fixture("20.00"),
+            (CatalogItemType.PRODUCT, product.id): LocalProviderFixture(
+                availability_state=AvailabilityState.TEMPORARILY_UNAVAILABLE,
+                provider_cost=Decimal("12.50"),
+                supports_requested_configuration=True,
+                reason_code="temporarily_unavailable",
+            ),
+        }
+    )
+
+    try:
+        response = asyncio.run(request_kits())
+
+        assert response.status_code == 200
+        payload = response.json()["data"][0]
+        assert payload["direct_checkout_eligible"] is False
+        assert payload["eligibility_reason"] == "temporarily_unavailable"
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_list_kits_endpoint_marks_manual_quote_content_not_purchasable():
+    db = build_session()
+    category = Category(name="Custom", description=None)
+    product = Product(
+        name="Oversized custom sign",
+        description=None,
+        category=category,
+        base_price=Decimal("99.00"),
+    )
+    kit = Kit(name="Custom kit", description=None)
+    db.add(KitItem(kit=kit, product=product, quantity=1))
+    db.commit()
+
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_provider_adapter] = build_provider_adapter_override(
+        {
+            (CatalogItemType.KIT, kit.id): available_fixture("20.00"),
+            (CatalogItemType.PRODUCT, product.id): LocalProviderFixture(
+                availability_state=AvailabilityState.MANUAL_QUOTE_REQUIRED,
+                provider_cost=None,
+                supports_requested_configuration=False,
+                reason_code="manual_quote_required",
+            ),
+        }
+    )
+
+    try:
+        response = asyncio.run(request_kits())
+
+        assert response.status_code == 200
+        payload = response.json()["data"][0]
+        assert payload["direct_checkout_eligible"] is False
+        assert payload["eligibility_reason"] == "manual_quote_required"
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_list_kits_endpoint_marks_non_priceable_content_not_purchasable():
+    db = build_session()
+    category = Category(name="Emergency", description=None)
+    product = Product(
+        name="Exit route sign",
+        description=None,
+        category=category,
+        base_price=Decimal("12.50"),
+    )
+    kit = Kit(name="Emergency evacuation kit", description=None)
+    db.add(KitItem(kit=kit, product=product, quantity=4))
+    db.commit()
+
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_provider_adapter] = build_provider_adapter_override(
+        {
+            (CatalogItemType.KIT, kit.id): available_fixture("20.00"),
+            (CatalogItemType.PRODUCT, product.id): LocalProviderFixture(
+                availability_state=AvailabilityState.AVAILABLE,
+                provider_cost=None,
+                supports_requested_configuration=True,
+                reason_code="provider_cost_missing",
+            ),
+        }
+    )
+
+    try:
+        response = asyncio.run(request_kits())
+
+        assert response.status_code == 200
+        payload = response.json()["data"][0]
+        assert payload["direct_checkout_eligible"] is False
+        assert payload["eligibility_reason"] == "provider_cost_missing"
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_list_kits_endpoint_marks_outsourced_content_not_purchasable():
+    db = build_session()
+    category = Category(name="Outsourced", description=None)
+    product = Product(
+        name="Special outsourced sign",
+        description=None,
+        category=category,
+        base_price=Decimal("40.00"),
+    )
+    kit = Kit(name="Outsourced kit", description=None)
+    db.add(KitItem(kit=kit, product=product, quantity=1))
+    db.commit()
+
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_provider_adapter] = build_provider_adapter_override(
+        {
+            (CatalogItemType.KIT, kit.id): available_fixture("20.00"),
+            (CatalogItemType.PRODUCT, product.id): LocalProviderFixture(
+                availability_state=AvailabilityState.OUTSOURCED_NOT_MVP_DIRECT,
+                provider_cost=Decimal("25.00"),
+                supports_requested_configuration=True,
+                reason_code="outsourced_not_mvp_direct",
+            ),
+        }
+    )
+
+    try:
+        response = asyncio.run(request_kits())
+
+        assert response.status_code == 200
+        payload = response.json()["data"][0]
+        assert payload["direct_checkout_eligible"] is False
+        assert payload["eligibility_reason"] == "outsourced_not_mvp_direct"
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_list_kits_endpoint_ignores_frontend_eligibility_claims():
+    db = build_session()
+    category = Category(name="Custom", description=None)
+    product = Product(
+        name="Oversized custom sign",
+        description=None,
+        category=category,
+        base_price=Decimal("99.00"),
+    )
+    kit = Kit(name="Custom kit", description=None)
+    db.add(KitItem(kit=kit, product=product, quantity=1))
+    db.commit()
+
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_provider_adapter] = build_provider_adapter_override(
+        {
+            (CatalogItemType.KIT, kit.id): available_fixture("20.00"),
+            (CatalogItemType.PRODUCT, product.id): LocalProviderFixture(
+                availability_state=AvailabilityState.MANUAL_QUOTE_REQUIRED,
+                provider_cost=None,
+                supports_requested_configuration=False,
+                production_days=12,
+                dispatch_days=3,
+                reason_code="manual_quote_required",
+            ),
+        }
+    )
+
+    try:
+        response = asyncio.run(
+            request_kits(
+                params={
+                    "items": "[]",
+                    "availability_state": "available",
+                    "direct_checkout_eligible": "true",
+                    "provider_cost": "0.01",
+                    "supports_requested_configuration": "true",
+                    "production_lead_time_days": "1",
+                    "dispatch_lead_time_days": "0",
+                }
+            )
+        )
+
+        assert response.status_code == 200
+        payload = response.json()["data"][0]
+        assert payload["items"] == [{"product_id": product.id, "quantity": 1}]
+        assert payload["direct_checkout_eligible"] is False
+        assert payload["eligibility_reason"] == "manual_quote_required"
     finally:
         app.dependency_overrides.clear()
         db.close()
