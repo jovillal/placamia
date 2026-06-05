@@ -60,6 +60,50 @@ truth.
 - Direct-checkout eligibility validation for pricing requests
 - Provider cost input handling through the provider adapter boundary
 
+## Path A Pricing Contract
+
+Issue #26 defines the first backend service contract for direct-checkout
+pricing. The initial contract is intentionally service-level only; public quote
+and checkout endpoints are handled by later issues.
+
+Supported contract targets:
+
+- product pricing contract validation for backend `Product` records
+- kit pricing contract validation for backend-owned `KitItem` contents
+- design pricing boundary with explicit rejection until design pricing rules
+  are defined
+
+Issue #26 does not define customer price composition, kit aggregation formulas,
+margin, tax, fee, discount, subtotal, total, or checkout amount behavior. Those
+belong to later pricing implementation issues.
+
+Backend pricing requests must:
+
+- use backend-loaded catalog models, not request-provided catalog contents
+- validate quantity before calculation
+- reject unsupported material, size, finish, template, or design options
+- reject frontend-supplied totals, subtotals, discounts, provider costs,
+  availability, eligibility, provider assignment, lead time, or final amounts
+- use provider adapter availability, direct-checkout eligibility, and provider
+  cost/capability inputs as backend-only inputs
+
+Initial quantity limits:
+
+- minimum quantity: 1
+- maximum quantity: 100
+
+Products and kits must be rejected before price calculation when they are:
+
+- inactive
+- unavailable through the provider adapter boundary
+- manual-quote-only
+- outsourced or not safe for MVP direct checkout
+- missing provider cost/capability input
+- not compatible with backend-owned pricing configuration rules
+
+Provider cost inputs are kept as traceable backend inputs. They are not
+customer-facing prices and must never be accepted from frontend payloads.
+
 ## Related Validation Docs
 
 - `docs/planning/provider.md`
