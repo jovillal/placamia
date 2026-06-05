@@ -126,6 +126,46 @@ GET /api/v1/catalog/kits
 }
 ```
 
+## Pricing Preview
+
+```http
+POST /api/v1/pricing/quotes
+Content-Type: application/json
+```
+
+```json
+{
+  "item_type": "product",
+  "item_id": 1,
+  "quantity": 3
+}
+```
+
+```json
+{
+  "item_type": "product",
+  "item_id": 1,
+  "quantity": 3,
+  "currency": "COP",
+  "customer_unit_price": "18000.00",
+  "customer_subtotal": "54000.00",
+  "preview_total": "54000.00",
+  "pricing_rule": "temporary_product_base_price_v1",
+  "provider_quote_reference": "local-quote-product-1"
+}
+```
+
+### Pricing Rejection
+
+```json
+{
+  "detail": {
+    "code": "kit_pricing_deferred",
+    "message": "Kit pricing preview is deferred until a documented kit pricing method exists."
+  }
+}
+```
+
 ## Authentication Error
 
 ```json
