@@ -104,6 +104,25 @@ Products and kits must be rejected before price calculation when they are:
 Provider cost inputs are kept as traceable backend inputs. They are not
 customer-facing prices and must never be accepted from frontend payloads.
 
+## Temporary Product Pricing Preview
+
+Issue #27 defines the first customer-facing pricing preview service for Path A
+products only. Until validation fills `docs/validation/pricing-model.md`, the
+temporary product preview rule is:
+
+- customer unit price: backend `Product.base_price`
+- customer subtotal: temporary unit price multiplied by quantity
+- customer total: subtotal for this slice only
+
+The #27 preview does not model margin, tax, fee, discount, or checkout
+finalization rules. Provider cost/capability input is required for backend
+eligibility and traceability, but provider cost is not exposed as a
+customer-facing amount.
+
+Kit pricing preview remains explicitly deferred until a documented kit pricing
+method exists. Design pricing preview remains explicitly deferred until design
+pricing rules exist.
+
 ## Related Validation Docs
 
 - `docs/planning/provider.md`
