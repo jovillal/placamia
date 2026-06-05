@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
@@ -111,6 +112,36 @@ class PathAPricingValidation:
     provider_quote_reference: str | None
 
 
+@dataclass(frozen=True)
+class PathAPricingPreview:
+    """Temporary MVP customer-facing pricing preview for one Path A item.
+
+    Attributes:
+        item_type: Catalog item type being previewed.
+        item_id: Backend-loaded catalog item identifier.
+        quantity: Backend-validated requested quantity.
+        currency: Currency code used by the preview.
+        customer_unit_price: Temporary customer unit price.
+        customer_subtotal: Temporary subtotal before future tax, fee, discount,
+            margin, or checkout finalization rules.
+        customer_total: Temporary preview total. For #27 only, this equals the
+            subtotal.
+        pricing_rule: Stable name for the temporary rule used.
+        provider_quote_reference: Provider adapter trace reference. This is not
+            a customer-facing price or provider cost.
+    """
+
+    item_type: PricingItemType
+    item_id: int
+    quantity: int
+    currency: str
+    customer_unit_price: Decimal
+    customer_subtotal: Decimal
+    customer_total: Decimal
+    pricing_rule: str
+    provider_quote_reference: str | None
+
+
 class PathAPricingService:
     """Validate Path A pricing contracts before calculation is implemented."""
 
@@ -170,6 +201,65 @@ class PathAPricingService:
         raise PricingRejected(
             code="unsupported_item_type",
             message="Pricing item type is not supported.",
+        )
+
+    def preview_price(self, request: PathAPricingRequest) -> PathAPricingPreview:
+        """Return a temporary MVP pricing preview for an eligible Product.
+
+        Args:
+            request: Backend-owned pricing request.
+
+        Returns:
+            Customer-facing product preview amounts calculated by the temporary
+            #27 MVP rule.
+
+        Raises:
+            PricingRejected: If request data is unsafe, unsupported, not
+                direct-checkout eligible, or not supported by #27.
+        """
+        self._reject_frontend_pricing_claims(request.frontend_claims)
+        self._validate_quantity(request.quantity)
+        self._validate_options(request.options)
+
+        if request.item_type is PricingItemType.PRODUCT:
+            validation = self._validate_product_pricing(request)
+            product = self._require_product(request.item)
+            unit_price = product.base_price
+            subtotal = unit_price * request.quantity
+            return PathAPricingPreview(
+                item_type=PricingItemType.PRODUCT,
+                item_id=product.id,
+                quantity=request.quantity,
+                currency=self.currency,
+                customer_unit_price=unit_price,
+                customer_subtotal=subtotal,
+                customer_total=subtotal,
+                pricing_rule="temporary_product_base_price_v1",
+                provider_quote_reference=validation.provider_quote_reference,
+            )
+
+        if request.item_type is PricingItemType.KIT:
+            raise PricingRejected(
+                code="kit_pricing_deferred",
+                message=(
+                    "Kit pricing preview is deferred until a documented kit "
+                    "pricing method exists."
+                ),
+            )
+
+        if request.item_type is PricingItemType.DESIGN:
+            raise PricingRejected(
+                code="design_pricing_contract_only",
+                message=(
+                    "Design pricing is part of the Path A contract, but full "
+                    "implementation is deferred until design pricing rules are "
+                    "defined."
+                ),
+            )
+
+        raise PricingRejected(
+            code="unsupported_item_type",
+            message="Pricing preview item type is not supported.",
         )
 
     def _validate_product_pricing(

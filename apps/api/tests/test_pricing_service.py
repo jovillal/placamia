@@ -134,12 +134,45 @@ def test_kit_pricing_contract_validates_backend_owned_required_contents():
     assert not hasattr(result, "customer_total")
 
 
+def test_product_pricing_preview_uses_temporary_backend_base_price_rule():
+    product = build_product(base_price="20.00")
+    service = pricing_service(
+        {(CatalogItemType.PRODUCT, product.id): available_fixture("12.00")}
+    )
+
+    result = service.preview_price(
+        PathAPricingRequest(
+            item_type=PricingItemType.PRODUCT,
+            item=product,
+            quantity=3,
+        )
+    )
+
+    assert result.item_type is PricingItemType.PRODUCT
+    assert result.item_id == product.id
+    assert result.quantity == 3
+    assert result.currency == "COP"
+    assert result.customer_unit_price == Decimal("20.00")
+    assert result.customer_subtotal == Decimal("60.00")
+    assert result.customer_total == Decimal("60.00")
+    assert result.pricing_rule == "temporary_product_base_price_v1"
+    assert result.provider_quote_reference == f"local-quote-product-{product.id}"
+    assert not hasattr(result, "provider_cost")
+    assert not hasattr(result, "provider_cost_input")
+    assert not hasattr(result, "provider_cost_total")
+
+
 @pytest.mark.parametrize(
     "frontend_claims",
     [
+        {"price": "0.01"},
+        {"base_price": "0.01"},
         {"total": "0.01"},
         {"subtotal": "0.01"},
         {"discount": "99.99"},
+        {"tax": "0.00"},
+        {"fee": "0.00"},
+        {"final_amount": "0.01"},
         {"provider_cost": "0.01"},
         {"availability_state": "available"},
         {"direct_checkout_eligible": True},
@@ -153,7 +186,7 @@ def test_pricing_rejects_frontend_price_and_provider_truth_claims(frontend_claim
     )
 
     assert_rejected_code(
-        lambda: service.validate_pricing_request(
+        lambda: service.preview_price(
             PathAPricingRequest(
                 item_type=PricingItemType.PRODUCT,
                 item=product,
@@ -172,7 +205,7 @@ def test_pricing_rejects_inactive_product():
     )
 
     assert_rejected_code(
-        lambda: service.validate_pricing_request(
+        lambda: service.preview_price(
             PathAPricingRequest(
                 item_type=PricingItemType.PRODUCT,
                 item=product,
@@ -208,7 +241,7 @@ def test_product_pricing_rejects_unavailable_manual_quote_and_outsourced_items(
     )
 
     assert_rejected_code(
-        lambda: service.validate_pricing_request(
+        lambda: service.preview_price(
             PathAPricingRequest(
                 item_type=PricingItemType.PRODUCT,
                 item=product,
@@ -216,6 +249,23 @@ def test_product_pricing_rejects_unavailable_manual_quote_and_outsourced_items(
             )
         ),
         reason_code,
+    )
+
+
+def test_kit_pricing_preview_is_explicitly_deferred_without_pricing_method():
+    product = build_product()
+    kit = build_kit(product=product)
+    service = pricing_service({})
+
+    assert_rejected_code(
+        lambda: service.preview_price(
+            PathAPricingRequest(
+                item_type=PricingItemType.KIT,
+                item=kit,
+                quantity=1,
+            )
+        ),
+        "kit_pricing_deferred",
     )
 
 
@@ -227,7 +277,7 @@ def test_product_pricing_rejects_unavailable_manual_quote_and_outsourced_items(
         (AvailabilityState.OUTSOURCED_NOT_MVP_DIRECT, "outsourced_not_mvp_direct"),
     ],
 )
-def test_kit_pricing_rejects_unavailable_manual_quote_and_outsourced_contents(
+def test_kit_pricing_contract_rejects_unavailable_manual_quote_and_outsourced_contents(
     availability_state,
     reason_code,
 ):
@@ -264,7 +314,7 @@ def test_pricing_rejects_invalid_configuration_options():
     )
 
     assert_rejected_code(
-        lambda: service.validate_pricing_request(
+        lambda: service.preview_price(
             PathAPricingRequest(
                 item_type=PricingItemType.PRODUCT,
                 item=product,
@@ -293,7 +343,7 @@ def test_pricing_rejects_invalid_or_abusive_quantities(quantity, code):
     )
 
     assert_rejected_code(
-        lambda: service.validate_pricing_request(
+        lambda: service.preview_price(
             PathAPricingRequest(
                 item_type=PricingItemType.PRODUCT,
                 item=product,
@@ -308,7 +358,7 @@ def test_design_pricing_contract_boundary_is_defined_but_deferred():
     service = pricing_service({})
 
     assert_rejected_code(
-        lambda: service.validate_pricing_request(
+        lambda: service.preview_price(
             PathAPricingRequest(
                 item_type=PricingItemType.DESIGN,
                 item=object(),
@@ -316,4 +366,29 @@ def test_design_pricing_contract_boundary_is_defined_but_deferred():
             )
         ),
         "design_pricing_contract_only",
+    )
+
+
+def test_product_pricing_preview_requires_provider_cost_input_without_exposing_it():
+    product = build_product()
+    service = pricing_service(
+        {
+            (CatalogItemType.PRODUCT, product.id): LocalProviderFixture(
+                availability_state=AvailabilityState.AVAILABLE,
+                provider_cost=None,
+                supports_requested_configuration=True,
+                reason_code="provider_cost_missing",
+            )
+        }
+    )
+
+    assert_rejected_code(
+        lambda: service.preview_price(
+            PathAPricingRequest(
+                item_type=PricingItemType.PRODUCT,
+                item=product,
+                quantity=1,
+            )
+        ),
+        "provider_cost_missing",
     )
