@@ -64,6 +64,97 @@ Related validation docs:
 - `docs/validation/commercial-model.md`
 - `docs/validation/pricing-model.md`
 
+### Valid Transitions
+
+Path A order status transitions are deterministic and backend-owned:
+
+- `draft -> confirmed` only after verified payment-provider confirmation.
+- `confirmed -> sent_to_provider` only after the provider adapter handoff is
+  sent for the paid order.
+- `sent_to_provider -> accepted` only when the provider adapter records
+  provider acceptance.
+- `sent_to_provider -> cancelled` when the provider adapter records provider
+  rejection, followed by cancellation/refund handling.
+- `accepted -> in_production` when production starts.
+- `in_production -> ready_for_pickup` when the package is prepared for pickup
+  with QR handling.
+- `ready_for_pickup -> shipped` only after a carrier QR pickup scan or
+  authorized operator fallback.
+- `shipped -> delivered` after delivery confirmation.
+- `draft -> cancelled` for pre-payment cancellation, payment failure, or
+  authorized administrative cancellation.
+- `confirmed|accepted|in_production -> cancellation_requested` when the paid
+  customer requests cancellation.
+- `cancellation_requested -> cancelled` after authorized cancellation/refund
+  approval.
+- `cancellation_requested -> confirmed|accepted|in_production` only when the
+  cancellation request is rejected and the order returns to the status from
+  which the cancellation was requested.
+
+`delivered` and `cancelled` are terminal states. Invalid transitions must be
+rejected without mutating persisted order state.
+
+### Order Model Requirements For #30
+
+The database implementation in #30 must persist enough order state to support
+tracking, payment verification, provider handoff, auditability, and security
+without trusting frontend-owned values.
+
+Required Order fields:
+
+- backend-generated primary key
+- authenticated customer owner id
+- canonical status from the Path A lifecycle
+- cancellation request source status when status is `cancellation_requested`
+- backend-calculated subtotal, tax/fee amounts if applicable, discounts if
+  applicable, total amount, and currency
+- payment provider reference and verified payment timestamp when confirmed
+- provider handoff reference, assigned provider id, and handoff timestamp when
+  sent
+- cancellation/refund terms policy identifier or version acknowledged before
+  payment
+- customer-safe tracking fields needed by the status endpoint
+- created and updated timestamps
+
+Security requirements:
+
+- order ownership must come from the authenticated request, not a frontend
+  `user_id`
+- totals must be calculated by backend pricing and copied from validated
+  checkout state
+- provider handoff data must be generated from persisted Order and OrderItems
+- provider acceptance/rejection must arrive through the provider adapter
+  boundary
+- customer cancellation after payment must not directly write `cancelled`
+- rejected mutations must leave the order and its items unchanged
+
+### OrderItem Model Requirements For #30
+
+OrderItems are immutable purchased item snapshots. They must preserve the data
+needed for payment reconciliation, provider payload generation, and customer
+tracking even if catalog products, kits, templates, pricing rules, or provider
+fixtures change later.
+
+Required OrderItem fields:
+
+- backend-generated primary key
+- parent order id
+- item type (`product`, `kit`, or validated `design`)
+- product, kit, template, and design references where applicable
+- display name and customer-safe description snapshot
+- selected material, size, finish, template/customization values, and quantity
+- backend-calculated unit price, line subtotal, discounts if applicable, taxes
+  or fees if applicable, line total, and currency
+- assigned provider id and provider capability/cost reference used for backend
+  pricing and handoff
+- provider payload snapshot fields needed for manufacturing, excluding
+  sensitive internal-only or raw frontend data
+- created timestamp
+
+OrderItem records must not be recomputed from mutable catalog state during
+tracking or provider handoff. Corrections must be explicit order adjustments or
+new documented flows, not silent snapshot rewrites.
+
 ## Scope
 
 - Order status lifecycle
