@@ -1,8 +1,14 @@
+from __future__ import annotations
+
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from app.core.database import Base
 from sqlalchemy import Boolean, DateTime, String, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+if TYPE_CHECKING:
+    from app.models.order import Order
 
 
 class UserRole:
@@ -48,4 +54,8 @@ class User(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+    orders: Mapped[list["Order"]] = relationship(
+        "Order",
+        back_populates="customer",
     )

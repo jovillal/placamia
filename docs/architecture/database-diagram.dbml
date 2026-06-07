@@ -150,3 +150,73 @@ Table kit_items {
 
 Ref: kit_items.kit_id > kits.id
 Ref: kit_items.product_id > products.id
+
+Table orders {
+  id integer [pk, increment]
+  customer_id integer [not null]
+  status varchar(64) [not null, default: "draft"]
+  cancellation_requested_from varchar(64)
+  subtotal_amount numeric(12, 2) [not null]
+  discount_amount numeric(12, 2) [not null, default: 0]
+  tax_amount numeric(12, 2) [not null, default: 0]
+  total_amount numeric(12, 2) [not null]
+  currency varchar(3) [not null, default: "COP"]
+  payment_provider_reference varchar(255)
+  payment_verified_at timestamptz
+  assigned_provider_id varchar(100)
+  provider_handoff_reference varchar(255)
+  provider_handoff_sent_at timestamptz
+  terms_policy_version varchar(100)
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    id [name: "ix_orders_id"]
+    customer_id [name: "ix_orders_customer_id"]
+    status [name: "ix_orders_status"]
+    payment_provider_reference [name: "ix_orders_payment_provider_reference"]
+    provider_handoff_reference [name: "ix_orders_provider_handoff_reference"]
+  }
+}
+
+Ref: orders.customer_id > users.id
+
+Table order_items {
+  id integer [pk, increment]
+  order_id integer [not null]
+  item_type varchar(32) [not null]
+  product_id integer
+  kit_id integer
+  template_id integer
+  design_id integer
+  display_name varchar(255) [not null]
+  customer_safe_description text
+  selected_options json [not null]
+  quantity integer [not null]
+  unit_price_amount numeric(12, 2) [not null]
+  line_subtotal_amount numeric(12, 2) [not null]
+  line_discount_amount numeric(12, 2) [not null, default: 0]
+  line_tax_amount numeric(12, 2) [not null, default: 0]
+  line_total_amount numeric(12, 2) [not null]
+  currency varchar(3) [not null, default: "COP"]
+  assigned_provider_id varchar(100) [not null]
+  provider_pricing_reference varchar(255)
+  provider_payload_snapshot json [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    id [name: "ix_order_items_id"]
+    order_id [name: "ix_order_items_order_id"]
+    item_type [name: "ix_order_items_item_type"]
+    product_id [name: "ix_order_items_product_id"]
+    kit_id [name: "ix_order_items_kit_id"]
+    template_id [name: "ix_order_items_template_id"]
+    design_id [name: "ix_order_items_design_id"]
+  }
+}
+
+Ref: order_items.order_id > orders.id
+Ref: order_items.product_id > products.id
+Ref: order_items.kit_id > kits.id
+Ref: order_items.template_id > templates.id
+Ref: order_items.design_id > designs.id
