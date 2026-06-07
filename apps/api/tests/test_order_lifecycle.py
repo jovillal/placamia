@@ -13,7 +13,11 @@ from app.domain.order_lifecycle import (
 @pytest.mark.parametrize(
     ("current_status", "target_status", "trigger"),
     [
-        (OrderStatus.DRAFT, OrderStatus.CONFIRMED, OrderTransitionTrigger.VERIFIED_PAYMENT),
+        (
+            OrderStatus.DRAFT,
+            OrderStatus.CONFIRMED,
+            OrderTransitionTrigger.VERIFIED_PAYMENT,
+        ),
         (
             OrderStatus.CONFIRMED,
             OrderStatus.SENT_TO_PROVIDER,
