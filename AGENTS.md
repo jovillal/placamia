@@ -400,6 +400,18 @@ When working on a task:
 - Use descriptive commit messages (feat:, fix:, test:, etc.)
 - Keep changes scoped to the issue
 
+### GitHub CLI and Codex Sandbox Notes
+
+- In Codex sessions, `gh` commands can be affected by sandboxed access to
+  credentials or network even when the user's local GitHub token is valid.
+- Do not assume `gh auth status` reporting an invalid token means the user's
+  credentials are actually broken.
+- If `gh` is needed for PR checks, Actions logs, or PR metadata and it fails in
+  Codex, first consider sandbox restrictions and use the GitHub connector or an
+  approved escalated command path when available.
+- When reporting a `gh` failure, say that it happened inside the Codex sandbox
+  unless the same failure has been confirmed outside the sandbox.
+
 ---
 
 ## Pull Request Rules
