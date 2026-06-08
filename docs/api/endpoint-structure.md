@@ -85,6 +85,7 @@ The current implemented API endpoints are:
 | `GET` | `/api/v1/catalog/products/{product_id}` | Catalog | Public | `ProductRead` object |
 | `POST` | `/api/v1/pricing/quotes` | Pricing | Public | `PricingQuoteResponse` object |
 | `POST` | `/api/v1/orders` | Orders | Required | `OrderRead` object |
+| `GET` | `/api/v1/orders/{order_id}/status` | Orders | Required | `OrderStatusRead` object |
 
 The demo Bruno collection in `bruno/placamia-api` mirrors this implemented
 inventory for local manual testing and demos.

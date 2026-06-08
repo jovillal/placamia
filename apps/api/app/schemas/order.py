@@ -66,3 +66,37 @@ class OrderRead(BaseModel):
     items: list[OrderItemRead]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class OrderStatusItemRead(BaseModel):
+    """Customer-safe item snapshot shown in order tracking responses."""
+
+    id: int
+    item_type: str
+    product_id: int | None
+    kit_id: int | None
+    template_id: int | None
+    design_id: int | None
+    display_name: str
+    customer_safe_description: str | None
+    selected_options: dict[str, Any]
+    quantity: int
+    line_total_amount: Decimal
+    currency: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderStatusRead(BaseModel):
+    """Customer-safe order tracking response for the owning user."""
+
+    id: int
+    status: str
+    cancellation_requested_from: str | None
+    total_amount: Decimal
+    currency: str
+    created_at: datetime
+    updated_at: datetime
+    items: list[OrderStatusItemRead]
+
+    model_config = ConfigDict(from_attributes=True)

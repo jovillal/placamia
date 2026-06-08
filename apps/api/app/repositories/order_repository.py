@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 
 class OrderRepository:
@@ -56,6 +56,24 @@ class OrderRepository:
             The matching order model instance, or None when no order exists.
         """
         return self.db.get(Order, order_id)
+
+    def get_order_for_customer(self, order_id: int, customer_id: int) -> Order | None:
+        """Return one order owned by an authenticated customer with items loaded.
+
+        Args:
+            order_id: Order identifier to look up.
+            customer_id: Backend-derived authenticated customer identifier.
+
+        Returns:
+            The matching customer-owned Order with item snapshots loaded, or
+            None when no such order exists.
+        """
+        result = self.db.execute(
+            select(Order)
+            .options(selectinload(Order.items))
+            .where(Order.id == order_id, Order.customer_id == customer_id)
+        )
+        return result.scalar_one_or_none()
 
     def get_orders_for_customer(self, customer_id: int) -> list[Order]:
         """Return orders owned by one authenticated customer id.
