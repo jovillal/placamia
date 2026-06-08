@@ -33,7 +33,7 @@ Use these top-level groups for MVP API routes:
 | Templates | `/api/v1/templates` | Design bases and template fields. | Planned |
 | Designs | `/api/v1/designs` | Customized design instances created from templates. | Planned |
 | Pricing | `/api/v1/pricing` | Backend-calculated quotes and pricing validation. | Partially implemented |
-| Orders | `/api/v1/orders` | Draft orders, confirmed orders, and order tracking. | Planned |
+| Orders | `/api/v1/orders` | Draft orders, confirmed orders, and order tracking. | Partially implemented |
 | Payments | `/api/v1/payments` | Payment initialization and payment confirmation/webhooks. | Planned |
 | Admin | `/api/v1/admin` | Authorized administrative changes and review workflows. | Planned |
 
@@ -84,6 +84,7 @@ The current implemented API endpoints are:
 | `GET` | `/api/v1/catalog/products` | Catalog | Public | `{ "data": ProductRead[] }` |
 | `GET` | `/api/v1/catalog/products/{product_id}` | Catalog | Public | `ProductRead` object |
 | `POST` | `/api/v1/pricing/quotes` | Pricing | Public | `PricingQuoteResponse` object |
+| `POST` | `/api/v1/orders` | Orders | Required | `OrderRead` object |
 
 The demo Bruno collection in `bruno/placamia-api` mirrors this implemented
 inventory for local manual testing and demos.

@@ -167,6 +167,12 @@ def test_checkout_eligibility_returns_validated_product_state():
 
         assert result.item_type is PricingItemType.PRODUCT
         assert result.item_id == product.id
+        assert result.product_id == product.id
+        assert result.kit_id is None
+        assert result.template_id is None
+        assert result.design_id is None
+        assert result.display_name == product.name
+        assert result.customer_safe_description == product.description
         assert result.quantity == 3
         assert result.selected_options == {}
         assert result.currency == "COP"

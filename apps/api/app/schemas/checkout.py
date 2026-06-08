@@ -35,10 +35,20 @@ class CheckoutEligibilityRequest(BaseModel):
 
 
 class ValidatedCheckoutState(BaseModel):
-    """Backend-owned checkout state suitable for later order/payment creation."""
+    """Backend-owned checkout state suitable for later order/payment creation.
+
+    Customer-safe snapshot fields are captured at checkout validation time so
+    later order creation does not need to reload mutable catalog metadata.
+    """
 
     item_type: PricingItemType
     item_id: int
+    product_id: int | None = None
+    kit_id: int | None = None
+    template_id: int | None = None
+    design_id: int | None = None
+    display_name: str
+    customer_safe_description: str | None
     quantity: int
     selected_options: dict[str, Any]
     currency: str
