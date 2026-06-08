@@ -35,3 +35,20 @@ class KitRepository:
             .order_by(Kit.name)
         )
         return list(result.scalars().all())
+
+    def get_kit_by_id(self, kit_id: int) -> Kit | None:
+        """Return one kit by primary key with bundle item details loaded.
+
+        Args:
+            kit_id: Kit identifier to look up.
+
+        Returns:
+            The matching Kit model instance with KitItems and Products loaded,
+            or None when no kit exists.
+        """
+        result = self.db.execute(
+            select(Kit)
+            .options(selectinload(Kit.kit_items).selectinload(KitItem.product))
+            .where(Kit.id == kit_id)
+        )
+        return result.scalar_one_or_none()
