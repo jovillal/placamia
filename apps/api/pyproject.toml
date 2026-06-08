@@ -15,6 +15,7 @@ dependencies = [
     "alembic",
     "python-dotenv",
     "pytest",
+    "ruff==0.15.12",
     "httpx",
 ]
 
