@@ -84,9 +84,10 @@ class CheckoutEligibilityService:
 
         Returns:
             A validated checkout state containing item identity, quantity,
-            backend-calculated preview amounts, pricing rule, provider quote
-            reference, backend provider assignment, selected options, and the
-            acknowledged terms policy version.
+            customer-safe snapshot metadata, backend-calculated preview
+            amounts, pricing rule, provider quote reference, backend provider
+            assignment, selected options, and the acknowledged terms policy
+            version.
 
         Raises:
             CheckoutRejected: If terms acknowledgement is missing/forged, the
@@ -116,6 +117,12 @@ class CheckoutEligibilityService:
         return ValidatedCheckoutState(
             item_type=preview.item_type,
             item_id=preview.item_id,
+            product_id=item.id if isinstance(item, Product) else None,
+            kit_id=item.id if isinstance(item, Kit) else None,
+            template_id=None,
+            design_id=None,
+            display_name=self._snapshot_display_name(item),
+            customer_safe_description=self._snapshot_description(item),
             quantity=preview.quantity,
             selected_options=request.options,
             currency=preview.currency,
@@ -177,3 +184,17 @@ class CheckoutEligibilityService:
             code="unsupported_item_type",
             message="Checkout item type is not supported.",
         )
+
+    def _snapshot_display_name(self, item: Product | Kit | object) -> str:
+        """Return the customer-safe display name captured during validation."""
+        if isinstance(item, Product | Kit):
+            return item.name
+
+        return "Custom design"
+
+    def _snapshot_description(self, item: Product | Kit | object) -> str | None:
+        """Return the customer-safe description captured during validation."""
+        if isinstance(item, Product | Kit):
+            return item.description
+
+        return None
