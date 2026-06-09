@@ -113,6 +113,36 @@ Provider acceptance or rejection happens through the provider adapter boundary
 after handoff. Provider adapter responses are not payment confirmation and must
 not mark payments as verified.
 
+## Webhook Signature Verification Boundary
+
+Payment webhook authenticity is verified before provider-specific payment
+events are interpreted. The MVP verification foundation is provider-neutral and
+uses a backend-configured HMAC-SHA256 secret over the exact raw webhook request
+body. The signature header format is:
+
+- `sha256=<hex-encoded-hmac-sha256>`
+
+Verification accepts only payloads that:
+
+1. Include a valid signature generated from the raw request body and the
+   server-side `PAYMENT_WEBHOOK_SECRET`.
+2. Decode to a JSON object.
+3. Include a non-empty provider-neutral event identifier in `id` or `event_id`.
+4. Are not already present in caller-owned replay/idempotency storage.
+
+Verification returns a trusted provider-neutral webhook result containing the
+event id and decoded payload for later payment processing. It must not mark
+payments as verified, confirm orders, write `payment_verified_at`, or trigger
+provider handoff.
+
+Invalid, missing, malformed, or replayed webhooks must be rejected before any
+payment, order, checkout, or provider handoff mutation. Frontend payment claims
+inside a signed payload are still data only; they are not payment confirmation
+and must not create paid, confirmed, or handoff-eligible state.
+
+Webhook secrets must come from backend configuration. Secrets, raw sensitive
+payloads, and full payment data must not be logged by verification code.
+
 ## Related Endpoints
 
 - POST /api/v1/payments
@@ -127,6 +157,7 @@ Provider adapter boundary:
 ## Child Issues
 
 - #62 Define payment status lifecycle
+- #53 Implement Path A payment webhook signature verification test foundation
 
 ## Related Security Milestone
 
@@ -137,10 +168,9 @@ Provider adapter boundary:
 - Future issue required: create Payment model, migration, and tests
 - Future issue required: create payment initialization endpoint
 - Future issue required: create payment webhook endpoint
-- Future issue required: add replay/idempotency tests
+- Future issue required: persist payment transition idempotency/replay keys
 - Future issue required: add order confirmation transition after verified
   payment
-- Future issue required: persist payment transition idempotency/replay keys
 
 ## Constraints
 
@@ -157,6 +187,8 @@ Provider adapter boundary:
   verification.
 - Do not let frontend payment return claims produce paid, verified, confirmed,
   or handoff-eligible state.
+- Do not let webhook signature verification by itself mutate payment, order,
+  checkout, or provider handoff state.
 
 ## Security Considerations
 
