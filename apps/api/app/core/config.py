@@ -52,6 +52,7 @@ class Settings:
         self.DATABASE_URL: str | None = os.getenv("DATABASE_URL")
         self.SQLALCHEMY_ECHO: bool = parse_bool(os.getenv("SQLALCHEMY_ECHO"))
         self.AUTH_TOKEN_SECRET: str | None = os.getenv("AUTH_TOKEN_SECRET")
+        self.PAYMENT_WEBHOOK_SECRET: str | None = os.getenv("PAYMENT_WEBHOOK_SECRET")
 
 
 settings = Settings()

@@ -145,6 +145,8 @@ Acceptance criteria:
 - failed payment does not confirm order
 - provider handoff is not triggered by invalid, failed, or replayed payment
 - provider acceptance/rejection is not treated as payment confirmation
+- webhook signature verification returns a trusted provider-neutral event result
+  without confirming payments, confirming orders, or triggering handoff
 
 ### 6. Paid-Order Provider Handoff
 
