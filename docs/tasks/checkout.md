@@ -138,11 +138,13 @@ Confirm orders only through verified payment-provider events.
 
 Acceptance criteria:
 
+- payment lifecycle/domain validation defines the allowed payment statuses
 - frontend payment confirmation alone cannot mark an order paid
 - invalid or missing webhook signature is rejected
 - replayed webhook does not duplicate state changes
 - failed payment does not confirm order
 - provider handoff is not triggered by invalid, failed, or replayed payment
+- provider acceptance/rejection is not treated as payment confirmation
 
 ### 6. Paid-Order Provider Handoff
 
