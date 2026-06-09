@@ -154,10 +154,18 @@ Send a complete paid-order payload to the assigned provider after verified
 payment through the provider adapter boundary. The local/mock adapter is the
 first implementation target.
 
+Related issues:
+
+- #34 Define structured paid-order provider adapter handoff payload
+- #35 Prepare paid-order provider adapter handoff payload
+- #61 Send paid order through provider adapter after verified payment
+
 Acceptance criteria:
 
 - payload is generated from persisted order/order item/design data
 - raw frontend payload is never forwarded
+- provider assignment is backend-owned and never accepted from frontend input
+- payload includes correlation identifiers and a stable idempotency key
 - handoff works with the local/mock adapter without a real provider integration
 - handoff is idempotent where possible
 - failed transmission does not corrupt order state

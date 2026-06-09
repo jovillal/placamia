@@ -185,6 +185,171 @@ Rules:
 - Failed transmission must not corrupt order state.
 - Retried handoffs must not duplicate provider orders.
 
+### Paid-Order Handoff Payload Contract
+
+This contract defines the provider-neutral payload shape that later payload
+builder and adapter work must implement. It is documentation-only until the
+runtime builder is added.
+
+Payload generation is allowed only when:
+
+1. Payment is verified by the payment-provider confirmation path.
+2. The Order status is `confirmed`.
+3. The assigned provider id is already stored in backend-owned Order or
+   OrderItem data.
+
+Provider assignment is never accepted from frontend input. The payload must use
+the backend-assigned provider identifier already persisted for the order or
+item being handed off.
+
+#### Source Of Truth
+
+The payload must be generated from persisted backend records:
+
+- `Order`: id, status, assigned provider id, created timestamp, and provider
+  handoff fields when retrying.
+- `OrderItem`: item type, catalog/design references, display name,
+  customer-safe description, selected options, quantity, assigned provider id,
+  and provider payload snapshot.
+- `Design`: persisted design/template data only when an order item references a
+  design and the data already exists.
+
+The payload must not be recomputed from mutable catalog records, provider
+fixtures, current pricing rules, or raw frontend request bodies.
+
+#### Required Payload Sections
+
+```text
+PaidOrderHandoffPayload
+  contract_version
+  correlation
+  eligibility
+  provider_assignment
+  order
+  items[]
+  delivery
+  shipment
+```
+
+Required now:
+
+- `contract_version`: stable payload contract version, initially
+  `paid_order_handoff_v1`.
+- `correlation.order_id`: persisted PlacamIA Order id.
+- `correlation.handoff_attempt_id`: backend-generated trace id for this handoff
+  attempt.
+- `correlation.idempotency_key`: stable retry key for the same Order/provider
+  handoff.
+- `eligibility.payment_status`: must indicate verified payment according to the
+  payment lifecycle.
+- `eligibility.order_status`: must be `confirmed`.
+- `provider_assignment.assigned_provider_id`: backend-owned provider id.
+- `order.created_at`: persisted order creation timestamp.
+- `items[].order_item_id`: persisted OrderItem id.
+- `items[].item_type`: product, kit, or design.
+- `items[].display_name`: immutable order item display snapshot.
+- `items[].customer_safe_description`: immutable order item description
+  snapshot when present.
+- `items[].quantity`: persisted purchased quantity.
+- `items[].selected_options`: persisted backend-validated options, such as
+  material, size, finish, and template/customization values when captured.
+- `items[].references`: persisted product, kit, template, and design ids when
+  present.
+- `items[].provider_payload_snapshot`: persisted manufacturing-safe snapshot
+  data captured for handoff, excluding forbidden fields below.
+
+Optional now:
+
+- `items[].customer_notes`: customer-safe, backend-approved production notes
+  only if a future persisted field exists.
+- `shipment.qr_reference`: package or pickup QR reference when the QR mechanism
+  has been validated and persisted.
+- `shipment.carrier_reference`: carrier shipment reference when available.
+
+Deferred/placeholders until modeled and persisted:
+
+- `delivery.recipient_name`
+- `delivery.address`
+- `delivery.phone`
+- `delivery.email`
+- `delivery.delivery_instructions`
+- `shipment.qr_reference` when the carrier QR mechanism is not yet validated
+  or persisted
+
+Deferred delivery/contact fields must not be invented from frontend payloads at
+handoff time. Later implementation work must add persisted fields and tests
+before making any deferred field required.
+
+#### Correlation And Idempotency
+
+The handoff payload, adapter response, fulfillment status updates, and
+acceptance/rejection events must be traceable to the originating Order without
+exposing sensitive internal or payment data.
+
+Required correlation values:
+
+- `order_id`: persisted Order id.
+- `assigned_provider_id`: backend-owned provider id.
+- `handoff_attempt_id`: backend-generated trace id for a single transmission
+  attempt.
+- `idempotency_key`: stable key reused for retries of the same Order/provider
+  handoff. Recommended format: `order:{order_id}:provider:{assigned_provider_id}`.
+
+Adapter responses must echo or return the idempotency key and include a
+provider handoff reference when a provider-side order exists. Retried handoffs
+with the same idempotency key must not create duplicate provider orders.
+
+#### Forbidden Fields
+
+The provider payload must not include:
+
+- payment provider reference
+- payment verification timestamp
+- payment webhook payloads or signatures
+- card data or payment method details
+- provider cost
+- raw provider pricing data
+- customer-facing backend pricing totals, margins, discounts, taxes, or fees
+- raw frontend request bodies
+- frontend-only fields, including frontend provider assignment or provider
+  acceptance/rejection claims
+- internal audit fields
+- authentication tokens, secrets, or environment values
+- full customer-sensitive data not required for fulfillment
+
+#### Provider Acceptance/Rejection Response Shape
+
+Provider acceptance and rejection are adapter responses after handoff. They are
+not payment confirmation and must never alter payment verification status.
+
+```text
+AcceptanceResult
+  provider_reference
+  accepted
+  customer_safe_status
+  reason_code
+  idempotency_key
+```
+
+The response must be validated before mutating order state. Rejection reason
+codes must be customer-safe or mapped to customer-safe equivalents before they
+are exposed outside admin/operator workflows.
+
+#### Later Test Plan
+
+Later runtime implementation issues must add tests proving:
+
+- payloads are built from persisted Order, OrderItem, and persisted Design
+  data only
+- raw frontend payloads and frontend provider assignment claims are not
+  forwarded
+- required fields are present
+- deferred delivery/contact fields are not invented
+- forbidden payment, provider-cost, raw pricing, audit, and secret fields are
+  excluded
+- handoff requires verified payment and confirmed Order state
+- retries use a stable idempotency key and do not duplicate provider orders
+
 ### Handoff Status
 
 ```text
