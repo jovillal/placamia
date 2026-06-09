@@ -27,6 +27,8 @@ onboarded later without changing the customer checkout flow.
 - Provider assignment must be backend-owned.
 - Provider payloads must be generated from persisted backend data.
 - Raw frontend input must never be forwarded directly to a provider.
+- Provider payloads must use backend-owned provider assignment and never accept
+  provider selection from frontend input.
 - Backend pricing remains the source of truth for customer-facing totals.
 - The paid order is the production trigger.
 - Provider communication must be reliable, traceable, and idempotent where
@@ -135,6 +137,9 @@ Related Orders milestone:
 - Future issue required: add validation for payload completeness
 - Future issue required: add tests ensuring payload is built from persisted data
   only
+- Future issue required: add tests ensuring handoff payloads exclude
+  frontend-only provider assignment claims and sensitive payment/provider-cost
+  fields
 - Future issue required: validate QR pickup scan or define operator shipment
   fallback before implementing automated shipment updates
 - Future issue required: document customer invoicing, provider invoicing,

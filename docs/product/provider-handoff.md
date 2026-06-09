@@ -18,16 +18,49 @@ provider-neutral.
 
 ## Order Payload Requirements
 
-Each order must include:
+The paid-order handoff payload is provider-neutral and generated only from
+persisted backend data after verified customer payment and confirmed order
+state. It must never forward raw frontend payloads or let the frontend choose
+or spoof the assigned provider.
 
-- product identifiers
-- quantities
-- material
-- size
-- design specifications
-- delivery address
+Required now:
+
 - order identifier
-- QR or shipment reference when the carrier mechanism is available
+- backend-assigned provider identifier
+- handoff correlation identifiers, including attempt id and idempotency key
+- order item identifiers
+- item type and persisted product, kit, template, or design references
+- display name and customer-safe description snapshots
+- quantities
+- backend-validated selected options such as material, size, finish, and
+  template/customization values when captured
+- persisted provider payload snapshot data needed for manufacturing
+
+Optional now:
+
+- QR or shipment reference when the carrier mechanism is available and
+  persisted
+- customer-safe production notes when a future persisted field exists
+
+Deferred until modeled and persisted:
+
+- delivery recipient name
+- delivery address
+- delivery phone
+- delivery email
+- delivery instructions
+
+Deferred delivery/contact fields must not be invented from frontend payloads
+during handoff. Later implementation must persist and test them before making
+them required.
+
+The payload must exclude sensitive or unnecessary fields, including payment
+provider references, payment timestamps, provider cost, raw provider pricing
+data, raw frontend data, internal audit fields, secrets, tokens, and
+customer-sensitive data not required for fulfillment.
+
+Provider acceptance or rejection is an adapter response after handoff. It is
+not payment confirmation and must not alter payment verification status.
 
 ---
 
@@ -62,6 +95,8 @@ Each order must include:
 - validation before submission
 - manual fallback if needed
 - handoff generated only from persisted backend data
+- backend-owned provider assignment
+- stable handoff idempotency key for retries
 - handoff, status, and acceptance/rejection recorded through the provider
   adapter boundary
 - idempotent provider transmission where possible
