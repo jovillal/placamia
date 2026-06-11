@@ -162,8 +162,25 @@ new documented flows, not silent snapshot rewrites.
 - Order creation endpoint
 - Order status endpoint
 - Order payload/service preparation for provider adapter handoff
+- Provider handoff transmission success recording
 - Cancellation request state handling
 - Shipment status transition from QR pickup scan or authorized fallback
+
+Current state:
+
+- Order and OrderItem models, migrations, repositories, and service tests are
+  implemented.
+- Authenticated draft order creation from backend-validated checkout state is
+  implemented.
+- Customer-owned order status retrieval is implemented.
+- Paid-order provider payload preparation and local/mock adapter transmission
+  are implemented for confirmed orders with verified payment.
+- Successful handoff records provider handoff reference, handoff sent
+  timestamp, and `sent_to_provider` status.
+- Payment persistence, payment initialization/webhook processing, automatic
+  draft-to-confirmed transition, provider acceptance/rejection persistence,
+  production/shipment status updates, and cancellation request workflows remain
+  future work.
 
 
 ## Related Endpoints
@@ -180,20 +197,16 @@ See docs/api/endpoint-structure.md.
 - #31 Create POST order endpoint with tests
 - #32 Create GET order status endpoint with tests
 - #33 Create GET order status endpoint with tests
-- #35 Implement order export service
+- #35 Prepare paid-order provider adapter handoff payload
 - #61 Send order to provider
-
-Note: #32 and #33 currently overlap and should be reconciled before
-implementation.
 
 ## Future Issues
 
-- Future issue required: add order ownership and authorization checks
-- Future issue required: add tests that rejected order creation does not mutate
-  database state
 - Future issue required: add idempotency/retry protection for order creation
 - Future issue required: add explicit link between successful payment and order
   confirmation
+- Future issue required: persist provider acceptance/rejection outcomes through
+  the provider adapter boundary
 - Future issue required: define and test cancellation request policy by order
   state
 - Future issue required: define QR pickup scan or operator fallback behavior for
