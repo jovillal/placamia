@@ -182,7 +182,6 @@ class ProviderHandoffPayloadService:
             assigned_provider_id=assigned_provider_id,
             idempotency_key=idempotency_key,
             payload=payload,
-            payment_verified_at=order.payment_verified_at,
         )
 
     def _validate_payment_status(self, payment_status: PaymentStatus) -> None:

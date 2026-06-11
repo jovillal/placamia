@@ -137,7 +137,7 @@ def test_prepare_handoff_payload_from_persisted_order_snapshots():
         assert request.order_id == order.id
         assert request.assigned_provider_id == "local-provider"
         assert request.idempotency_key == f"order:{order.id}:provider:local-provider"
-        assert request.payment_verified_at == order.payment_verified_at
+        assert not hasattr(request, "payment_verified_at")
         payload = request.payload
         assert payload["contract_version"] == "paid_order_handoff_v1"
         assert payload["correlation"] == {
@@ -206,6 +206,27 @@ def test_payload_excludes_sensitive_payment_pricing_and_frontend_fields():
         assert "line_total_amount" not in payload_text
         assert "unit_price_amount" not in payload_text
         assert "terms_policy_version" not in payload_text
+    finally:
+        db.close()
+
+
+def test_handoff_request_excludes_payment_verification_timestamp_boundary():
+    db = build_session()
+    try:
+        product = seed_product(db)
+        order = seed_confirmed_order(db, product)
+        service = ProviderHandoffPayloadService()
+
+        request = service.prepare_handoff_request(
+            order,
+            PaymentStatus.VERIFIED,
+            handoff_attempt_id="attempt-123",
+        )
+        request_text = str(request)
+
+        assert not hasattr(request, "payment_verified_at")
+        assert "payment_verified_at" not in request_text
+        assert str(order.payment_verified_at) not in request_text
     finally:
         db.close()
 
