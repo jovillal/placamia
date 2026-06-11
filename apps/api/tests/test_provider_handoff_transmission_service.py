@@ -253,6 +253,34 @@ def test_handoff_blocked_when_order_is_not_confirmed_without_adapter_call():
         db.close()
 
 
+def test_handoff_blocked_when_order_status_is_not_supported():
+    db = build_session()
+    try:
+        order = Order(
+            id=1,
+            customer_id=1,
+            status="awaiting_provider_magic",
+            subtotal_amount=Decimal("40.00"),
+            discount_amount=Decimal("0.00"),
+            tax_amount=Decimal("0.00"),
+            total_amount=Decimal("40.00"),
+            currency="COP",
+            payment_verified_at=datetime(2026, 6, 9, tzinfo=UTC),
+            assigned_provider_id="local-provider",
+            created_at=datetime(2026, 6, 9, tzinfo=UTC),
+        )
+        adapter = RecordingAdapter(HandoffState.SENT)
+        service = transmission_service(db, adapter)
+
+        with pytest.raises(ProviderHandoffTransmissionRejected) as exc_info:
+            service.transmit_paid_order(order, PaymentStatus.VERIFIED)
+
+        assert_transmission_rejection(exc_info, "invalid_order_status")
+        assert adapter.requests == []
+    finally:
+        db.close()
+
+
 def test_handoff_blocked_when_provider_assignment_is_missing():
     db = build_session()
     try:

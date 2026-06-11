@@ -231,8 +231,8 @@ class ProviderHandoffTransmissionService:
             return OrderStatus(order.status)
         except ValueError as exc:
             raise ProviderHandoffTransmissionRejected(
-                code="order_not_confirmed",
-                message="Provider handoff requires a confirmed order status.",
+                code="invalid_order_status",
+                message="Provider handoff requires a supported order status.",
             ) from exc
 
     @staticmethod
