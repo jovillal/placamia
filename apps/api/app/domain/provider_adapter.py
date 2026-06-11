@@ -144,15 +144,12 @@ class PaidOrderHandoffRequest:
             orders.
         payload: Persisted order, item, design, and delivery data needed for
             fulfillment.
-        payment_verified_at: Timestamp proving payment was verified before
-            handoff.
     """
 
     order_id: int
     assigned_provider_id: str
     idempotency_key: str
     payload: dict[str, object]
-    payment_verified_at: datetime | None
 
 
 @dataclass(frozen=True)
@@ -349,7 +346,11 @@ class LocalMockProviderAdapter:
         request: PaidOrderHandoffRequest,
     ) -> HandoffResult:
         """Record a paid-order handoff idempotently using the local fixture store."""
-        if request.payment_verified_at is None:
+        eligibility = request.payload.get("eligibility")
+        if (
+            not isinstance(eligibility, dict)
+            or eligibility.get("payment_status") != "verified"
+        ):
             return HandoffResult(
                 provider_reference=f"local-order-{request.order_id}",
                 state=HandoffState.FAILED,

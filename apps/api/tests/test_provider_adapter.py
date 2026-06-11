@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -264,8 +264,12 @@ def test_local_adapter_requires_verified_payment_before_handoff():
         order_id=10,
         assigned_provider_id="local-provider",
         idempotency_key="order-10",
-        payload={"order_id": 10},
-        payment_verified_at=None,
+        payload={
+            "eligibility": {
+                "payment_status": "pending",
+                "order_status": "confirmed",
+            }
+        },
     )
 
     result = adapter.handoff_paid_order(request)
@@ -280,8 +284,12 @@ def test_local_adapter_handoff_is_idempotent_by_key():
         order_id=10,
         assigned_provider_id="local-provider",
         idempotency_key="order-10",
-        payload={"order_id": 10},
-        payment_verified_at=datetime(2026, 6, 3, tzinfo=UTC),
+        payload={
+            "eligibility": {
+                "payment_status": "verified",
+                "order_status": "confirmed",
+            }
+        },
     )
 
     first_result = adapter.handoff_paid_order(request)
