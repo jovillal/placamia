@@ -62,6 +62,19 @@ complexity, ownership boundaries, or scaling constraints justify the move.
 Adapter implementations may differ, but the PlacamIA core must call them
 through the same contract.
 
+Current state:
+
+- The provider adapter boundary and deterministic local/mock adapter are
+  implemented in the modular monolith.
+- Local/mock availability, provider cost/capability input, direct-checkout
+  eligibility, lead time, paid-order handoff, status lookup, and
+  acceptance/rejection fixture behavior are available for backend tests.
+- Paid-order handoff payload preparation and transmission to the local/mock
+  adapter are implemented after verified payment and confirmed order state.
+- Real-provider adapters, provider acceptance/rejection lifecycle persistence,
+  provider status reconciliation, production updates, and shipment updates
+  remain future work.
+
 ## Provider Adapter Contract
 
 Detailed contract source: `docs/planning/provider-adapter-contract.md`.
@@ -122,24 +135,18 @@ See `docs/architecture/domain-model.md`
 ## Child Issues
 
 - #34 Define structured provider handoff payload
-
-Related Orders milestone:
-
+- #35 Prepare paid-order provider adapter handoff payload
 - #61 Send order to provider
 
 ## Future Issues
 
 - Future issue required: handle provider response accepted/rejected states
-- Future issue required: define provider adapter request/response schemas
-- Future issue required: implement local/mock provider adapter
-- Future issue required: implement retry logic for failed transmissions
-- Future issue required: add logging for provider communication
-- Future issue required: add validation for payload completeness
-- Future issue required: add tests ensuring payload is built from persisted data
-  only
-- Future issue required: add tests ensuring handoff payloads exclude
-  frontend-only provider assignment claims and sensitive payment/provider-cost
-  fields
+- Future issue required: implement real-provider adapter integrations inside
+  the modular monolith after provider validation
+- Future issue required: add admin/operator retry endpoint for failed provider
+  transmissions if manual retry is needed operationally
+- Future issue required: implement provider handoff status reconciliation
+  through the adapter
 - Future issue required: validate QR pickup scan or define operator shipment
   fallback before implementing automated shipment updates
 - Future issue required: document customer invoicing, provider invoicing,
@@ -193,7 +200,7 @@ Provider integration must include tests for:
 - Local/mock provider adapter supports Path A backend development
 - Orders can be transmitted through the provider adapter
 - Payload structure is validated and consistent
-- Provider responses are handled correctly
-- Order status reflects provider state
+- Provider handoff success updates order state to `sent_to_provider`
+- Provider acceptance/rejection and status responses are handled correctly
 - QR shipment trigger or documented operator fallback is implemented safely
 - Tests cover success and failure scenarios

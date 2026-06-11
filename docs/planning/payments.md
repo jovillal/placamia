@@ -113,6 +113,21 @@ Provider acceptance or rejection happens through the provider adapter boundary
 after handoff. Provider adapter responses are not payment confirmation and must
 not mark payments as verified.
 
+Current implementation state:
+
+- Payment status lifecycle validation is implemented as deterministic domain
+  logic.
+- Provider-neutral payment webhook signature verification foundation is
+  implemented without mutating payment, order, checkout, or provider handoff
+  state.
+- Provider handoff transmission service validates verified payment status,
+  confirmed order state, persisted payment verification timestamp, and
+  backend-owned provider assignment before payload generation and adapter
+  transmission.
+- Payment model persistence, payment initialization, webhook event processing,
+  replay/idempotency persistence, and automatic order confirmation remain
+  future work.
+
 ## Webhook Signature Verification Boundary
 
 Payment webhook authenticity is verified before provider-specific payment
@@ -230,6 +245,9 @@ Payments must include tests for:
 
 - Payment lifecycle is documented
 - Payment records are persisted safely
-- Payment-provider confirmation is verified
+- Payment-provider confirmation is verified and processed through trusted
+  backend paths
 - Orders are confirmed only after verified payment
+- Confirmed paid orders can be handed off through the provider adapter without
+  treating provider responses as payment confirmation
 - Tests cover successful and rejected flows

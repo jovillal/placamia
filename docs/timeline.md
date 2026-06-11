@@ -15,6 +15,23 @@ Current critical path:
 4. Checkout
 5. Orders, Payments, and Provider Handoff
 
+Current implementation checkpoint:
+
+- Provider adapter contract and deterministic local/mock adapter are in place.
+- Catalog, kit, pricing, checkout eligibility, draft order creation, and order
+  status surfaces are implemented for Path A backend development.
+- Order and OrderItem persistence now includes provider assignment, immutable
+  pricing/snapshot data, payment verification fields, and provider handoff
+  trace fields.
+- Paid-order handoff payload preparation and provider adapter transmission are
+  implemented through the local/mock adapter after verified payment.
+- Payment webhook signature verification foundation exists, but Payment model
+  persistence, payment initialization, payment webhook processing, and order
+  confirmation after verified payment remain future work.
+- Provider acceptance/rejection lifecycle persistence, provider status
+  reconciliation, production status updates, QR shipment, and operator
+  shipment fallback remain future work.
+
 Template and design concepts remain part of the domain, but standalone template
 endpoint expansion is supporting work. It should not block provider adapter,
 eligibility, pricing, or checkout implementation unless a specific critical-path
@@ -310,8 +327,9 @@ Related docs:
 
 Implement:
 
-- paid-order payload generation
+- paid-order payload generation (implemented for local/mock adapter handoff)
 - paid-order handoff through the provider adapter after verified payment
+  (implemented for the local/mock adapter)
 - provider handoff status reconciliation through the provider adapter
 - provider acceptance/rejection recording through the provider adapter
 - in-production and ready-for-pickup status

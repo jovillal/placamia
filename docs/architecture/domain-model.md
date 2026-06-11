@@ -190,6 +190,76 @@ Current relationship rules:
 - Design customization values are keyed by TemplateField `field_name`.
 - Rejected customization must not create a Design record.
 
+### Order
+
+Represents a customer purchase created from backend-validated checkout state.
+
+Current data fields:
+- id
+- customer_id
+- status
+- cancellation_requested_from
+- subtotal_amount
+- discount_amount
+- tax_amount
+- total_amount
+- currency
+- payment_provider_reference
+- payment_verified_at
+- assigned_provider_id
+- provider_handoff_reference
+- provider_handoff_sent_at
+- terms_policy_version
+- created_at
+- updated_at
+
+Current relationship rules:
+- Order belongs to the authenticated customer.
+- Order has many OrderItems.
+- Order totals come from backend pricing only.
+- Order state follows the canonical lifecycle in `docs/flows/main-flow.md`.
+- Provider handoff success records `sent_to_provider`, provider handoff
+  reference, and handoff sent timestamp.
+- Customer cancellation after payment is a request, not an automatic
+  cancellation.
+
+### OrderItem
+
+Represents an immutable purchased item snapshot inside an Order.
+
+Current data fields:
+- id
+- order_id
+- item_type
+- product_id
+- kit_id
+- template_id
+- design_id
+- display_name
+- customer_safe_description
+- selected_options
+- quantity
+- unit_price_amount
+- line_subtotal_amount
+- line_discount_amount
+- line_tax_amount
+- line_total_amount
+- currency
+- assigned_provider_id
+- provider_pricing_reference
+- provider_payload_snapshot
+- created_at
+
+Current relationship rules:
+- OrderItem belongs to one Order.
+- OrderItem may reference Product, Kit, Template, and Design records for
+  traceability.
+- OrderItem captures enough product, kit, design, pricing, and provider
+  assignment data to support payment, tracking, and provider handoff.
+- OrderItem must not depend on raw frontend payloads for fulfillment data.
+- Provider handoff uses immutable snapshot fields instead of recomputing from
+  mutable catalog state.
+
 ## Planned Path A Entities
 
 These entities are required by the current planning docs but are not yet
@@ -240,26 +310,6 @@ Expected relationship rules:
   rejected.
 - Pricing preview must not create Order, Payment, or provider handoff records.
 
-### Order
-
-Represents a customer purchase created from backend-validated checkout state.
-
-Expected relationship rules:
-- Order belongs to the authenticated customer.
-- Order totals come from backend pricing only.
-- Order state follows the canonical lifecycle in `docs/flows/main-flow.md`.
-- Customer cancellation after payment is a request, not an automatic
-  cancellation.
-
-### OrderItem
-
-Represents an immutable purchased item snapshot inside an Order.
-
-Expected relationship rules:
-- OrderItem captures enough product, kit, design, pricing, and provider
-  assignment data to support payment, tracking, and provider handoff.
-- OrderItem must not depend on raw frontend payloads for fulfillment data.
-
 ### Payment
 
 Represents payment-provider state linked to an Order.
@@ -273,13 +323,17 @@ Expected relationship rules:
 
 ### ProviderHandoff
 
-Represents transmission of a paid Order payload to the assigned provider.
+Represents durable provider handoff event/history beyond the current Order
+handoff trace fields.
 
 Expected relationship rules:
-- Handoff happens only after verified payment.
-- Payload is generated from persisted backend data.
-- Raw frontend payloads must never be forwarded to a provider.
-- Transmission should be idempotent where possible.
+- The current implementation records successful local/mock provider handoff
+  transmission on Order.
+- A dedicated ProviderHandoff entity may be introduced later if operational
+  retry, history, audit, or reconciliation needs outgrow the current minimal
+  Order trace fields.
+- Handoff history must be generated from persisted backend data and remain
+  idempotent where possible.
 
 ### Shipment
 
