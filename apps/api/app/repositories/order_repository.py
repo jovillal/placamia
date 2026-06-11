@@ -124,3 +124,34 @@ class OrderRepository:
         self.db.commit()
         self.db.refresh(order)
         return order
+
+    def record_payment_confirmed(
+        self,
+        order: Order,
+        *,
+        provider_reference: str,
+        verified_at: datetime,
+    ) -> Order:
+        """Persist successful payment confirmation fields for an order.
+
+        Args:
+            order: Validated draft Order that may move to confirmed after a
+                trusted payment-provider event.
+            provider_reference: Payment-provider reference from the verified
+                webhook event.
+            verified_at: Backend timestamp for the successful verification.
+
+        Returns:
+            The refreshed Order after payment fields and status are committed.
+
+        Side effects:
+            Updates order status, payment provider reference, and payment
+            verification timestamp, then commits the current transaction.
+        """
+        order.status = OrderStatus.CONFIRMED.value
+        order.payment_provider_reference = provider_reference
+        order.payment_verified_at = verified_at
+        self.db.add(order)
+        self.db.commit()
+        self.db.refresh(order)
+        return order

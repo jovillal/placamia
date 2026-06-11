@@ -177,10 +177,12 @@ Current state:
   are implemented for confirmed orders with verified payment.
 - Successful handoff records provider handoff reference, handoff sent
   timestamp, and `sent_to_provider` status.
-- Payment persistence, payment initialization/webhook processing, automatic
-  draft-to-confirmed transition, provider acceptance/rejection persistence,
-  production/shipment status updates, and cancellation request workflows remain
-  future work.
+- Payment webhook processing persists payment confirmation fields and moves
+  eligible draft orders to `confirmed`.
+- Payment model persistence, payment initialization, provider handoff
+  orchestration after payment confirmation, provider acceptance/rejection
+  persistence, production/shipment status updates, and cancellation request
+  workflows remain future work.
 
 
 ## Related Endpoints

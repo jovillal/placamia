@@ -118,15 +118,17 @@ Current implementation state:
 - Payment status lifecycle validation is implemented as deterministic domain
   logic.
 - Provider-neutral payment webhook signature verification foundation is
-  implemented without mutating payment, order, checkout, or provider handoff
-  state.
+  implemented and used by the payment webhook processing endpoint.
+- Payment webhook processing confirms eligible draft Orders by persisting
+  payment provider reference, backend verification timestamp, and confirmed
+  status without triggering provider handoff.
 - Provider handoff transmission service validates verified payment status,
   confirmed order state, persisted payment verification timestamp, and
   backend-owned provider assignment before payload generation and adapter
   transmission.
-- Payment model persistence, payment initialization, webhook event processing,
-  replay/idempotency persistence, and automatic order confirmation remain
-  future work.
+- Payment model persistence, payment initialization, durable webhook replay
+  detection/idempotency persistence, and automatic provider handoff
+  orchestration remain future work.
 
 ## Webhook Signature Verification Boundary
 
@@ -149,6 +151,26 @@ Verification returns a trusted provider-neutral webhook result containing the
 event id and decoded payload for later payment processing. It must not mark
 payments as verified, confirm orders, write `payment_verified_at`, or trigger
 provider handoff.
+
+The Path A webhook processing endpoint expects the signed JSON payload to carry
+minimal provider-neutral payment event fields under `data`:
+
+- `order_id`: backend Order id referenced by the payment provider
+- `customer_id`: optional backend customer id, rejected if present and
+  mismatched
+- `payment_status`: canonical payment status such as `verified` or `failed`
+- `payment_provider_reference`: provider payment reference to persist after
+  successful verification
+- `amount`: provider-confirmed payment amount
+- `currency`: provider-confirmed three-letter currency code
+
+Only a signed, verified-status event whose order id, optional customer id,
+amount, and currency match persisted backend Order state may write
+`payment_provider_reference`, write `payment_verified_at`, and move the Order
+from `draft` to `confirmed`. Same-reference processing for already-confirmed
+orders is idempotent, but this is not durable webhook replay detection because
+event ids are not persisted yet. Conflicting duplicate references or mismatched
+payment details are rejected without mutation.
 
 Invalid, missing, malformed, or replayed webhooks must be rejected before any
 payment, order, checkout, or provider handoff mutation. Frontend payment claims
@@ -182,10 +204,8 @@ Provider adapter boundary:
 
 - Future issue required: create Payment model, migration, and tests
 - Future issue required: create payment initialization endpoint
-- Future issue required: create payment webhook endpoint
 - Future issue required: persist payment transition idempotency/replay keys
-- Future issue required: add order confirmation transition after verified
-  payment
+- Future issue required: trigger provider handoff after confirmed payment
 
 ## Constraints
 
