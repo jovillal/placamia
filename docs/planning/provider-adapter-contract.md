@@ -298,6 +298,10 @@ Required correlation values:
 Adapter responses must echo or return the idempotency key and include a
 provider handoff reference when a provider-side order exists. Retried handoffs
 with the same idempotency key must not create duplicate provider orders.
+Future real-provider adapters must preserve this behavior by mapping the
+`idempotency_key` to the provider's idempotency mechanism, provider-side
+deduplication key, or an equivalent adapter-managed retry guard before sending
+network requests.
 
 #### Forbidden Fields
 
