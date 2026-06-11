@@ -179,10 +179,13 @@ Current state:
   timestamp, and `sent_to_provider` status.
 - Payment webhook processing persists payment confirmation fields and moves
   eligible draft orders to `confirmed`.
-- Payment model persistence, payment initialization, provider handoff
-  orchestration after payment confirmation, provider acceptance/rejection
-  persistence, production/shipment status updates, and cancellation request
-  workflows remain future work.
+- Paid-order provider handoff orchestration attempts handoff after successful
+  payment webhook confirmation. Failed handoff leaves the order `confirmed`
+  with payment fields intact and provider handoff success fields empty for
+  later retry.
+- Payment model persistence, payment initialization, provider
+  acceptance/rejection persistence, production/shipment status updates, and
+  cancellation request workflows remain future work.
 
 
 ## Related Endpoints
@@ -205,8 +208,6 @@ See docs/api/endpoint-structure.md.
 ## Future Issues
 
 - Future issue required: add idempotency/retry protection for order creation
-- Future issue required: add explicit link between successful payment and order
-  confirmation
 - Future issue required: persist provider acceptance/rejection outcomes through
   the provider adapter boundary
 - Future issue required: define and test cancellation request policy by order
