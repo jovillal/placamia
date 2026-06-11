@@ -193,7 +193,9 @@ class PaymentWebhookProcessingService:
             )
         return order
 
-    def _validate_order_identity(self, order: Order, event: TrustedPaymentEvent) -> None:
+    def _validate_order_identity(
+        self, order: Order, event: TrustedPaymentEvent
+    ) -> None:
         """Reject payment events that do not match backend order ownership."""
         if event.customer_id is not None and event.customer_id != order.customer_id:
             raise PaymentWebhookProcessingRejected(

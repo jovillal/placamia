@@ -155,7 +155,10 @@ def assert_order_unchanged(
 def test_verified_webhook_confirms_draft_order_without_provider_handoff(monkeypatch):
     db = build_session()
     try:
-        monkeypatch.setattr("app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET", WEBHOOK_SECRET)
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
         user = seed_user(db)
         order = seed_order(db, user)
         raw_body = raw_payload(order_id=order.id, customer_id=user.id)
@@ -184,7 +187,10 @@ def test_verified_webhook_confirms_draft_order_without_provider_handoff(monkeypa
 def test_invalid_signature_rejected_without_mutation(monkeypatch):
     db = build_session()
     try:
-        monkeypatch.setattr("app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET", WEBHOOK_SECRET)
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
         user = seed_user(db)
         order = seed_order(db, user)
         raw_body = raw_payload(order_id=order.id, customer_id=user.id)
@@ -204,7 +210,10 @@ def test_invalid_signature_rejected_without_mutation(monkeypatch):
 def test_missing_signature_rejected_without_mutation(monkeypatch):
     db = build_session()
     try:
-        monkeypatch.setattr("app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET", WEBHOOK_SECRET)
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
         user = seed_user(db)
         order = seed_order(db, user)
         raw_body = raw_payload(order_id=order.id, customer_id=user.id)
@@ -222,7 +231,10 @@ def test_missing_signature_rejected_without_mutation(monkeypatch):
 def test_unverified_payment_status_rejected_without_mutation(monkeypatch):
     db = build_session()
     try:
-        monkeypatch.setattr("app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET", WEBHOOK_SECRET)
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
         user = seed_user(db)
         order = seed_order(db, user)
         raw_body = raw_payload(
@@ -244,7 +256,10 @@ def test_unverified_payment_status_rejected_without_mutation(monkeypatch):
 def test_amount_mismatch_rejected_without_mutation(monkeypatch):
     db = build_session()
     try:
-        monkeypatch.setattr("app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET", WEBHOOK_SECRET)
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
         user = seed_user(db)
         order = seed_order(db, user, total_amount="40.00")
         raw_body = raw_payload(order_id=order.id, customer_id=user.id, amount="41.00")
@@ -262,7 +277,10 @@ def test_amount_mismatch_rejected_without_mutation(monkeypatch):
 def test_currency_mismatch_rejected_without_mutation(monkeypatch):
     db = build_session()
     try:
-        monkeypatch.setattr("app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET", WEBHOOK_SECRET)
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
         user = seed_user(db)
         order = seed_order(db, user, currency="COP")
         raw_body = raw_payload(order_id=order.id, customer_id=user.id, currency="USD")
@@ -280,7 +298,10 @@ def test_currency_mismatch_rejected_without_mutation(monkeypatch):
 def test_customer_mismatch_rejected_without_mutation(monkeypatch):
     db = build_session()
     try:
-        monkeypatch.setattr("app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET", WEBHOOK_SECRET)
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
         user = seed_user(db)
         order = seed_order(db, user)
         raw_body = raw_payload(order_id=order.id, customer_id=user.id + 1)
@@ -298,7 +319,10 @@ def test_customer_mismatch_rejected_without_mutation(monkeypatch):
 def test_already_confirmed_same_reference_is_idempotent(monkeypatch):
     db = build_session()
     try:
-        monkeypatch.setattr("app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET", WEBHOOK_SECRET)
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
         user = seed_user(db)
         original_verified_at = datetime(2026, 6, 9, tzinfo=UTC)
         order = seed_order(
@@ -361,7 +385,10 @@ def test_already_confirmed_same_reference_failed_status_is_rejected(monkeypatch)
 def test_already_confirmed_different_reference_is_rejected(monkeypatch):
     db = build_session()
     try:
-        monkeypatch.setattr("app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET", WEBHOOK_SECRET)
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
         user = seed_user(db)
         order = seed_order(
             db,
@@ -385,7 +412,9 @@ def test_already_confirmed_different_reference_is_rejected(monkeypatch):
 
 
 def test_webhook_endpoint_appears_in_openapi_schema(monkeypatch):
-    monkeypatch.setattr("app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET", WEBHOOK_SECRET)
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET", WEBHOOK_SECRET
+    )
 
     schema = app.openapi()
 
