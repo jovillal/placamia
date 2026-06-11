@@ -214,6 +214,25 @@ def test_successful_paid_order_handoff_through_local_adapter():
         db.close()
 
 
+def test_handoff_can_use_consistent_backend_order_item_provider_assignment():
+    db = build_session()
+    try:
+        product = seed_product(db)
+        order = seed_handoff_order(db, product, assigned_provider_id=None)
+        adapter = LocalMockProviderAdapter()
+        service = transmission_service(db, adapter)
+
+        result = service.transmit_paid_order(order, PaymentStatus.VERIFIED)
+
+        stored_order = db.get(Order, order.id)
+        assert stored_order.status == OrderStatus.SENT_TO_PROVIDER.value
+        assert stored_order.provider_handoff_reference == f"local-order-{order.id}"
+        assert result.idempotency_key == f"order:{order.id}:provider:local-provider"
+        assert len(adapter.handoffs_by_key) == 1
+    finally:
+        db.close()
+
+
 def test_handoff_blocked_before_verified_payment_without_adapter_call():
     db = build_session()
     try:
