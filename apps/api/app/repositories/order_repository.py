@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import datetime
 
+from app.domain.order_lifecycle import OrderStatus
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from sqlalchemy import select
@@ -90,3 +92,35 @@ class OrderRepository:
             .order_by(Order.created_at.desc(), Order.id.desc())
         )
         return list(result.scalars().all())
+
+    def record_provider_handoff_sent(
+        self,
+        order: Order,
+        *,
+        provider_reference: str,
+        sent_at: datetime,
+    ) -> Order:
+        """Persist successful provider handoff transmission fields.
+
+        Args:
+            order: Validated confirmed Order that was sent through the
+                provider adapter boundary.
+            provider_reference: Provider-side handoff reference returned by
+                the adapter.
+            sent_at: Backend timestamp for the successful transmission.
+
+        Returns:
+            The refreshed Order after status and handoff trace fields are
+            committed.
+
+        Side effects:
+            Updates order status, provider handoff reference, and handoff sent
+            timestamp, then commits the current database transaction.
+        """
+        order.status = OrderStatus.SENT_TO_PROVIDER.value
+        order.provider_handoff_reference = provider_reference
+        order.provider_handoff_sent_at = sent_at
+        self.db.add(order)
+        self.db.commit()
+        self.db.refresh(order)
+        return order
