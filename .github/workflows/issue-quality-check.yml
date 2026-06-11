@@ -55,8 +55,12 @@ jobs:
             const invalidFields = [];
             const sourceOfTruth = sectionContent("## Source of truth");
             const planningDocMatch = sourceOfTruth.match(/Planning doc \(required\):\s*(.+)/i);
+            const planningDocLinkMatch = sourceOfTruth.match(/docs\/planning\/[^\s`)]+\.md/i);
 
-            if (!planningDocMatch || planningDocMatch[1].trim().length === 0) {
+            if (
+              (!planningDocMatch || planningDocMatch[1].trim().length === 0) &&
+              !planningDocLinkMatch
+            ) {
               invalidFields.push("Add a planning document under `## Source of truth`.");
             }
 
