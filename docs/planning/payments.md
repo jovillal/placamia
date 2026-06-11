@@ -126,9 +126,9 @@ Current implementation state:
   confirmed order state, persisted payment verification timestamp, and
   backend-owned provider assignment before payload generation and adapter
   transmission.
-- Payment model persistence, payment initialization, durable webhook
-  replay/idempotency persistence, and automatic provider handoff orchestration
-  remain future work.
+- Payment model persistence, payment initialization, durable webhook replay
+  detection/idempotency persistence, and automatic provider handoff
+  orchestration remain future work.
 
 ## Webhook Signature Verification Boundary
 
@@ -167,9 +167,10 @@ minimal provider-neutral payment event fields under `data`:
 Only a signed, verified-status event whose order id, optional customer id,
 amount, and currency match persisted backend Order state may write
 `payment_provider_reference`, write `payment_verified_at`, and move the Order
-from `draft` to `confirmed`. Same-reference replays for already-confirmed
-orders are idempotent; conflicting duplicate references or mismatched payment
-details are rejected without mutation.
+from `draft` to `confirmed`. Same-reference processing for already-confirmed
+orders is idempotent, but this is not durable webhook replay detection because
+event ids are not persisted yet. Conflicting duplicate references or mismatched
+payment details are rejected without mutation.
 
 Invalid, missing, malformed, or replayed webhooks must be rejected before any
 payment, order, checkout, or provider handoff mutation. Frontend payment claims

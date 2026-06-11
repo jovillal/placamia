@@ -171,7 +171,7 @@ def test_verified_webhook_confirms_draft_order_without_provider_handoff(monkeypa
         assert payload["event_id"] == "evt_verified_123"
         assert payload["order_id"] == order.id
         assert payload["order_status"] == OrderStatus.CONFIRMED.value
-        assert payload["payment_provider_reference"] == "pay_verified_123"
+        assert "payment_provider_reference" not in payload
 
         stored_order = db.get(Order, order.id)
         assert stored_order.status == OrderStatus.CONFIRMED.value

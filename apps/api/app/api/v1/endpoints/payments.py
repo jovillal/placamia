@@ -81,7 +81,6 @@ async def process_payment_webhook(
         event_id=result.event.event_id,
         order_id=result.order.id,
         order_status=result.order.status,
-        payment_provider_reference=result.order.payment_provider_reference or "",
     )
 
 
