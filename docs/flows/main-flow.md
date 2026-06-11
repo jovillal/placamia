@@ -97,7 +97,7 @@ flowchart TD
     B5 -. not eligible for direct checkout .-> R2[Hide from checkout or reject request]
     B6 -. invalid pricing input .-> R3[Reject pricing request]
     B9 -. invalid or failed payment .-> R4[Do not confirm order]
-    B12 -. transmission failed .-> R5[Retry without duplicate handoff]
+    B12 -. transmission failed .-> R5[Keep confirmed and retry without duplicate handoff]
     P2 -->|no| R6[Mark provider rejection]
 ```
 

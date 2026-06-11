@@ -28,7 +28,7 @@ order based only on frontend confirmation.
 5. Backend verifies signature and payload
 6. Backend updates Payment state
 7. Backend moves Order from `draft` to `confirmed`
-8. Confirmed order becomes eligible for provider adapter handoff
+8. Backend attempts provider adapter handoff for the confirmed paid order
 9. Provider adapter records provider acceptance or rejection after handoff
 
 ## Scope
@@ -121,14 +121,17 @@ Current implementation state:
   implemented and used by the payment webhook processing endpoint.
 - Payment webhook processing confirms eligible draft Orders by persisting
   payment provider reference, backend verification timestamp, and confirmed
-  status without triggering provider handoff.
+  status before attempting paid-order provider handoff orchestration.
 - Provider handoff transmission service validates verified payment status,
   confirmed order state, persisted payment verification timestamp, and
   backend-owned provider assignment before payload generation and adapter
   transmission.
+- Paid-order provider handoff orchestration delegates eligible confirmed paid
+  orders to the provider handoff transmission service after successful payment
+  webhook processing.
 - Payment model persistence, payment initialization, durable webhook replay
-  detection/idempotency persistence, and automatic provider handoff
-  orchestration remain future work.
+  detection/idempotency persistence, provider acceptance/rejection persistence,
+  and fulfillment status updates remain future work.
 
 ## Webhook Signature Verification Boundary
 
@@ -177,6 +180,12 @@ payment, order, checkout, or provider handoff mutation. Frontend payment claims
 inside a signed payload are still data only; they are not payment confirmation
 and must not create paid, confirmed, or handoff-eligible state.
 
+After a valid webhook confirms payment, the endpoint attempts provider handoff
+through the paid-order handoff orchestration boundary. A failed handoff does
+not reject, roll back, or invalidate payment confirmation: the Order remains
+`confirmed`, payment confirmation fields remain intact, provider handoff
+success fields remain empty, and the order is safe for later retry.
+
 Webhook secrets must come from backend configuration. Secrets, raw sensitive
 payloads, and full payment data must not be logged by verification code.
 
@@ -205,7 +214,7 @@ Provider adapter boundary:
 - Future issue required: create Payment model, migration, and tests
 - Future issue required: create payment initialization endpoint
 - Future issue required: persist payment transition idempotency/replay keys
-- Future issue required: trigger provider handoff after confirmed payment
+- Future issue required: persist provider acceptance/rejection outcomes
 
 ## Constraints
 

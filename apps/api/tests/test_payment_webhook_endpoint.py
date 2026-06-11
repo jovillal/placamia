@@ -6,10 +6,20 @@ from decimal import Decimal
 from hashlib import sha256
 
 import httpx
+from app.api.dependencies import get_provider_adapter
 from app.core.database import Base, get_db
 from app.domain.order_lifecycle import OrderStatus
+from app.domain.provider_adapter import (
+    HandoffResult,
+    HandoffState,
+    LocalMockProviderAdapter,
+    PaidOrderHandoffRequest,
+)
 from app.main import app
+from app.models.category import Category
 from app.models.order import Order
+from app.models.order_item import OrderItem
+from app.models.product import Product
 from app.models.user import User
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -77,6 +87,57 @@ def seed_order(
     return order
 
 
+def seed_product(db) -> Product:
+    """Persist one product used as a provider handoff item target."""
+    category = Category(name="Emergency", description=None)
+    product = Product(
+        name="Emergency exit sign",
+        description="Current catalog description",
+        category=category,
+        base_price=Decimal("20.00"),
+        is_active=True,
+    )
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+def add_provider_ready_order_item(db, order: Order, product: Product) -> None:
+    """Attach one immutable provider-ready item snapshot to an order."""
+    order.items = [
+        OrderItem(
+            item_type="product",
+            product_id=product.id,
+            display_name="Snapshot product name",
+            customer_safe_description="Snapshot description",
+            selected_options={"material": "acrylic", "size": "20x30"},
+            quantity=2,
+            unit_price_amount=Decimal("20.00"),
+            line_subtotal_amount=Decimal("40.00"),
+            line_discount_amount=Decimal("0.00"),
+            line_tax_amount=Decimal("0.00"),
+            line_total_amount=Decimal("40.00"),
+            currency="COP",
+            assigned_provider_id="local-provider",
+            provider_pricing_reference="local-quote-product-1",
+            provider_payload_snapshot={
+                "item_type": "product",
+                "product_id": product.id,
+                "display_name": "Snapshot product name",
+                "selected_options": {"material": "acrylic", "size": "20x30"},
+                "quantity": 2,
+                "payment_provider_reference": "pay_should_not_leave_backend",
+                "provider_cost": "12.00",
+                "frontend_provider_id": "forged-provider",
+            },
+        )
+    ]
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+
+
 def raw_payload(**data_overrides) -> bytes:
     """Build a deterministic provider-neutral payment webhook payload."""
     data = {
@@ -102,7 +163,7 @@ def signature_header(raw_body: bytes, secret: str = WEBHOOK_SECRET) -> str:
     return f"sha256={signature}"
 
 
-def configure_webhook_endpoint_test(db) -> None:
+def configure_webhook_endpoint_test(db, provider_adapter=None) -> None:
     """Install FastAPI overrides for payment webhook endpoint tests."""
 
     async def override_get_db():
@@ -111,7 +172,31 @@ def configure_webhook_endpoint_test(db) -> None:
         finally:
             pass
 
+    async def override_get_provider_adapter():
+        return provider_adapter or LocalMockProviderAdapter()
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_provider_adapter] = override_get_provider_adapter
+
+
+class RecordingAdapter:
+    """Provider adapter test double that records handoff requests."""
+
+    def __init__(self, state: HandoffState, reason_code: str | None = None) -> None:
+        """Store the handoff result returned by the double."""
+        self.state = state
+        self.reason_code = reason_code
+        self.requests: list[PaidOrderHandoffRequest] = []
+
+    def handoff_paid_order(self, request: PaidOrderHandoffRequest) -> HandoffResult:
+        """Record the request and return the configured handoff result."""
+        self.requests.append(request)
+        return HandoffResult(
+            provider_reference=f"local-order-{request.order_id}",
+            state=self.state,
+            idempotency_key=request.idempotency_key,
+            reason_code=self.reason_code,
+        )
 
 
 async def post_webhook(raw_body: bytes, signature: str | None):
@@ -152,7 +237,7 @@ def assert_order_unchanged(
     assert stored_order.provider_handoff_sent_at is None
 
 
-def test_verified_webhook_confirms_draft_order_without_provider_handoff(monkeypatch):
+def test_verified_webhook_confirms_order_and_triggers_provider_handoff(monkeypatch):
     db = build_session()
     try:
         monkeypatch.setattr(
@@ -161,8 +246,11 @@ def test_verified_webhook_confirms_draft_order_without_provider_handoff(monkeypa
         )
         user = seed_user(db)
         order = seed_order(db, user)
+        product = seed_product(db)
+        add_provider_ready_order_item(db, order, product)
+        adapter = LocalMockProviderAdapter()
         raw_body = raw_payload(order_id=order.id, customer_id=user.id)
-        configure_webhook_endpoint_test(db)
+        configure_webhook_endpoint_test(db, adapter)
 
         response = asyncio.run(post_webhook(raw_body, signature_header(raw_body)))
 
@@ -170,8 +258,43 @@ def test_verified_webhook_confirms_draft_order_without_provider_handoff(monkeypa
         payload = response.json()
         assert payload["event_id"] == "evt_verified_123"
         assert payload["order_id"] == order.id
-        assert payload["order_status"] == OrderStatus.CONFIRMED.value
+        assert payload["order_status"] == OrderStatus.SENT_TO_PROVIDER.value
         assert "payment_provider_reference" not in payload
+
+        stored_order = db.get(Order, order.id)
+        assert stored_order.status == OrderStatus.SENT_TO_PROVIDER.value
+        assert stored_order.payment_provider_reference == "pay_verified_123"
+        assert stored_order.payment_verified_at is not None
+        assert stored_order.provider_handoff_reference == f"local-order-{order.id}"
+        assert stored_order.provider_handoff_sent_at is not None
+        assert len(adapter.handoffs_by_key) == 1
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_verified_webhook_keeps_confirmed_order_when_provider_handoff_fails(
+    monkeypatch,
+):
+    db = build_session()
+    try:
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
+        user = seed_user(db)
+        order = seed_order(db, user)
+        product = seed_product(db)
+        add_provider_ready_order_item(db, order, product)
+        adapter = RecordingAdapter(HandoffState.FAILED, reason_code="provider_timeout")
+        raw_body = raw_payload(order_id=order.id, customer_id=user.id)
+        configure_webhook_endpoint_test(db, adapter)
+
+        response = asyncio.run(post_webhook(raw_body, signature_header(raw_body)))
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["order_status"] == OrderStatus.CONFIRMED.value
 
         stored_order = db.get(Order, order.id)
         assert stored_order.status == OrderStatus.CONFIRMED.value
@@ -179,6 +302,10 @@ def test_verified_webhook_confirms_draft_order_without_provider_handoff(monkeypa
         assert stored_order.payment_verified_at is not None
         assert stored_order.provider_handoff_reference is None
         assert stored_order.provider_handoff_sent_at is None
+        assert len(adapter.requests) == 1
+        assert adapter.requests[0].idempotency_key == (
+            f"order:{order.id}:provider:local-provider"
+        )
     finally:
         app.dependency_overrides.clear()
         db.close()
