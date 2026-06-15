@@ -71,9 +71,12 @@ Current state:
   acceptance/rejection fixture behavior are available for backend tests.
 - Paid-order handoff payload preparation and transmission to the local/mock
   adapter are implemented after verified payment and confirmed order state.
-- Real-provider adapters, provider acceptance/rejection lifecycle persistence,
-  provider status reconciliation, production updates, and shipment updates
-  remain future work.
+- Provider acceptance/rejection lifecycle persistence is implemented for orders
+  already sent through the provider adapter boundary. Provider rejection leaves
+  payment confirmation fields intact and moves the order to `cancelled` through
+  the lifecycle validator.
+- Real-provider adapters, provider status reconciliation, production updates,
+  and shipment updates remain future work.
 
 ## Provider Adapter Contract
 
@@ -140,7 +143,6 @@ See `docs/architecture/domain-model.md`
 
 ## Future Issues
 
-- Future issue required: handle provider response accepted/rejected states
 - Future issue required: implement real-provider adapter integrations inside
   the modular monolith after provider validation
 - Future issue required: add admin/operator retry endpoint for failed provider

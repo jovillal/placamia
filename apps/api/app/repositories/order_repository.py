@@ -155,3 +155,31 @@ class OrderRepository:
         self.db.commit()
         self.db.refresh(order)
         return order
+
+    def record_provider_acceptance_outcome(
+        self,
+        order: Order,
+        *,
+        status: OrderStatus,
+    ) -> Order:
+        """Persist a provider acceptance/rejection lifecycle outcome.
+
+        Args:
+            order: Validated Order whose provider handoff has already been sent.
+            status: Lifecycle status validated for the provider decision.
+
+        Returns:
+            The Order after the status update has been staged and flushed.
+
+        Side effects:
+            Updates only the order lifecycle status and flushes the current
+            database transaction. The caller remains responsible for committing
+            or rolling back so provider decision persistence can stay atomic
+            with its audit log. Payment confirmation fields and provider
+            handoff trace fields are intentionally left untouched.
+        """
+        order.status = status.value
+        order.cancellation_requested_from = None
+        self.db.add(order)
+        self.db.flush()
+        return order
