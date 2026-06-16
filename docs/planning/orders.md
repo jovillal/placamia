@@ -187,9 +187,13 @@ Current state:
   handoff. Acceptance moves `sent_to_provider` orders to `accepted`; provider
   rejection moves them to `cancelled` without clearing payment confirmation
   fields or reverting the order to `draft`.
-- Payment model persistence, payment initialization, provider
-  production/shipment status updates, and cancellation request workflows remain
-  future work.
+- Admin-ingested provider production progress is implemented for accepted
+  orders. Production start moves `accepted` orders to `in_production`; package
+  ready moves `in_production` orders to `ready_for_pickup`. Minimal transition
+  metadata is recorded in the admin audit log, and payment fields remain
+  unchanged.
+- Payment model persistence, payment initialization, shipment status updates,
+  and cancellation request workflows remain future work.
 
 
 ## Related Endpoints
