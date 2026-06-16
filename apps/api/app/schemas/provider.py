@@ -1,5 +1,6 @@
 from app.domain.provider_adapter import AcceptanceDecision
 from app.domain.provider_production_progress import ProviderProductionProgressEvent
+from app.domain.provider_shipment import ProviderShipmentEvent
 from pydantic import BaseModel, ConfigDict
 
 
@@ -37,6 +38,26 @@ class ProviderProductionProgressResponse(BaseModel):
     order_id: int
     order_status: str
     production_event: ProviderProductionProgressEvent
+    customer_safe_status: str
+    event_reference: str | None = None
+    idempotent: bool
+
+
+class ProviderShipmentRequest(BaseModel):
+    """Request schema for backend-owned shipment events."""
+
+    event: ProviderShipmentEvent
+    event_reference: str | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProviderShipmentResponse(BaseModel):
+    """Customer-safe response after recording shipment."""
+
+    order_id: int
+    order_status: str
+    shipment_event: ProviderShipmentEvent
     customer_safe_status: str
     event_reference: str | None = None
     idempotent: bool
