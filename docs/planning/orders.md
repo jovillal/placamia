@@ -192,7 +192,11 @@ Current state:
   ready moves `in_production` orders to `ready_for_pickup`. Minimal transition
   metadata is recorded in the admin audit log, and payment fields remain
   unchanged.
-- Payment model persistence, payment initialization, shipment status updates,
+- Admin-ingested shipment is implemented for ready-for-pickup orders. Carrier
+  QR pickup scans and authorized fallback events move `ready_for_pickup` orders
+  to `shipped`. Minimal transition metadata is recorded in the admin audit log,
+  and payment fields remain unchanged.
+- Payment model persistence, payment initialization, delivery status updates,
   and cancellation request workflows remain future work.
 
 

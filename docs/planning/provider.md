@@ -79,8 +79,13 @@ Current state:
   existing admin authorization and audit-log pattern records production start
   and package-ready events without introducing provider-specific auth or an
   operator role.
-- Real-provider adapters, provider status reconciliation, shipment updates, and
-  durable provider production event ledgers remain future work.
+- Admin-ingested shipment is implemented for the MVP. The same admin
+  authorization and audit-log pattern records carrier QR pickup scans and the
+  documented fallback without introducing public QR endpoints, carrier API
+  integration, or a new operator role.
+- Real-provider adapters, provider status reconciliation, delivery updates,
+  durable provider production/shipment event ledgers, and carrier API
+  integration remain future work.
 
 ## Provider Adapter Contract
 
@@ -153,8 +158,8 @@ See `docs/architecture/domain-model.md`
   transmissions if manual retry is needed operationally
 - Future issue required: implement provider handoff status reconciliation
   through the adapter
-- Future issue required: validate QR pickup scan or define operator shipment
-  fallback before implementing automated shipment updates
+- Future issue required: implement carrier API integration after validating the
+  selected carrier QR pickup mechanism
 - Future issue required: document customer invoicing, provider invoicing,
   PlacamIA payment to providers, and SLA consequences before automating them
 
