@@ -267,3 +267,63 @@ class OrderRepository:
         self.db.add(order)
         self.db.flush()
         return order
+
+    def record_customer_cancellation_request(
+        self,
+        order: Order,
+        *,
+        from_status: OrderStatus,
+    ) -> Order:
+        """Stage a paid-order cancellation request.
+
+        Args:
+            order: Validated customer-owned Order eligible for a cancellation
+                request.
+            from_status: Paid lifecycle status that should be restored if an
+                admin later rejects the request.
+
+        Returns:
+            The Order after the request state has been staged and flushed.
+
+        Side effects:
+            Updates only the order lifecycle status and
+            `cancellation_requested_from`, then flushes the current database
+            transaction. The caller remains responsible for committing or
+            rolling back so the request stays atomic with its audit log.
+            Payment confirmation and provider fulfillment trace fields are left
+            untouched.
+        """
+        order.status = OrderStatus.CANCELLATION_REQUESTED.value
+        order.cancellation_requested_from = from_status.value
+        self.db.add(order)
+        self.db.flush()
+        return order
+
+    def resolve_customer_cancellation_request(
+        self,
+        order: Order,
+        *,
+        status: OrderStatus,
+    ) -> Order:
+        """Stage an admin resolution for a cancellation request.
+
+        Args:
+            order: Validated Order currently in `cancellation_requested`.
+            status: Lifecycle status validated for the resolution outcome.
+
+        Returns:
+            The Order after the resolution state has been staged and flushed.
+
+        Side effects:
+            Updates only the order lifecycle status and clears
+            `cancellation_requested_from`, then flushes the current database
+            transaction. The caller remains responsible for committing or
+            rolling back so resolution persistence stays atomic with its audit
+            log. Payment confirmation and provider fulfillment trace fields are
+            intentionally left untouched.
+        """
+        order.status = status.value
+        order.cancellation_requested_from = None
+        self.db.add(order)
+        self.db.flush()
+        return order

@@ -9,10 +9,11 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 
 class AuditLog(Base):
-    """Security-relevant administrative audit event.
+    """Security-relevant audit event.
 
     The model maps to `audit_logs` and records enough context to investigate
-    admin changes without storing secrets, tokens, or sensitive payment data.
+    customer or admin actions without storing secrets, tokens, or sensitive
+    payment data.
     """
 
     __tablename__ = "audit_logs"

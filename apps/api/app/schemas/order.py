@@ -100,3 +100,24 @@ class OrderStatusRead(BaseModel):
     items: list[OrderStatusItemRead]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class OrderCancellationRequest(BaseModel):
+    """Request schema for customer cancellation requests."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class OrderCancellationResolutionRequest(BaseModel):
+    """Request schema for admin cancellation request resolution."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class OrderCancellationResponse(BaseModel):
+    """Customer-safe response after a cancellation workflow mutation."""
+
+    order_id: int
+    order_status: str
+    cancellation_requested_from: str | None
+    customer_safe_status: str

@@ -24,12 +24,12 @@ SENSITIVE_AUDIT_DETAIL_KEYS = (
 
 
 class AuditLogService:
-    """Record security-relevant administrative actions.
+    """Record security-relevant audit actions.
 
     The service prepares audit event context, redacts obviously sensitive
     values, and delegates persistence to the repository layer. It does not
     commit the database transaction so callers can keep audit logs atomic with
-    the admin change being performed.
+    the business change being performed.
     """
 
     def __init__(self, audit_log_repository: AuditLogRepository) -> None:
@@ -74,6 +74,60 @@ class AuditLogService:
         Raises:
             ValueError: If action or resource type is empty.
         """
+        return self._record_action(
+            actor=actor,
+            action=action,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            event_details=event_details,
+        )
+
+    def record_user_action(
+        self,
+        *,
+        actor: User,
+        action: str,
+        resource_type: str,
+        resource_id: str | int | None = None,
+        event_details: Mapping[str, Any] | None = None,
+    ) -> AuditLog:
+        """Record an auditable customer or authenticated-user action.
+
+        Args:
+            actor: Authenticated backend user performing the action.
+            action: Stable action name, such as `order.cancellation.request`.
+            resource_type: Domain resource affected by the action.
+            resource_id: Optional identifier of the affected resource.
+            event_details: Optional structured context for investigation.
+
+        Returns:
+            The persisted audit log record.
+
+        Side effects:
+            Adds an audit log row to the current database transaction and
+            flushes the session through the repository.
+
+        Raises:
+            ValueError: If action or resource type is empty.
+        """
+        return self._record_action(
+            actor=actor,
+            action=action,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            event_details=event_details,
+        )
+
+    def _record_action(
+        self,
+        *,
+        actor: User,
+        action: str,
+        resource_type: str,
+        resource_id: str | int | None = None,
+        event_details: Mapping[str, Any] | None = None,
+    ) -> AuditLog:
+        """Normalize and persist one audit action."""
         normalized_action = action.strip()
         normalized_resource_type = resource_type.strip()
 
