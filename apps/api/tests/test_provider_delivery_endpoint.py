@@ -236,6 +236,51 @@ def test_duplicate_same_event_reference_is_order_state_idempotent_and_audited():
         db.close()
 
 
+def test_duplicate_event_reference_with_wrong_state_is_rejected_without_mutation():
+    db = build_session()
+    try:
+        admin = seed_user(db, email="admin@example.com", role=UserRole.ADMIN)
+        order = seed_order(db, status=OrderStatus.DELIVERED)
+        configure_provider_endpoint_test(db, admin)
+        db.add(
+            AuditLog(
+                actor_user_id=admin.id,
+                action="provider.delivery.record",
+                resource_type="order",
+                resource_id=str(order.id),
+                event_details={
+                    "event": "delivery_confirmed",
+                    "event_reference": "delivery-event-1",
+                    "from_status": OrderStatus.SHIPPED.value,
+                    "target_status": OrderStatus.DELIVERED.value,
+                },
+            )
+        )
+        db.commit()
+        order.status = OrderStatus.SHIPPED.value
+        db.add(order)
+        db.commit()
+        db.refresh(order)
+
+        response = asyncio.run(
+            post_delivery(
+                order.id,
+                {
+                    "event": "delivery_confirmed",
+                    "event_reference": "delivery-event-1",
+                },
+            )
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"]["code"] == "event_reference_status_conflict"
+        assert db.get(Order, order.id).status == OrderStatus.SHIPPED.value
+        assert table_count(db, AuditLog) == 1
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
 def test_delivery_response_omits_sensitive_fields():
     db = build_session()
     try:
