@@ -241,7 +241,7 @@ def test_invalid_lifecycle_state_is_rejected_without_mutation_or_audit_log():
         db.close()
 
 
-def test_duplicate_same_event_reference_is_idempotent():
+def test_duplicate_same_event_reference_is_order_state_idempotent_and_audited():
     db = build_session()
     try:
         admin = seed_user(db, email="admin@example.com", role=UserRole.ADMIN)

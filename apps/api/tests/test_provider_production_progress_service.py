@@ -165,7 +165,7 @@ def test_invalid_production_progress_state_is_rejected_without_mutation():
         db.close()
 
 
-def test_duplicate_same_event_reference_is_idempotent_without_mutation():
+def test_duplicate_same_event_reference_is_order_state_idempotent_without_mutation():
     db = build_session()
     try:
         order = seed_order(db, status=OrderStatus.IN_PRODUCTION)

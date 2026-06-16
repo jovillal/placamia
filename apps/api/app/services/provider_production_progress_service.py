@@ -70,7 +70,8 @@ class ProviderProductionProgressService:
     accepted by the provider. It rejects frontend/customer status claims, keeps
     payment fields untouched, validates lifecycle moves through the order
     lifecycle boundary, and uses existing audit logs for minimal event-reference
-    replay protection.
+    replay detection. Idempotent replays do not mutate order state, but callers
+    may still audit the replay attempt.
     """
 
     def __init__(
@@ -111,7 +112,8 @@ class ProviderProductionProgressService:
 
         Side effects:
             For eligible orders, stages an order status update and flushes the
-            current transaction. Idempotent replays do not mutate the order.
+            current transaction. Idempotent replays do not mutate the order;
+            the endpoint may still record the replay attempt in the audit log.
 
         Raises:
             ProviderProductionProgressRejected: If the order is missing, the
@@ -192,7 +194,7 @@ class ProviderProductionProgressService:
         transition_metadata: "_ProductionTransitionMetadata",
         event_reference: str | None,
     ) -> ProviderProductionProgressResult | None:
-        """Return idempotent duplicate result or reject conflicting refs."""
+        """Return order-state-idempotent duplicate result or reject conflicts."""
         if event_reference is None:
             return None
 
