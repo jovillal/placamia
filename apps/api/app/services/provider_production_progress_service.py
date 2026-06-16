@@ -270,9 +270,7 @@ class ProviderProductionProgressService:
                 target_status=OrderStatus.IN_PRODUCTION,
                 trigger=OrderTransitionTrigger.PRODUCTION_STARTED,
                 invalid_state_code="order_not_accepted",
-                invalid_state_message=(
-                    "Production start requires an accepted order."
-                ),
+                invalid_state_message=("Production start requires an accepted order."),
             )
 
         return _ProductionTransitionMetadata(
