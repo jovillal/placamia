@@ -7,6 +7,8 @@ from app.repositories.order_repository import OrderRepository
 from app.schemas.provider import (
     ProviderAcceptanceDecisionRequest,
     ProviderAcceptanceDecisionResponse,
+    ProviderDeliveryRequest,
+    ProviderDeliveryResponse,
     ProviderProductionProgressRequest,
     ProviderProductionProgressResponse,
     ProviderShipmentRequest,
@@ -16,6 +18,11 @@ from app.services.audit_log_service import AuditLogService
 from app.services.provider_acceptance_service import (
     ProviderAcceptanceRejected,
     ProviderAcceptanceService,
+)
+from app.services.provider_delivery_service import (
+    PROVIDER_DELIVERY_AUDIT_ACTION,
+    ProviderDeliveryRejected,
+    ProviderDeliveryService,
 )
 from app.services.provider_production_progress_service import (
     PROVIDER_PRODUCTION_PROGRESS_AUDIT_ACTION,
@@ -350,6 +357,115 @@ async def record_provider_shipment(
         order_id=result.order.id,
         order_status=result.order.status,
         shipment_event=result.event,
+        customer_safe_status=result.order.status,
+        event_reference=result.event_reference,
+        idempotent=result.idempotent,
+    )
+
+
+@router.post(
+    "/orders/{order_id}/delivery",
+    response_model=ProviderDeliveryResponse,
+    summary="Record provider delivery confirmation",
+    description=(
+        "Records an admin-ingested provider delivery confirmation event for an "
+        "order already shipped. The endpoint requires admin authorization, "
+        "validates lifecycle transitions, rejects customer or frontend status "
+        "claims, stores minimal transition metadata in the admin audit log, "
+        "and does not mutate payment verification or shipment fields."
+    ),
+    responses={
+        400: {"description": "Delivery confirmation rejected"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin privileges required"},
+        404: {"description": "Order not found"},
+    },
+)
+async def record_provider_delivery(
+    order_id: int,
+    request: ProviderDeliveryRequest,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin_user),
+) -> ProviderDeliveryResponse:
+    """Record a delivery confirmation event for one provider order.
+
+    Args:
+        order_id: Order identifier from the route path.
+        request: Delivery body containing only backend-owned event data
+            accepted for MVP admin ingestion.
+        db: SQLAlchemy session provided by FastAPI dependency injection.
+        admin_user: Authenticated admin user authorizing this ingestion action.
+
+    Returns:
+        Customer-safe delivery response without payment, customer, carrier, or
+        internal provider details.
+
+    Side effects:
+        May update order lifecycle status to `delivered` after lifecycle
+        validation. Commits the order update and audit log together so delivery
+        confirmation is never persisted without audit context.
+
+    Raises:
+        HTTPException: When authorization, order lookup, lifecycle validation,
+        event-reference validation, or audit persistence rejects the request.
+    """
+    audit_log_repository = AuditLogRepository(db)
+    service = ProviderDeliveryService(
+        OrderRepository(db),
+        audit_log_repository,
+    )
+
+    try:
+        result = service.process_delivery(
+            order_id,
+            request.event,
+            event_reference=request.event_reference,
+        )
+    except ProviderDeliveryRejected as exc:
+        http_status = (
+            status.HTTP_404_NOT_FOUND
+            if exc.code == "order_not_found"
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(
+            status_code=http_status,
+            detail={"code": exc.code, "message": str(exc)},
+        ) from exc
+
+    try:
+        AuditLogService(audit_log_repository).record_admin_action(
+            actor=admin_user,
+            action=PROVIDER_DELIVERY_AUDIT_ACTION,
+            resource_type="order",
+            resource_id=result.order.id,
+            event_details={
+                "event": result.event.value,
+                "event_reference": result.event_reference,
+                "from_status": result.from_status.value,
+                "target_status": result.target_status.value,
+                "order_status": result.order.status,
+                "trigger": result.trigger.value,
+                "source": "admin_ingested",
+                "actor_type": "admin",
+                "idempotent": result.idempotent,
+            },
+        )
+        db.commit()
+        db.refresh(result.order)
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "provider_delivery_audit_failed",
+                "message": "Provider delivery audit logging failed.",
+            },
+        ) from exc
+
+    return ProviderDeliveryResponse(
+        order_id=result.order.id,
+        order_status=result.order.status,
+        delivery_event=result.event,
         customer_safe_status=result.order.status,
         event_reference=result.event_reference,
         idempotent=result.idempotent,

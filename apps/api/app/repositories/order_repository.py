@@ -239,3 +239,31 @@ class OrderRepository:
         self.db.add(order)
         self.db.flush()
         return order
+
+    def record_provider_delivery(
+        self,
+        order: Order,
+        *,
+        status: OrderStatus,
+    ) -> Order:
+        """Stage a provider delivery lifecycle outcome.
+
+        Args:
+            order: Validated Order whose delivery event is allowed.
+            status: Lifecycle status validated for the delivery event.
+
+        Returns:
+            The Order after the status update has been staged and flushed.
+
+        Side effects:
+            Updates only the order lifecycle status and flushes the current
+            database transaction. The caller remains responsible for committing
+            or rolling back so delivery persistence can stay atomic with its
+            audit log. Payment confirmation, provider handoff trace, and
+            shipment history fields are intentionally left untouched.
+        """
+        order.status = status.value
+        order.cancellation_requested_from = None
+        self.db.add(order)
+        self.db.flush()
+        return order
