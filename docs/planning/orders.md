@@ -196,8 +196,12 @@ Current state:
   QR pickup scans and authorized fallback events move `ready_for_pickup` orders
   to `shipped`. Minimal transition metadata is recorded in the admin audit log,
   and payment fields remain unchanged.
-- Payment model persistence, payment initialization, delivery status updates,
-  and cancellation request workflows remain future work.
+- Admin-ingested delivery confirmation is implemented for shipped orders.
+  Trusted delivery confirmation events move `shipped` orders to `delivered`.
+  Minimal transition metadata is recorded in the admin audit log, and payment
+  fields remain unchanged.
+- Payment model persistence, payment initialization, and cancellation request
+  workflows remain future work.
 
 
 ## Related Endpoints

@@ -1,4 +1,5 @@
 from app.domain.provider_adapter import AcceptanceDecision
+from app.domain.provider_delivery import ProviderDeliveryEvent
 from app.domain.provider_production_progress import ProviderProductionProgressEvent
 from app.domain.provider_shipment import ProviderShipmentEvent
 from pydantic import BaseModel, ConfigDict
@@ -58,6 +59,26 @@ class ProviderShipmentResponse(BaseModel):
     order_id: int
     order_status: str
     shipment_event: ProviderShipmentEvent
+    customer_safe_status: str
+    event_reference: str | None = None
+    idempotent: bool
+
+
+class ProviderDeliveryRequest(BaseModel):
+    """Request schema for backend-owned delivery confirmation events."""
+
+    event: ProviderDeliveryEvent
+    event_reference: str | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProviderDeliveryResponse(BaseModel):
+    """Customer-safe response after recording delivery confirmation."""
+
+    order_id: int
+    order_status: str
+    delivery_event: ProviderDeliveryEvent
     customer_safe_status: str
     event_reference: str | None = None
     idempotent: bool

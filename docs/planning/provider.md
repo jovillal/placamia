@@ -83,9 +83,13 @@ Current state:
   authorization and audit-log pattern records carrier QR pickup scans and the
   documented fallback without introducing public QR endpoints, carrier API
   integration, or a new operator role.
-- Real-provider adapters, provider status reconciliation, delivery updates,
-  durable provider production/shipment event ledgers, and carrier API
-  integration remain future work.
+- Admin-ingested delivery confirmation is implemented for the MVP. Trusted
+  delivery confirmation events move shipped orders to delivered through the
+  lifecycle validator without proof-of-delivery storage, customer
+  acknowledgements, disputes, or SLA automation.
+- Real-provider adapters, provider status reconciliation, durable provider
+  production/shipment/delivery event ledgers, and carrier API integration
+  remain future work.
 
 ## Provider Adapter Contract
 
@@ -115,7 +119,8 @@ must not block implementation of the adapter boundary.
 6. Provider manufactures accepted orders
 7. Provider prepares the package and attaches the order QR when available
 8. Carrier pickup scan, or operator fallback, marks the order shipped
-9. Backend updates order status and customer notifications accordingly
+9. Trusted delivery confirmation marks the order delivered
+10. Backend updates order status and customer notifications accordingly
 
 ## Scope
 
@@ -127,6 +132,7 @@ must not block implementation of the adapter boundary.
 - Order status updates based on provider feedback
 - Error handling and retries
 - Shipment event handling for QR pickup scan or operator fallback
+- Delivery confirmation handling from trusted backend events
 
 ## Related Concepts
 
