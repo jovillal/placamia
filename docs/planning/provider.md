@@ -75,8 +75,12 @@ Current state:
   already sent through the provider adapter boundary. Provider rejection leaves
   payment confirmation fields intact and moves the order to `cancelled` through
   the lifecycle validator.
-- Real-provider adapters, provider status reconciliation, production updates,
-  and shipment updates remain future work.
+- Admin-ingested provider production progress is implemented for the MVP. The
+  existing admin authorization and audit-log pattern records production start
+  and package-ready events without introducing provider-specific auth or an
+  operator role.
+- Real-provider adapters, provider status reconciliation, shipment updates, and
+  durable provider production event ledgers remain future work.
 
 ## Provider Adapter Contract
 

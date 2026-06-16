@@ -1,4 +1,5 @@
 from app.models.audit_log import AuditLog
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 
@@ -40,3 +41,34 @@ class AuditLogRepository:
         self.db.add(audit_log)
         self.db.flush()
         return audit_log
+
+    def get_audit_logs_for_resource_action(
+        self,
+        *,
+        action: str,
+        resource_type: str,
+        resource_id: str | int,
+    ) -> list[AuditLog]:
+        """Return audit logs for one resource/action pair.
+
+        Args:
+            action: Stable audit action name to match.
+            resource_type: Domain resource type to match.
+            resource_id: Domain resource identifier to match.
+
+        Returns:
+            Matching audit logs sorted oldest first.
+
+        Side effects:
+            None.
+        """
+        result = self.db.execute(
+            select(AuditLog)
+            .where(
+                AuditLog.action == action,
+                AuditLog.resource_type == resource_type,
+                AuditLog.resource_id == str(resource_id),
+            )
+            .order_by(AuditLog.id.asc())
+        )
+        return list(result.scalars().all())
