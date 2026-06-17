@@ -303,8 +303,7 @@ def test_audit_log_service_redacts_expanded_sensitive_key_names():
         assert stored_audit_log.event_details["api_key"] == "[REDACTED]"
         assert stored_audit_log.event_details["private_key"] == "[REDACTED]"
         assert (
-            stored_audit_log.event_details["nested"][0]["refresh_token"]
-            == "[REDACTED]"
+            stored_audit_log.event_details["nested"][0]["refresh_token"] == "[REDACTED]"
         )
         assert stored_audit_log.event_details["safe_note"] == "keep this"
     finally:
@@ -330,9 +329,7 @@ def test_audit_log_service_redacts_documented_sensitive_value_patterns():
 
         jwt_like_value = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.signature"
         pem_private_key_value = (
-            "-----BEGIN PRIVATE KEY-----\n"
-            "do-not-store\n"
-            "-----END PRIVATE KEY-----"
+            "-----BEGIN PRIVATE KEY-----\ndo-not-store\n-----END PRIVATE KEY-----"
         )
 
         audit_log_service = AuditLogService(AuditLogRepository(db))
