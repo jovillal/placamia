@@ -34,12 +34,29 @@ Use these top-level groups for MVP API routes:
 | Designs | `/api/v1/designs` | Customized design instances created from templates. | Planned |
 | Pricing | `/api/v1/pricing` | Backend-calculated quotes and pricing validation. | Partially implemented |
 | Orders | `/api/v1/orders` | Draft orders, confirmed orders, and order tracking. | Partially implemented |
-| Payments | `/api/v1/payments` | Payment initialization and payment confirmation/webhooks. | Planned |
+| Payments | `/api/v1/payments` | Payment initialization and payment confirmation/webhooks. | Partially implemented |
+| Provider | `/api/v1/provider` | Admin-ingested provider fulfillment and operational events. | Partially implemented |
 | Admin | `/api/v1/admin` | Authorized administrative changes and review workflows. | Planned |
 
-Provider, production, and shipment behavior remain part of the MVP flow, but
-public endpoint paths for those concerns are not implemented yet. Add them only
-when a planning document and issue define the required API contract.
+Provider, production, shipment, delivery, and cancellation review behavior are
+partially implemented through domain-local endpoints protected by admin
+authorization. Broader administrative management surfaces remain reserved for
+`/api/v1/admin/...` and must be scoped by a planning document and issue before
+implementation.
+
+## Admin / Operator Path Grouping
+
+Path A uses a hybrid grouping rule:
+
+- Use domain-local paths for narrowly scoped operational mutations tied to one
+  resource, such as provider fulfillment events or order cancellation review.
+- Use `/api/v1/admin/...` for broader admin management surfaces such as catalog
+  maintenance, pricing table maintenance, users, dashboards, or cross-resource
+  review queues.
+- Existing domain-local admin/operator-like endpoints should not be renamed
+  into `/api/v1/admin/...` without a dedicated compatibility issue.
+- Admin/operator mutations must document authorization and audit behavior in
+  their FastAPI route metadata, docstrings, and planning docs.
 
 ## Naming Conventions
 
@@ -86,14 +103,23 @@ The current implemented API endpoints are:
 | `POST` | `/api/v1/pricing/quotes` | Pricing | Public | `PricingQuoteResponse` object |
 | `POST` | `/api/v1/orders` | Orders | Required | `OrderRead` object |
 | `GET` | `/api/v1/orders/{order_id}/status` | Orders | Required | `OrderStatusRead` object |
+| `POST` | `/api/v1/orders/{order_id}/cancellation-request` | Orders | Required owner | `OrderCancellationResponse` object |
+| `POST` | `/api/v1/orders/{order_id}/cancellation-request/approve` | Orders | Admin | `OrderCancellationResponse` object |
+| `POST` | `/api/v1/orders/{order_id}/cancellation-request/reject` | Orders | Admin | `OrderCancellationResponse` object |
+| `POST` | `/api/v1/payments/webhook` | Payments | Signed provider webhook | `PaymentWebhookResponse` object |
+| `POST` | `/api/v1/provider/orders/{order_id}/acceptance` | Provider | Admin | `ProviderAcceptanceDecisionResponse` object |
+| `POST` | `/api/v1/provider/orders/{order_id}/production-progress` | Provider | Admin | `ProviderProductionProgressResponse` object |
+| `POST` | `/api/v1/provider/orders/{order_id}/shipment` | Provider | Admin | `ProviderShipmentResponse` object |
+| `POST` | `/api/v1/provider/orders/{order_id}/delivery` | Provider | Admin | `ProviderDeliveryResponse` object |
 
-The demo Bruno collection in `bruno/placamia-api` mirrors this implemented
-inventory for local manual testing and demos.
+The demo Bruno collection in `bruno/placamia-api` should be updated by
+endpoint implementation issues when manual demo coverage is needed.
 
-## Planned MVP Endpoint Groups
+## Reserved And Continuing MVP Endpoint Groups
 
-The following groups are reserved by the MVP flow and planning documents, but
-their endpoints are not implemented by this standardization task:
+The following groups are reserved by the MVP flow and planning documents. Some
+already have partial implementations, but further endpoints must still be
+scoped by planning docs and implementation issues:
 
 | Group | Expected Path Prefix | Flow Alignment |
 | --- | --- | --- |
@@ -103,6 +129,7 @@ their endpoints are not implemented by this standardization task:
 | Orders | `/api/v1/orders` | Backend creates draft orders and exposes order tracking. |
 | Payments | `/api/v1/payments` | Backend initializes payment and verifies payment confirmation. |
 | Admin | `/api/v1/admin` | Admin-only catalog, pricing, order, and audit workflows. |
+| Provider | `/api/v1/provider` | Admin-ingested provider fulfillment events for the MVP domain-local path. |
 
 ## Scope Notes
 
