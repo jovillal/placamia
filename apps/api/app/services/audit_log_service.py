@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import base64
+import binascii
+import json
 from typing import Any, Mapping
 
 from app.models.audit_log import AuditLog
@@ -172,6 +175,9 @@ class AuditLogService:
         if isinstance(value, list):
             return [self._redact_event_details(item) for item in value]
 
+        if isinstance(value, str) and self._is_sensitive_value(value):
+            return "[REDACTED]"
+
         return value
 
     @staticmethod
@@ -191,4 +197,48 @@ class AuditLogService:
         return any(
             sensitive_key in normalized_key
             for sensitive_key in SENSITIVE_AUDIT_DETAIL_KEYS
+        )
+
+    @classmethod
+    def _is_sensitive_value(cls, value: str) -> bool:
+        """Return whether a string value matches documented secret patterns.
+
+        Args:
+            value: Audit detail string value to inspect.
+
+        Returns:
+            True when the value matches an explicitly documented token or key
+            pattern; otherwise False.
+
+        Side effects:
+            None.
+        """
+        return cls._is_jwt_like_value(value) or cls._is_pem_private_key_value(value)
+
+    @staticmethod
+    def _is_jwt_like_value(value: str) -> bool:
+        """Return whether a value is a decodable JWT-shaped token."""
+        parts = value.split(".")
+        if len(parts) != 3 or any(not part for part in parts):
+            return False
+
+        try:
+            padded_header = parts[0] + "=" * (-len(parts[0]) % 4)
+            decoded_header = base64.urlsafe_b64decode(padded_header.encode("ascii"))
+            header = json.loads(decoded_header.decode("utf-8"))
+        except (binascii.Error, UnicodeDecodeError, ValueError):
+            return False
+
+        return isinstance(header, dict) and (
+            isinstance(header.get("alg"), str) or isinstance(header.get("typ"), str)
+        )
+
+    @staticmethod
+    def _is_pem_private_key_value(value: str) -> bool:
+        """Return whether a value contains a PEM private-key block marker."""
+        normalized_value = value.upper()
+        return (
+            "-----BEGIN " in normalized_value
+            and "PRIVATE KEY-----" in normalized_value
+            and "-----END " in normalized_value
         )
