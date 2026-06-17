@@ -259,3 +259,104 @@ def test_audit_log_service_records_representative_admin_action():
         assert stored_audit_log.event_details["full_environment"] == "[REDACTED]"
     finally:
         db.close()
+
+
+def test_audit_log_service_redacts_expanded_sensitive_key_names():
+    """Verify expanded sensitive audit keys are redacted recursively.
+
+    Returns:
+        None.
+
+    Side effects:
+        Inserts an admin user and audit log record into the test database.
+    """
+    db = build_session()
+
+    try:
+        admin_user = User(email="admin@example.com", role=UserRole.ADMIN)
+        db.add(admin_user)
+        db.commit()
+        db.refresh(admin_user)
+
+        audit_log_service = AuditLogService(AuditLogRepository(db))
+        audit_log_service.record_admin_action(
+            actor=admin_user,
+            action="security.redaction_check",
+            resource_type="audit_log",
+            event_details={
+                "jwt": "do-not-store",
+                "refresh_token": "do-not-store",
+                "access_token": "do-not-store",
+                "api_key": "do-not-store",
+                "private_key": "do-not-store",
+                "nested": [{"refresh_token": "do-not-store"}],
+                "safe_note": "keep this",
+            },
+        )
+        db.commit()
+
+        stored_audit_log = db.execute(select(AuditLog)).scalar_one()
+
+        assert stored_audit_log.event_details["jwt"] == "[REDACTED]"
+        assert stored_audit_log.event_details["refresh_token"] == "[REDACTED]"
+        assert stored_audit_log.event_details["access_token"] == "[REDACTED]"
+        assert stored_audit_log.event_details["api_key"] == "[REDACTED]"
+        assert stored_audit_log.event_details["private_key"] == "[REDACTED]"
+        assert (
+            stored_audit_log.event_details["nested"][0]["refresh_token"]
+            == "[REDACTED]"
+        )
+        assert stored_audit_log.event_details["safe_note"] == "keep this"
+    finally:
+        db.close()
+
+
+def test_audit_log_service_redacts_documented_sensitive_value_patterns():
+    """Verify deterministic value-based redaction covers documented patterns.
+
+    Returns:
+        None.
+
+    Side effects:
+        Inserts an admin user and audit log record into the test database.
+    """
+    db = build_session()
+
+    try:
+        admin_user = User(email="admin@example.com", role=UserRole.ADMIN)
+        db.add(admin_user)
+        db.commit()
+        db.refresh(admin_user)
+
+        jwt_like_value = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.signature"
+        pem_private_key_value = (
+            "-----BEGIN PRIVATE KEY-----\n"
+            "do-not-store\n"
+            "-----END PRIVATE KEY-----"
+        )
+
+        audit_log_service = AuditLogService(AuditLogRepository(db))
+        audit_log_service.record_admin_action(
+            actor=admin_user,
+            action="security.value_redaction_check",
+            resource_type="audit_log",
+            event_details={
+                "provider_reference": "local-order-1",
+                "signed_payload": jwt_like_value,
+                "diagnostic_block": pem_private_key_value,
+                "ordinary_dotted_value": "catalog.product.created",
+            },
+        )
+        db.commit()
+
+        stored_audit_log = db.execute(select(AuditLog)).scalar_one()
+
+        assert stored_audit_log.event_details["provider_reference"] == "local-order-1"
+        assert stored_audit_log.event_details["signed_payload"] == "[REDACTED]"
+        assert stored_audit_log.event_details["diagnostic_block"] == "[REDACTED]"
+        assert (
+            stored_audit_log.event_details["ordinary_dotted_value"]
+            == "catalog.product.created"
+        )
+    finally:
+        db.close()

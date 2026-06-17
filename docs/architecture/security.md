@@ -242,6 +242,41 @@ full payment card data, or full environment variables. Audit log writes should
 be part of the same database transaction as the admin change when possible so
 the business change and its audit record succeed or fail together.
 
+Audit event details are redacted before persistence. Key-based redaction is the
+primary protection and currently redacts any key containing one of these
+case-insensitive fragments:
+
+- `password`
+- `token`
+- `secret`
+- `credential`
+- `authorization`
+- `card`
+- `payment_card`
+- `jwt`
+- `refresh_token`
+- `access_token`
+- `api_key`
+- `private_key`
+- `environment`
+
+Value-based redaction is intentionally deterministic and conservative. It only
+redacts explicitly documented token/key patterns:
+
+- JWT-like strings with three dot-separated segments whose decoded header is a
+  JSON object containing `alg` or `typ`
+- PEM private-key blocks containing `BEGIN`, `PRIVATE KEY`, and `END` markers
+
+Do not add generic secret detection or entropy-based scanning to audit logs
+without a dedicated issue and tests. Broad heuristic scanning risks hiding
+useful incident context and making audit behavior difficult to reason about.
+
+Role handling remains string-based for the MVP, with supported values defined
+in the backend `UserRole` constants. Admin authorization must continue to use
+the reusable admin dependency, which compares the authenticated database user
+role to `UserRole.ADMIN`. No full RBAC system or role migration is required
+until a planning document and implementation issue define that expansion.
+
 ### 12. Security Testing Requirements
 
 Security-sensitive code must include tests.
