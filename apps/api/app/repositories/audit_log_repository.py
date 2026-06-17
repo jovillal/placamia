@@ -4,10 +4,10 @@ from sqlalchemy.orm import Session
 
 
 class AuditLogRepository:
-    """Database access for administrative audit logs.
+    """Database access for security-relevant audit logs.
 
     The repository centralizes audit log persistence so services can record
-    security-relevant admin events without depending on SQLAlchemy directly.
+    customer or admin events without depending on SQLAlchemy directly.
     """
 
     def __init__(self, db: Session) -> None:

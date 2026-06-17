@@ -200,8 +200,12 @@ Current state:
   Trusted delivery confirmation events move `shipped` orders to `delivered`.
   Minimal transition metadata is recorded in the admin audit log, and payment
   fields remain unchanged.
-- Payment model persistence, payment initialization, and cancellation request
-  workflows remain future work.
+- Paid-order cancellation request flow is implemented. Owning authenticated
+  customers can request cancellation from `confirmed`, `accepted`, or
+  `in_production`; admins can approve requests to move orders to `cancelled`
+  or reject them back to the stored prior paid state. Payment confirmation and
+  provider fulfillment history remain unchanged.
+- Payment model persistence and payment initialization remain future work.
 
 
 ## Related Endpoints
@@ -224,10 +228,6 @@ See docs/api/endpoint-structure.md.
 ## Future Issues
 
 - Future issue required: add idempotency/retry protection for order creation
-- Future issue required: define and test cancellation request policy by order
-  state
-- Future issue required: define QR pickup scan or operator fallback behavior for
-  `ready_for_pickup` to `shipped`
 
 ## Constraints
 

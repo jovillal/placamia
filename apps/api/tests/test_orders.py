@@ -353,6 +353,24 @@ def test_cancellation_requested_from_is_nullable_for_non_request_statuses():
         db.close()
 
 
+def test_cancellation_requested_order_rejects_unsupported_original_status_value():
+    db = build_session()
+    try:
+        customer = create_customer(db)
+        db.add(
+            build_order(
+                customer,
+                status=OrderStatus.CANCELLATION_REQUESTED.value,
+                cancellation_requested_from="banana",
+            )
+        )
+
+        with pytest.raises(IntegrityError):
+            db.commit()
+    finally:
+        db.close()
+
+
 def test_order_item_snapshot_fields_do_not_change_when_product_changes():
     db = build_session()
     try:

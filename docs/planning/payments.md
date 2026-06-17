@@ -129,9 +129,8 @@ Current implementation state:
 - Paid-order provider handoff orchestration delegates eligible confirmed paid
   orders to the provider handoff transmission service after successful payment
   webhook processing.
-- Payment model persistence, payment initialization, durable webhook replay
-  detection/idempotency persistence, provider acceptance/rejection persistence,
-  and fulfillment status updates remain future work.
+- Payment model persistence, payment initialization, and durable webhook replay
+  detection/idempotency persistence remain future work.
 
 ## Webhook Signature Verification Boundary
 
@@ -214,7 +213,6 @@ Provider adapter boundary:
 - Future issue required: create Payment model, migration, and tests
 - Future issue required: create payment initialization endpoint
 - Future issue required: persist payment transition idempotency/replay keys
-- Future issue required: persist provider acceptance/rejection outcomes
 
 ## Constraints
 
