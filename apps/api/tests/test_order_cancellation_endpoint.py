@@ -361,7 +361,9 @@ def test_non_admin_user_cannot_approve_or_reject_cancellation_request():
 
         assert approval_response.status_code == 403
         assert rejection_response.status_code == 403
-        assert db.get(Order, order.id).status == OrderStatus.CANCELLATION_REQUESTED.value
+        assert (
+            db.get(Order, order.id).status == OrderStatus.CANCELLATION_REQUESTED.value
+        )
         assert table_count(db, AuditLog) == 0
     finally:
         app.dependency_overrides.clear()

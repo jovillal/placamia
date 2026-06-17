@@ -89,7 +89,9 @@ class StubOrderRepository:
             else None
         )
 
-    def resolve_customer_cancellation_request(self, order: Order, *, status: OrderStatus):
+    def resolve_customer_cancellation_request(
+        self, order: Order, *, status: OrderStatus
+    ):
         """Fail fast if a corrupted order ever reaches persistence."""
         raise AssertionError("Corrupted cancellation state should not be persisted")
 
@@ -128,7 +130,9 @@ def test_request_cancellation_moves_eligible_paid_order_to_request_state(
         assert stored_order.payment_provider_reference == "pay_internal_ref"
         assert stored_order.payment_verified_at == original_payment_verified_at
         assert stored_order.provider_handoff_reference == "local-order-1"
-        assert stored_order.provider_handoff_sent_at == original_provider_handoff_sent_at
+        assert (
+            stored_order.provider_handoff_sent_at == original_provider_handoff_sent_at
+        )
     finally:
         db.close()
 
@@ -209,7 +213,9 @@ def test_admin_approval_moves_pending_request_to_cancelled_without_clearing_hist
         assert stored_order.payment_provider_reference == "pay_internal_ref"
         assert stored_order.payment_verified_at == original_payment_verified_at
         assert stored_order.provider_handoff_reference == "local-order-1"
-        assert stored_order.provider_handoff_sent_at == original_provider_handoff_sent_at
+        assert (
+            stored_order.provider_handoff_sent_at == original_provider_handoff_sent_at
+        )
     finally:
         db.close()
 
@@ -245,7 +251,9 @@ def test_admin_rejection_restores_original_paid_status(original_status):
         assert stored_order.payment_provider_reference == "pay_internal_ref"
         assert stored_order.payment_verified_at == original_payment_verified_at
         assert stored_order.provider_handoff_reference == "local-order-1"
-        assert stored_order.provider_handoff_sent_at == original_provider_handoff_sent_at
+        assert (
+            stored_order.provider_handoff_sent_at == original_provider_handoff_sent_at
+        )
     finally:
         db.close()
 
