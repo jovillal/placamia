@@ -174,6 +174,44 @@ def test_order_repository_retrieves_orders_by_id_and_customer():
         db.close()
 
 
+def test_order_repository_get_order_for_customer_filters_by_owner_and_missing_id():
+    db = build_session()
+    try:
+        customer = create_customer(db)
+        other_customer = create_customer(db, "other@example.com")
+        product = create_product(db)
+        repository = OrderRepository(db)
+        owned_order = repository.create_order(
+            build_order(customer),
+            [build_order_item(product)],
+        )
+        repository.create_order(
+            build_order(
+                other_customer,
+                subtotal_amount=Decimal("1.00"),
+                total_amount=Decimal("1.00"),
+            ),
+            [
+                build_order_item(
+                    product,
+                    line_subtotal_amount=Decimal("1.00"),
+                    line_total_amount=Decimal("1.00"),
+                )
+            ],
+        )
+
+        assert (
+            repository.get_order_for_customer(owned_order.id, customer.id)
+            == owned_order
+        )
+        assert (
+            repository.get_order_for_customer(owned_order.id, other_customer.id) is None
+        )
+        assert repository.get_order_for_customer(999, customer.id) is None
+    finally:
+        db.close()
+
+
 def test_order_and_order_item_tables_match_path_a_fields():
     db = build_session()
     try:
