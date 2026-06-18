@@ -201,9 +201,12 @@ def test_order_repository_get_order_for_customer_filters_by_owner_and_missing_id
         )
 
         assert (
-            repository.get_order_for_customer(owned_order.id, customer.id) == owned_order
+            repository.get_order_for_customer(owned_order.id, customer.id)
+            == owned_order
         )
-        assert repository.get_order_for_customer(owned_order.id, other_customer.id) is None
+        assert (
+            repository.get_order_for_customer(owned_order.id, other_customer.id) is None
+        )
         assert repository.get_order_for_customer(999, customer.id) is None
     finally:
         db.close()
