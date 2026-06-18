@@ -117,6 +117,8 @@ Current implementation state:
 
 - Payment status lifecycle validation is implemented as deterministic domain
   logic.
+- Payment model persistence is implemented for minimal payment-safe persisted
+  fields through the backend Payment model, repository, and migration.
 - Provider-neutral payment webhook signature verification foundation is
   implemented and used by the payment webhook processing endpoint.
 - Payment webhook processing confirms eligible draft Orders by persisting
@@ -129,8 +131,8 @@ Current implementation state:
 - Paid-order provider handoff orchestration delegates eligible confirmed paid
   orders to the provider handoff transmission service after successful payment
   webhook processing.
-- Payment model persistence, payment initialization, and durable webhook replay
-  detection/idempotency persistence remain future work.
+- Webhook-to-Payment persistence wiring, payment initialization, and durable
+  webhook replay detection/idempotency persistence remain future work.
 
 ## Webhook Signature Verification Boundary
 
@@ -210,7 +212,6 @@ Provider adapter boundary:
 
 ## Future Issues
 
-- Future issue required: create Payment model, migration, and tests
 - Future issue required: create payment initialization endpoint
 - Future issue required: persist payment transition idempotency/replay keys
 

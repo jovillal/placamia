@@ -216,12 +216,37 @@ Current data fields:
 Current relationship rules:
 - Order belongs to the authenticated customer.
 - Order has many OrderItems.
+- Order may have many persisted Payments over time.
 - Order totals come from backend pricing only.
 - Order state follows the canonical lifecycle in `docs/flows/main-flow.md`.
 - Provider handoff success records `sent_to_provider`, provider handoff
   reference, and handoff sent timestamp.
 - Customer cancellation after payment is a request, not an automatic
   cancellation.
+
+### Payment
+
+Represents a persisted payment attempt or provider-confirmed payment record
+linked to an Order.
+
+Current data fields:
+- id
+- order_id
+- status
+- amount
+- currency
+- payment_provider_reference
+- verified_at
+- created_at
+- updated_at
+
+Current relationship rules:
+- Payment belongs to one Order.
+- Order may have many Payments over time.
+- Payment stores only payment-safe persisted fields.
+- Card data, raw provider payloads, and secrets must not be stored.
+- Payment persistence does not itself confirm orders, initialize payments, or
+  trigger provider handoff.
 
 ### OrderItem
 
@@ -309,17 +334,6 @@ Expected relationship rules:
 - Frontend prices, subtotals, discounts, taxes, and totals are ignored or
   rejected.
 - Pricing preview must not create Order, Payment, or provider handoff records.
-
-### Payment
-
-Represents payment-provider state linked to an Order.
-
-Expected relationship rules:
-- Payment confirmation must come from verified payment-provider events.
-- Frontend payment claims cannot mark an Order as paid.
-- Card data must not be stored.
-- Invalid, missing, failed, or replayed webhook events must not mutate order or
-  provider handoff state.
 
 ### ProviderHandoff
 
