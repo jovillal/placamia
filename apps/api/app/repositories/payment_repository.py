@@ -20,7 +20,7 @@ class PaymentRepository:
         self.db = db
 
     def create_payment(self, payment: Payment) -> Payment:
-        """Persist one Payment record.
+        """Stage one Payment record inside the current transaction.
 
         Args:
             payment: Payment model populated from backend-owned payment-safe
@@ -30,11 +30,13 @@ class PaymentRepository:
             The persisted Payment with database-generated identifiers populated.
 
         Side effects:
-            Adds the payment row to the current database transaction and
-            commits it.
+            Adds the payment row to the current database transaction, flushes
+            it so generated identifiers are available, and refreshes the
+            instance. The caller remains responsible for committing or rolling
+            back.
         """
         self.db.add(payment)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(payment)
         return payment
 

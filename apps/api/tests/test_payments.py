@@ -103,15 +103,15 @@ def test_payment_model_links_to_order_and_allows_multiple_payments_per_order():
 
         assert first_payment.order == order
         assert second_payment.order == order
-        assert [payment.payment_provider_reference for payment in order.payments] == [
-            "pay-attempt-1",
-            "pay-attempt-2",
-        ]
+        assert {payment.id for payment in order.payments} == {
+            first_payment.id,
+            second_payment.id,
+        }
     finally:
         db.close()
 
 
-def test_payment_repository_creates_and_reads_payments_by_id_order_and_provider_reference():
+def test_payment_repository_creates_and_reads_payments_by_id_and_provider_reference():
     db = build_session()
     try:
         customer = create_customer(db)
@@ -131,6 +131,7 @@ def test_payment_repository_creates_and_reads_payments_by_id_order_and_provider_
                 provider_reference="pay-attempt-2",
             )
         )
+        db.commit()
 
         assert repository.get_payment_by_id(older_payment.id) == older_payment
         assert repository.get_payment_by_id(999) is None
@@ -139,10 +140,64 @@ def test_payment_repository_creates_and_reads_payments_by_id_order_and_provider_
             == newer_payment
         )
         assert repository.get_payment_by_provider_reference("missing-ref") is None
-        assert repository.get_payments_for_order(order.id) == [
+    finally:
+        db.close()
+
+
+def test_payment_repository_lists_multiple_payments_for_order_newest_first():
+    db = build_session()
+    try:
+        customer = create_customer(db)
+        order = create_order(db, customer)
+        repository = PaymentRepository(db)
+        older_payment = repository.create_payment(
+            build_payment(
+                order,
+                status=PaymentStatus.INITIATED,
+                provider_reference="pay-attempt-1",
+            )
+        )
+        newer_payment = repository.create_payment(
+            build_payment(
+                order,
+                status=PaymentStatus.PENDING,
+                provider_reference="pay-attempt-2",
+            )
+        )
+        db.commit()
+
+        payments_for_order = repository.get_payments_for_order(order.id)
+
+        assert [payment.payment_provider_reference for payment in payments_for_order] == [
+            "pay-attempt-2",
+            "pay-attempt-1",
+        ]
+        assert payments_for_order == [
             newer_payment,
             older_payment,
         ]
+    finally:
+        db.close()
+
+
+def test_payment_repository_create_payment_does_not_commit_transaction():
+    db = build_session()
+    try:
+        customer = create_customer(db)
+        order = create_order(db, customer)
+        repository = PaymentRepository(db)
+
+        staged_payment = repository.create_payment(
+            build_payment(
+                order,
+                status=PaymentStatus.INITIATED,
+                provider_reference="pay-staged",
+            )
+        )
+        db.rollback()
+
+        assert staged_payment.id is not None
+        assert repository.get_payment_by_provider_reference("pay-staged") is None
     finally:
         db.close()
 
