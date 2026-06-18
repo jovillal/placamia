@@ -131,6 +131,8 @@ When modifying or adding functionality:
  - Do NOT mark work complete without tests
  - Follow `docs/architecture/testing.md` for test structure, fixture conventions, authentication testing patterns, and security-sensitive rejection test expectations
  - Tests should align with system flows defined in `docs/flows/*.md`, especially for security-sensitive paths such as checkout and payment confirmation.
+ - For backend lint/format checks, always use the repo-pinned Ruff from `apps/api/.venv` and run it from `apps/api`.
+ - Treat Ruff failures as two separate cases: version drift versus formatting drift. First confirm the local Ruff version matches the version pinned in `apps/api/pyproject.toml` and CI, then run `ruff check .` and `ruff format --check .`.
 
  ---
 
