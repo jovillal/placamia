@@ -181,6 +181,27 @@ Table orders {
 
 Ref: orders.customer_id > users.id
 
+Table payments {
+  id integer [pk, increment]
+  order_id integer [not null]
+  status varchar(32) [not null, default: "initiated"]
+  amount numeric(12, 2) [not null]
+  currency varchar(3) [not null]
+  payment_provider_reference varchar(255)
+  verified_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    id [name: "ix_payments_id"]
+    order_id [name: "ix_payments_order_id"]
+    status [name: "ix_payments_status"]
+    payment_provider_reference [name: "ix_payments_payment_provider_reference"]
+  }
+}
+
+Ref: payments.order_id > orders.id
+
 Table order_items {
   id integer [pk, increment]
   order_id integer [not null]

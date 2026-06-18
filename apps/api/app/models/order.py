@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
     from app.models.order_item import OrderItem
+    from app.models.payment import Payment
     from app.models.user import User
 
 
@@ -150,6 +151,11 @@ class Order(Base):
     )
     items: Mapped[list["OrderItem"]] = relationship(
         "OrderItem",
+        back_populates="order",
+        cascade="all, delete-orphan",
+    )
+    payments: Mapped[list["Payment"]] = relationship(
+        "Payment",
         back_populates="order",
         cascade="all, delete-orphan",
     )
