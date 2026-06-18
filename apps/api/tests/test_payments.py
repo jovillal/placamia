@@ -168,7 +168,9 @@ def test_payment_repository_lists_multiple_payments_for_order_newest_first():
 
         payments_for_order = repository.get_payments_for_order(order.id)
 
-        assert [payment.payment_provider_reference for payment in payments_for_order] == [
+        assert [
+            payment.payment_provider_reference for payment in payments_for_order
+        ] == [
             "pay-attempt-2",
             "pay-attempt-1",
         ]
