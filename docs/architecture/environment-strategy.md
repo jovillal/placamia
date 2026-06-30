@@ -55,11 +55,6 @@ make migrate
 make dev
 ```
 
-The local PostgreSQL container publishes port `54322` on the host and keeps
-PostgreSQL's internal container port at `5432`. The project-specific host port
-avoids collisions with other local PostgreSQL projects that use the standard
-default port.
-
 ## Test Environment
 
 Tests must be executable locally without PostgreSQL or external services.
