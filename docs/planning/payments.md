@@ -121,9 +121,17 @@ Current implementation state:
   fields through the backend Payment model, repository, and migration.
 - Provider-neutral payment webhook signature verification foundation is
   implemented and used by the payment webhook processing endpoint.
-- Payment webhook processing confirms eligible draft Orders by persisting
-  payment provider reference, backend verification timestamp, and confirmed
-  status before attempting paid-order provider handoff orchestration.
+- Payment webhook processing creates or updates Payment records after signature
+  verification and backend Order/customer/amount/currency validation.
+- Verified payment webhook processing confirms eligible draft Orders by
+  persisting payment provider reference, backend verification timestamp, and
+  confirmed status before attempting paid-order provider handoff orchestration.
+- Signed non-verified payment webhook statuses persist only lifecycle-allowed
+  Payment state and do not confirm Orders or trigger provider handoff.
+- Payment provider references are conflict-checked at the service layer.
+  Same-reference events may update the same Order's Payment when the canonical
+  lifecycle allows it; references already associated with another Order are
+  rejected without mutation.
 - Provider handoff transmission service validates verified payment status,
   confirmed order state, persisted payment verification timestamp, and
   backend-owned provider assignment before payload generation and adapter
@@ -131,8 +139,8 @@ Current implementation state:
 - Paid-order provider handoff orchestration delegates eligible confirmed paid
   orders to the provider handoff transmission service after successful payment
   webhook processing.
-- Webhook-to-Payment persistence wiring, payment initialization, and durable
-  webhook replay detection/idempotency persistence remain future work.
+- Payment initialization and durable webhook replay detection/idempotency
+  persistence remain future work.
 
 ## Webhook Signature Verification Boundary
 

@@ -19,6 +19,7 @@ from app.main import app
 from app.models.category import Category
 from app.models.order import Order
 from app.models.order_item import OrderItem
+from app.models.payment import Payment
 from app.models.product import Product
 from app.models.user import User
 from sqlalchemy import create_engine
@@ -138,6 +139,31 @@ def add_provider_ready_order_item(db, order: Order, product: Product) -> None:
     db.refresh(order)
 
 
+def seed_payment(
+    db,
+    order: Order,
+    *,
+    status: str = "pending",
+    provider_reference: str = "pay_verified_123",
+    amount: str = "40.00",
+    currency: str = "COP",
+    verified_at: datetime | None = None,
+) -> Payment:
+    """Persist one Payment record for webhook persistence tests."""
+    payment = Payment(
+        order_id=order.id,
+        status=status,
+        amount=Decimal(amount),
+        currency=currency,
+        payment_provider_reference=provider_reference,
+        verified_at=verified_at,
+    )
+    db.add(payment)
+    db.commit()
+    db.refresh(payment)
+    return payment
+
+
 def raw_payload(**data_overrides) -> bytes:
     """Build a deterministic provider-neutral payment webhook payload."""
     data = {
@@ -237,6 +263,21 @@ def assert_order_unchanged(
     assert stored_order.provider_handoff_sent_at is None
 
 
+def payments_for_order(db, order_id: int) -> list[Payment]:
+    """Return Payment records for one order sorted by id."""
+    return (
+        db.query(Payment)
+        .filter(Payment.order_id == order_id)
+        .order_by(Payment.id.asc())
+        .all()
+    )
+
+
+def assert_no_payments_for_order(db, order_id: int) -> None:
+    """Assert no Payment records were created for one order."""
+    assert payments_for_order(db, order_id) == []
+
+
 def test_verified_webhook_confirms_order_and_triggers_provider_handoff(monkeypatch):
     db = build_session()
     try:
@@ -267,6 +308,13 @@ def test_verified_webhook_confirms_order_and_triggers_provider_handoff(monkeypat
         assert stored_order.payment_verified_at is not None
         assert stored_order.provider_handoff_reference == f"local-order-{order.id}"
         assert stored_order.provider_handoff_sent_at is not None
+        payments = payments_for_order(db, order.id)
+        assert len(payments) == 1
+        assert payments[0].status == "verified"
+        assert payments[0].amount == Decimal("40.00")
+        assert payments[0].currency == "COP"
+        assert payments[0].payment_provider_reference == "pay_verified_123"
+        assert payments[0].verified_at is not None
         assert len(adapter.handoffs_by_key) == 1
     finally:
         app.dependency_overrides.clear()
@@ -302,6 +350,11 @@ def test_verified_webhook_keeps_confirmed_order_when_provider_handoff_fails(
         assert stored_order.payment_verified_at is not None
         assert stored_order.provider_handoff_reference is None
         assert stored_order.provider_handoff_sent_at is None
+        payments = payments_for_order(db, order.id)
+        assert len(payments) == 1
+        assert payments[0].status == "verified"
+        assert payments[0].payment_provider_reference == "pay_verified_123"
+        assert payments[0].verified_at is not None
         assert len(adapter.requests) == 1
         assert adapter.requests[0].idempotency_key == (
             f"order:{order.id}:provider:local-provider"
@@ -329,6 +382,7 @@ def test_invalid_signature_rejected_without_mutation(monkeypatch):
 
         assert_webhook_rejection(response, "invalid_signature")
         assert_order_unchanged(db, order.id)
+        assert_no_payments_for_order(db, order.id)
     finally:
         app.dependency_overrides.clear()
         db.close()
@@ -355,7 +409,9 @@ def test_missing_signature_rejected_without_mutation(monkeypatch):
         db.close()
 
 
-def test_unverified_payment_status_rejected_without_mutation(monkeypatch):
+def test_failed_payment_persists_payment_without_confirming_order_or_handoff(
+    monkeypatch,
+):
     db = build_session()
     try:
         monkeypatch.setattr(
@@ -369,12 +425,25 @@ def test_unverified_payment_status_rejected_without_mutation(monkeypatch):
             customer_id=user.id,
             payment_status="failed",
         )
-        configure_webhook_endpoint_test(db)
+        adapter = RecordingAdapter(HandoffState.SENT)
+        configure_webhook_endpoint_test(db, adapter)
 
         response = asyncio.run(post_webhook(raw_body, signature_header(raw_body)))
 
-        assert_webhook_rejection(response, "payment_not_verified")
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["event_id"] == "evt_verified_123"
+        assert payload["order_id"] == order.id
+        assert payload["order_status"] == OrderStatus.DRAFT.value
         assert_order_unchanged(db, order.id)
+        payments = payments_for_order(db, order.id)
+        assert len(payments) == 1
+        assert payments[0].status == "failed"
+        assert payments[0].amount == Decimal("40.00")
+        assert payments[0].currency == "COP"
+        assert payments[0].payment_provider_reference == "pay_verified_123"
+        assert payments[0].verified_at is None
+        assert adapter.requests == []
     finally:
         app.dependency_overrides.clear()
         db.close()
@@ -396,6 +465,7 @@ def test_amount_mismatch_rejected_without_mutation(monkeypatch):
 
         assert_webhook_rejection(response, "payment_amount_mismatch")
         assert_order_unchanged(db, order.id)
+        assert_no_payments_for_order(db, order.id)
     finally:
         app.dependency_overrides.clear()
         db.close()
@@ -417,6 +487,7 @@ def test_currency_mismatch_rejected_without_mutation(monkeypatch):
 
         assert_webhook_rejection(response, "payment_currency_mismatch")
         assert_order_unchanged(db, order.id)
+        assert_no_payments_for_order(db, order.id)
     finally:
         app.dependency_overrides.clear()
         db.close()
@@ -438,6 +509,86 @@ def test_customer_mismatch_rejected_without_mutation(monkeypatch):
 
         assert_webhook_rejection(response, "payment_customer_mismatch")
         assert_order_unchanged(db, order.id)
+        assert_no_payments_for_order(db, order.id)
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_same_order_provider_reference_updates_existing_payment_and_confirms_order(
+    monkeypatch,
+):
+    db = build_session()
+    try:
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
+        user = seed_user(db)
+        order = seed_order(db, user)
+        seed_payment(
+            db,
+            order,
+            status="pending",
+            provider_reference="pay_verified_123",
+        )
+        product = seed_product(db)
+        add_provider_ready_order_item(db, order, product)
+        adapter = LocalMockProviderAdapter()
+        raw_body = raw_payload(order_id=order.id, customer_id=user.id)
+        configure_webhook_endpoint_test(db, adapter)
+
+        response = asyncio.run(post_webhook(raw_body, signature_header(raw_body)))
+
+        assert response.status_code == 200
+        stored_order = db.get(Order, order.id)
+        assert stored_order.status == OrderStatus.SENT_TO_PROVIDER.value
+        assert stored_order.payment_provider_reference == "pay_verified_123"
+        assert stored_order.payment_verified_at is not None
+        payments = payments_for_order(db, order.id)
+        assert len(payments) == 1
+        assert payments[0].status == "verified"
+        assert payments[0].payment_provider_reference == "pay_verified_123"
+        assert payments[0].verified_at is not None
+        assert len(adapter.handoffs_by_key) == 1
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_different_order_provider_reference_is_rejected_without_mutation(
+    monkeypatch,
+):
+    db = build_session()
+    try:
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
+        first_user = seed_user(db, email="first@example.com")
+        second_user = seed_user(db, email="second@example.com")
+        first_order = seed_order(db, first_user)
+        second_order = seed_order(db, second_user)
+        existing_payment = seed_payment(
+            db,
+            first_order,
+            status="pending",
+            provider_reference="pay_verified_123",
+        )
+        raw_body = raw_payload(order_id=second_order.id, customer_id=second_user.id)
+        adapter = RecordingAdapter(HandoffState.SENT)
+        configure_webhook_endpoint_test(db, adapter)
+
+        response = asyncio.run(post_webhook(raw_body, signature_header(raw_body)))
+
+        assert_webhook_rejection(response, "payment_reference_conflict")
+        assert_order_unchanged(db, second_order.id)
+        stored_first_payment = db.get(Payment, existing_payment.id)
+        assert stored_first_payment.order_id == first_order.id
+        assert stored_first_payment.status == "pending"
+        assert stored_first_payment.verified_at is None
+        assert_no_payments_for_order(db, second_order.id)
+        assert adapter.requests == []
     finally:
         app.dependency_overrides.clear()
         db.close()
@@ -471,6 +622,10 @@ def test_already_confirmed_same_reference_is_idempotent(monkeypatch):
         assert stored_order.payment_provider_reference == "pay_verified_123"
         assert stored_order.payment_verified_at == original_stored_verified_at
         assert stored_order.provider_handoff_reference is None
+        payments = payments_for_order(db, order.id)
+        assert len(payments) == 1
+        assert payments[0].status == "verified"
+        assert payments[0].verified_at == original_stored_verified_at
     finally:
         app.dependency_overrides.clear()
         db.close()
@@ -504,6 +659,7 @@ def test_already_confirmed_same_reference_failed_status_is_rejected(monkeypatch)
         stored_order = db.get(Order, order.id)
         assert stored_order.status == OrderStatus.CONFIRMED.value
         assert stored_order.payment_provider_reference == "pay_verified_123"
+        assert_no_payments_for_order(db, order.id)
     finally:
         app.dependency_overrides.clear()
         db.close()
@@ -533,6 +689,7 @@ def test_already_confirmed_different_reference_is_rejected(monkeypatch):
         stored_order = db.get(Order, order.id)
         assert stored_order.status == OrderStatus.CONFIRMED.value
         assert stored_order.payment_provider_reference == "pay_original"
+        assert_no_payments_for_order(db, order.id)
     finally:
         app.dependency_overrides.clear()
         db.close()

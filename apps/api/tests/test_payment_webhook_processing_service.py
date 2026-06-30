@@ -6,6 +6,7 @@ from app.domain.payment_lifecycle import PaymentEventSource
 from app.models.order import Order
 from app.models.user import User
 from app.repositories.order_repository import OrderRepository
+from app.repositories.payment_repository import PaymentRepository
 from app.services.payment_webhook_processing_service import (
     PaymentWebhookProcessingRejected,
     PaymentWebhookProcessingService,
@@ -75,7 +76,10 @@ def test_unsupported_payment_confirmation_source_rejects_without_order_mutation(
     db = build_session()
     try:
         order = seed_order(db)
-        service = PaymentWebhookProcessingService(OrderRepository(db))
+        service = PaymentWebhookProcessingService(
+            OrderRepository(db),
+            PaymentRepository(db),
+        )
         service.event_source = PaymentEventSource.FRONTEND_RETURN
 
         with pytest.raises(PaymentWebhookProcessingRejected) as exc_info:
