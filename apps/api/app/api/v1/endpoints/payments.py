@@ -4,6 +4,7 @@ from app.core.database import get_db
 from app.domain.payment_lifecycle import PaymentStatus
 from app.domain.provider_adapter import ProviderAdapter
 from app.repositories.order_repository import OrderRepository
+from app.repositories.payment_repository import PaymentRepository
 from app.schemas.payment import PaymentWebhookResponse
 from app.services.paid_order_handoff_orchestration_service import (
     PaidOrderHandoffOrchestrationService,
@@ -32,8 +33,9 @@ router = APIRouter(prefix="/payments", tags=["payments"])
     summary="Process payment webhook",
     description=(
         "Verifies a provider-neutral payment webhook signature, validates the "
-        "trusted payment event against backend-owned order state, and confirms "
-        "an eligible draft order before attempting paid-order provider handoff."
+        "trusted payment event against backend-owned order state, persists "
+        "Payment state, and confirms an eligible draft order before attempting "
+        "paid-order provider handoff."
     ),
     responses={
         400: {"description": "Payment webhook rejected"},
@@ -63,12 +65,14 @@ async def process_payment_webhook(
         correlation fields.
 
     Side effects:
-        On first valid confirmation, writes the Order payment provider
-        reference, payment verification timestamp, and `confirmed` status.
-        Then it attempts provider handoff through the orchestration boundary.
-        Handoff failure does not roll back or reject payment confirmation. The
-        endpoint does not persist provider acceptance/rejection or fulfillment
-        status updates.
+        For accepted signed events, creates or updates the corresponding
+        Payment record. On first valid verified confirmation, writes the Order
+        payment provider reference, payment verification timestamp, and
+        `confirmed` status. Then it attempts provider handoff through the
+        orchestration boundary. Handoff failure does not roll back or reject
+        payment confirmation. Non-verified accepted events do not trigger
+        provider handoff. The endpoint does not persist provider
+        acceptance/rejection or fulfillment status updates.
 
     Raises:
         HTTPException: When signature verification or payment/order validation
@@ -79,6 +83,7 @@ async def process_payment_webhook(
         settings.PAYMENT_WEBHOOK_SECRET,
     )
     order_repository = OrderRepository(db)
+    payment_repository = PaymentRepository(db)
 
     try:
         trusted_webhook = verification_service.verify_webhook(
@@ -87,11 +92,22 @@ async def process_payment_webhook(
         )
         result = PaymentWebhookProcessingService(
             order_repository,
+            payment_repository,
         ).process_verified_webhook(trusted_webhook)
+        db.commit()
     except PaymentWebhookVerificationRejected as exc:
+        db.rollback()
         raise _webhook_rejection(exc) from exc
     except PaymentWebhookProcessingRejected as exc:
+        db.rollback()
         raise _webhook_rejection(exc) from exc
+
+    if not result.payment_confirmed:
+        return PaymentWebhookResponse(
+            event_id=result.event.event_id,
+            order_id=result.order.id,
+            order_status=result.order.status,
+        )
 
     handoff_result = PaidOrderHandoffOrchestrationService(
         ProviderHandoffTransmissionService(

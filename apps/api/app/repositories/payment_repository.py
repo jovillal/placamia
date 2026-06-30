@@ -40,6 +40,26 @@ class PaymentRepository:
         self.db.refresh(payment)
         return payment
 
+    def update_payment(self, payment: Payment) -> Payment:
+        """Stage updates to one Payment inside the current transaction.
+
+        Args:
+            payment: Existing Payment model with backend-validated field
+                changes already applied.
+
+        Returns:
+            The refreshed Payment after pending changes are flushed.
+
+        Side effects:
+            Flushes payment changes to the current database transaction and
+            refreshes the instance. The caller remains responsible for
+            committing or rolling back.
+        """
+        self.db.add(payment)
+        self.db.flush()
+        self.db.refresh(payment)
+        return payment
+
     def get_payment_by_id(self, payment_id: int) -> Payment | None:
         """Return one Payment by primary key.
 
@@ -85,3 +105,22 @@ class PaymentRepository:
             )
         )
         return result.scalar_one_or_none()
+
+    def get_payments_by_provider_reference(
+        self,
+        provider_reference: str,
+    ) -> list[Payment]:
+        """Return Payment records matching one payment-provider reference.
+
+        Args:
+            provider_reference: Payment-provider reference to look up.
+
+        Returns:
+            Matching Payment model instances sorted by newest first.
+        """
+        result = self.db.execute(
+            select(Payment)
+            .where(Payment.payment_provider_reference == provider_reference)
+            .order_by(Payment.created_at.desc(), Payment.id.desc())
+        )
+        return list(result.scalars().all())

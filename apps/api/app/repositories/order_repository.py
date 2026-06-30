@@ -142,17 +142,18 @@ class OrderRepository:
             verified_at: Backend timestamp for the successful verification.
 
         Returns:
-            The refreshed Order after payment fields and status are committed.
+            The refreshed Order after payment fields and status are flushed.
 
         Side effects:
             Updates order status, payment provider reference, and payment
-            verification timestamp, then commits the current transaction.
+            verification timestamp, then flushes the current transaction. The
+            caller remains responsible for committing or rolling back.
         """
         order.status = OrderStatus.CONFIRMED.value
         order.payment_provider_reference = provider_reference
         order.payment_verified_at = verified_at
         self.db.add(order)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(order)
         return order
 

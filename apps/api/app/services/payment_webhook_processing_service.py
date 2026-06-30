@@ -15,11 +15,15 @@ from app.domain.payment_lifecycle import (
     PaymentEventSource,
     PaymentLifecycleError,
     PaymentStatus,
+    PaymentTransitionTrigger,
+    transition_payment_status,
     validate_order_confirmation_from_payment,
     validate_payment_confirmation_source,
 )
 from app.models.order import Order
+from app.models.payment import Payment
 from app.repositories.order_repository import OrderRepository
+from app.repositories.payment_repository import PaymentRepository
 from app.services.payment_webhook_verification_service import TrustedPaymentWebhook
 
 
@@ -69,11 +73,15 @@ class PaymentWebhookProcessingResult:
 
     Attributes:
         order: Persisted or idempotently matched Order.
+        payment: Persisted Payment record created or updated from the webhook.
         event: Trusted provider-neutral payment event.
+        payment_confirmed: Whether this webhook newly confirmed a draft Order.
     """
 
     order: Order
+    payment: Payment
     event: TrustedPaymentEvent
+    payment_confirmed: bool
 
 
 class PaymentWebhookProcessingService:
@@ -89,16 +97,22 @@ class PaymentWebhookProcessingService:
 
     event_source = PaymentEventSource.PAYMENT_PROVIDER_WEBHOOK
 
-    def __init__(self, order_repository: OrderRepository) -> None:
+    def __init__(
+        self,
+        order_repository: OrderRepository,
+        payment_repository: PaymentRepository,
+    ) -> None:
         """Store repositories used for payment webhook processing.
 
         Args:
             order_repository: Repository used to read and update Orders.
+            payment_repository: Repository used to create or update Payments.
 
         Side effects:
             None.
         """
         self.order_repository = order_repository
+        self.payment_repository = payment_repository
 
     def process_verified_webhook(
         self,
@@ -111,8 +125,8 @@ class PaymentWebhookProcessingService:
                 verification boundary.
 
         Returns:
-            Payment webhook processing result with the updated or idempotently
-            matched Order and trusted payment event.
+            Payment webhook processing result with the current Order, persisted
+            Payment, trusted payment event, and confirmation outcome.
 
         Raises:
             PaymentWebhookProcessingRejected: If payload shape, payment source,
@@ -120,8 +134,9 @@ class PaymentWebhookProcessingService:
                 lifecycle validation rejects the confirmation.
 
         Side effects:
-            On first valid confirmation, updates the Order status to
-            `confirmed`, writes `payment_provider_reference`, and writes
+            Creates or updates a Payment row after payload validation. On first
+            valid confirmation, also updates the Order status to `confirmed`,
+            writes `payment_provider_reference`, and writes
             `payment_verified_at`. Idempotent same-reference replays do not
             mutate the Order. Provider handoff is never triggered here.
         """
@@ -132,21 +147,174 @@ class PaymentWebhookProcessingService:
         self._validate_order_identity(order, event)
         self._validate_amount(order, event)
         self._validate_currency(order, event)
+        payment = self._payment_for_event(event)
 
         order_status = self._order_status(order)
         if order_status is OrderStatus.CONFIRMED:
             self._validate_idempotent_confirmation(order, event)
-            return PaymentWebhookProcessingResult(order=order, event=event)
+            persisted_payment = self._persist_payment_event(
+                payment,
+                event,
+                verified_at=order.payment_verified_at,
+                allow_verified_replay=True,
+            )
+            return PaymentWebhookProcessingResult(
+                order=order,
+                payment=persisted_payment,
+                event=event,
+                payment_confirmed=False,
+            )
 
-        self._validate_confirmation_eligibility(event.payment_status, order_status)
-        self._validate_order_transition(order_status)
+        if event.payment_status is PaymentStatus.VERIFIED:
+            self._validate_confirmation_eligibility(event.payment_status, order_status)
+            self._validate_order_transition(order_status)
+
+        verified_at = (
+            datetime.now(UTC)
+            if event.payment_status is PaymentStatus.VERIFIED
+            else None
+        )
+        persisted_payment = self._persist_payment_event(
+            payment,
+            event,
+            verified_at=verified_at,
+            allow_verified_replay=False,
+        )
+
+        if event.payment_status is not PaymentStatus.VERIFIED:
+            return PaymentWebhookProcessingResult(
+                order=order,
+                payment=persisted_payment,
+                event=event,
+                payment_confirmed=False,
+            )
 
         updated_order = self.order_repository.record_payment_confirmed(
             order,
             provider_reference=event.payment_provider_reference,
-            verified_at=datetime.now(UTC),
+            verified_at=verified_at,
         )
-        return PaymentWebhookProcessingResult(order=updated_order, event=event)
+        return PaymentWebhookProcessingResult(
+            order=updated_order,
+            payment=persisted_payment,
+            event=event,
+            payment_confirmed=True,
+        )
+
+    def _payment_for_event(self, event: TrustedPaymentEvent) -> Payment | None:
+        """Return the same-order Payment for this provider reference.
+
+        Raises:
+            PaymentWebhookProcessingRejected: If the provider reference already
+                belongs to another Order.
+        """
+        payments = self.payment_repository.get_payments_by_provider_reference(
+            event.payment_provider_reference,
+        )
+        for payment in payments:
+            if payment.order_id != event.order_id:
+                raise PaymentWebhookProcessingRejected(
+                    code="payment_reference_conflict",
+                    message="Payment webhook provider reference is already used.",
+                )
+
+        return payments[0] if payments else None
+
+    def _persist_payment_event(
+        self,
+        payment: Payment | None,
+        event: TrustedPaymentEvent,
+        *,
+        verified_at: datetime | None,
+        allow_verified_replay: bool,
+    ) -> Payment:
+        """Create or update the Payment row after lifecycle validation."""
+        if payment is None:
+            self._validate_payment_transition(
+                PaymentStatus.INITIATED,
+                event.payment_status,
+            )
+            return self.payment_repository.create_payment(
+                Payment(
+                    order_id=event.order_id,
+                    status=event.payment_status.value,
+                    amount=event.amount,
+                    currency=event.currency,
+                    payment_provider_reference=event.payment_provider_reference,
+                    verified_at=verified_at,
+                )
+            )
+
+        current_status = self._persisted_payment_status(payment)
+        if current_status is event.payment_status:
+            if allow_verified_replay and current_status is PaymentStatus.VERIFIED:
+                return payment
+            raise PaymentWebhookProcessingRejected(
+                code="payment_transition_rejected",
+                message="Payment webhook status transition is not allowed.",
+            )
+
+        self._validate_payment_transition(current_status, event.payment_status)
+        payment.status = event.payment_status.value
+        payment.amount = event.amount
+        payment.currency = event.currency
+        payment.verified_at = verified_at
+        return self.payment_repository.update_payment(payment)
+
+    def _validate_payment_transition(
+        self,
+        current_status: PaymentStatus,
+        target_status: PaymentStatus,
+    ) -> None:
+        """Reject payment status changes outside the canonical lifecycle."""
+        try:
+            transition_payment_status(
+                current_status,
+                target_status,
+                self._transition_trigger(target_status),
+                event_source=self.event_source,
+            )
+        except PaymentLifecycleError as exc:
+            raise PaymentWebhookProcessingRejected(
+                code="payment_transition_rejected",
+                message=str(exc),
+            ) from exc
+
+    @staticmethod
+    def _transition_trigger(
+        target_status: PaymentStatus,
+    ) -> PaymentTransitionTrigger:
+        """Return the provider trigger represented by a webhook target status."""
+        triggers = {
+            PaymentStatus.PENDING: PaymentTransitionTrigger.PROVIDER_PENDING,
+            PaymentStatus.REQUIRES_ACTION: (
+                PaymentTransitionTrigger.PROVIDER_REQUIRES_ACTION
+            ),
+            PaymentStatus.VERIFIED: (
+                PaymentTransitionTrigger.VERIFIED_PROVIDER_CONFIRMATION
+            ),
+            PaymentStatus.FAILED: PaymentTransitionTrigger.PROVIDER_FAILED,
+            PaymentStatus.CANCELLED: PaymentTransitionTrigger.PROVIDER_CANCELLED,
+            PaymentStatus.EXPIRED: PaymentTransitionTrigger.PROVIDER_EXPIRED,
+        }
+        trigger = triggers.get(target_status)
+        if trigger is None:
+            raise PaymentWebhookProcessingRejected(
+                code="payment_transition_rejected",
+                message="Payment webhook status transition is not allowed.",
+            )
+        return trigger
+
+    @staticmethod
+    def _persisted_payment_status(payment: Payment) -> PaymentStatus:
+        """Return one Payment's canonical status or reject unsupported data."""
+        try:
+            return PaymentStatus(payment.status)
+        except ValueError as exc:
+            raise PaymentWebhookProcessingRejected(
+                code="unsupported_payment_status",
+                message="Persisted payment status is unsupported.",
+            ) from exc
 
     def _validate_confirmation_source(self) -> None:
         """Validate that this processor uses a trusted payment-provider source."""

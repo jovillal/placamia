@@ -4,8 +4,10 @@ import pytest
 from app.core.database import Base
 from app.domain.payment_lifecycle import PaymentEventSource
 from app.models.order import Order
+from app.models.payment import Payment
 from app.models.user import User
 from app.repositories.order_repository import OrderRepository
+from app.repositories.payment_repository import PaymentRepository
 from app.services.payment_webhook_processing_service import (
     PaymentWebhookProcessingRejected,
     PaymentWebhookProcessingService,
@@ -52,7 +54,12 @@ def seed_order(db) -> Order:
     return order
 
 
-def trusted_webhook_for_order(order: Order) -> TrustedPaymentWebhook:
+def trusted_webhook_for_order(
+    order: Order,
+    *,
+    payment_status: str = "verified",
+    provider_reference: str = "pay_verified_123",
+) -> TrustedPaymentWebhook:
     """Return a verified webhook result for one draft order."""
     return TrustedPaymentWebhook(
         event_id="evt_verified_123",
@@ -61,8 +68,8 @@ def trusted_webhook_for_order(order: Order) -> TrustedPaymentWebhook:
             "data": {
                 "order_id": order.id,
                 "customer_id": order.customer_id,
-                "payment_status": "verified",
-                "payment_provider_reference": "pay_verified_123",
+                "payment_status": payment_status,
+                "payment_provider_reference": provider_reference,
                 "amount": "40.00",
                 "currency": "COP",
             },
@@ -71,11 +78,49 @@ def trusted_webhook_for_order(order: Order) -> TrustedPaymentWebhook:
     )
 
 
+def seed_payment(
+    db,
+    order: Order,
+    *,
+    status: str,
+    provider_reference: str = "pay_transition_123",
+) -> Payment:
+    """Persist one Payment for webhook lifecycle transition tests."""
+    payment = Payment(
+        order_id=order.id,
+        status=status,
+        amount=Decimal("40.00"),
+        currency="COP",
+        payment_provider_reference=provider_reference,
+    )
+    db.add(payment)
+    db.commit()
+    db.refresh(payment)
+    return payment
+
+
+def payment_for_reference(db, provider_reference: str) -> Payment | None:
+    """Return one Payment by provider reference for service assertions."""
+    return (
+        db.query(Payment)
+        .filter(Payment.payment_provider_reference == provider_reference)
+        .one_or_none()
+    )
+
+
+def build_processing_service(db) -> PaymentWebhookProcessingService:
+    """Return a payment webhook processor wired to test repositories."""
+    return PaymentWebhookProcessingService(
+        OrderRepository(db),
+        PaymentRepository(db),
+    )
+
+
 def test_unsupported_payment_confirmation_source_rejects_without_order_mutation():
     db = build_session()
     try:
         order = seed_order(db)
-        service = PaymentWebhookProcessingService(OrderRepository(db))
+        service = build_processing_service(db)
         service.event_source = PaymentEventSource.FRONTEND_RETURN
 
         with pytest.raises(PaymentWebhookProcessingRejected) as exc_info:
@@ -87,5 +132,131 @@ def test_unsupported_payment_confirmation_source_rejects_without_order_mutation(
         assert stored_order.payment_provider_reference is None
         assert stored_order.payment_verified_at is None
         assert stored_order.provider_handoff_reference is None
+    finally:
+        db.close()
+
+
+@pytest.mark.parametrize(
+    "payment_status",
+    ["pending", "requires_action", "failed", "cancelled", "expired"],
+)
+def test_initial_non_verified_payment_statuses_persist_without_order_mutation(
+    payment_status,
+):
+    db = build_session()
+    try:
+        order = seed_order(db)
+        provider_reference = f"pay_{payment_status}"
+        service = build_processing_service(db)
+
+        result = service.process_verified_webhook(
+            trusted_webhook_for_order(
+                order,
+                payment_status=payment_status,
+                provider_reference=provider_reference,
+            )
+        )
+
+        assert result.payment_confirmed is False
+        assert result.order.status == "draft"
+        assert result.payment.status == payment_status
+        assert result.payment.payment_provider_reference == provider_reference
+        assert result.payment.verified_at is None
+        stored_order = db.get(Order, order.id)
+        assert stored_order.status == "draft"
+        assert stored_order.payment_provider_reference is None
+        assert stored_order.payment_verified_at is None
+        stored_payment = payment_for_reference(db, provider_reference)
+        assert stored_payment is not None
+        assert stored_payment.status == payment_status
+    finally:
+        db.close()
+
+
+@pytest.mark.parametrize(
+    ("current_status", "target_status"),
+    [
+        ("pending", "requires_action"),
+        ("requires_action", "pending"),
+    ],
+)
+def test_same_order_payment_provider_reference_updates_allowed_processing_statuses(
+    current_status,
+    target_status,
+):
+    db = build_session()
+    try:
+        order = seed_order(db)
+        provider_reference = "pay_transition_123"
+        existing_payment = seed_payment(
+            db,
+            order,
+            status=current_status,
+            provider_reference=provider_reference,
+        )
+        service = build_processing_service(db)
+
+        result = service.process_verified_webhook(
+            trusted_webhook_for_order(
+                order,
+                payment_status=target_status,
+                provider_reference=provider_reference,
+            )
+        )
+
+        assert result.payment_confirmed is False
+        assert result.payment.id == existing_payment.id
+        assert result.payment.status == target_status
+        assert result.payment.verified_at is None
+        stored_order = db.get(Order, order.id)
+        assert stored_order.status == "draft"
+        assert stored_order.payment_provider_reference is None
+        assert stored_order.payment_verified_at is None
+        stored_payment = db.get(Payment, existing_payment.id)
+        assert stored_payment.status == target_status
+    finally:
+        db.close()
+
+
+@pytest.mark.parametrize(
+    ("current_status", "target_status"),
+    [
+        ("failed", "pending"),
+        ("pending", "initiated"),
+    ],
+)
+def test_invalid_payment_lifecycle_transition_rejects_without_mutation(
+    current_status,
+    target_status,
+):
+    db = build_session()
+    try:
+        order = seed_order(db)
+        provider_reference = "pay_invalid_transition"
+        existing_payment = seed_payment(
+            db,
+            order,
+            status=current_status,
+            provider_reference=provider_reference,
+        )
+        service = build_processing_service(db)
+
+        with pytest.raises(PaymentWebhookProcessingRejected) as exc_info:
+            service.process_verified_webhook(
+                trusted_webhook_for_order(
+                    order,
+                    payment_status=target_status,
+                    provider_reference=provider_reference,
+                )
+            )
+
+        assert exc_info.value.code == "payment_transition_rejected"
+        stored_order = db.get(Order, order.id)
+        assert stored_order.status == "draft"
+        assert stored_order.payment_provider_reference is None
+        assert stored_order.payment_verified_at is None
+        stored_payment = db.get(Payment, existing_payment.id)
+        assert stored_payment.status == current_status
+        assert stored_payment.verified_at is None
     finally:
         db.close()

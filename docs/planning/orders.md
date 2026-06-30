@@ -177,8 +177,9 @@ Current state:
   are implemented for confirmed orders with verified payment.
 - Successful handoff records provider handoff reference, handoff sent
   timestamp, and `sent_to_provider` status.
-- Payment webhook processing persists payment confirmation fields and moves
-  eligible draft orders to `confirmed`.
+- Payment webhook processing persists Payment records, writes payment
+  confirmation fields for verified events, and moves eligible draft orders to
+  `confirmed`.
 - Paid-order provider handoff orchestration attempts handoff after successful
   payment webhook confirmation. Failed handoff leaves the order `confirmed`
   with payment fields intact and provider handoff success fields empty for
@@ -205,7 +206,7 @@ Current state:
   `in_production`; admins can approve requests to move orders to `cancelled`
   or reject them back to the stored prior paid state. Payment confirmation and
   provider fulfillment history remain unchanged.
-- Payment model persistence and payment initialization remain future work.
+- Payment initialization remains future work.
 
 
 ## Related Endpoints
