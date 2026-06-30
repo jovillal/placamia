@@ -21,11 +21,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.create_unique_constraint(
-        "uq_payments_order_provider_reference",
-        "payments",
-        ["order_id", "payment_provider_reference"],
-    )
     op.create_table(
         "payment_webhook_events",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -73,10 +68,20 @@ def upgrade() -> None:
         ["source"],
         unique=False,
     )
+    op.create_unique_constraint(
+        "uq_payments_order_provider_reference",
+        "payments",
+        ["order_id", "payment_provider_reference"],
+    )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
+    op.drop_constraint(
+        "uq_payments_order_provider_reference",
+        "payments",
+        type_="unique",
+    )
     op.drop_index(
         op.f("ix_payment_webhook_events_source"),
         table_name="payment_webhook_events",
@@ -94,8 +99,3 @@ def downgrade() -> None:
         table_name="payment_webhook_events",
     )
     op.drop_table("payment_webhook_events")
-    op.drop_constraint(
-        "uq_payments_order_provider_reference",
-        "payments",
-        type_="unique",
-    )
