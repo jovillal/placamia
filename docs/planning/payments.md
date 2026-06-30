@@ -132,6 +132,14 @@ Current implementation state:
   Same-reference events may update the same Order's Payment when the canonical
   lifecycle allows it; references already associated with another Order are
   rejected without mutation.
+- Durable payment webhook replay/idempotency keys are persisted after
+  signature verification and trusted payment-event validation. Replayed event
+  ids are rejected without reapplying Payment, Order, or provider handoff
+  state.
+- The replay key, Payment mutation, and Order mutation are committed in one
+  database transaction before provider handoff is attempted.
+- Payment records enforce one non-null payment provider reference per Order at
+  the database level.
 - Provider handoff transmission service validates verified payment status,
   confirmed order state, persisted payment verification timestamp, and
   backend-owned provider assignment before payload generation and adapter
@@ -139,8 +147,7 @@ Current implementation state:
 - Paid-order provider handoff orchestration delegates eligible confirmed paid
   orders to the provider handoff transmission service after successful payment
   webhook processing.
-- Payment initialization and durable webhook replay detection/idempotency
-  persistence remain future work.
+- Payment initialization remains future work.
 
 ## Webhook Signature Verification Boundary
 
@@ -180,9 +187,9 @@ Only a signed, verified-status event whose order id, optional customer id,
 amount, and currency match persisted backend Order state may write
 `payment_provider_reference`, write `payment_verified_at`, and move the Order
 from `draft` to `confirmed`. Same-reference processing for already-confirmed
-orders is idempotent, but this is not durable webhook replay detection because
-event ids are not persisted yet. Conflicting duplicate references or mismatched
-payment details are rejected without mutation.
+orders remains compatible for distinct webhook event ids, but replayed event
+ids are rejected by durable webhook replay storage. Conflicting duplicate
+references or mismatched payment details are rejected without mutation.
 
 Invalid, missing, malformed, or replayed webhooks must be rejected before any
 payment, order, checkout, or provider handoff mutation. Frontend payment claims
@@ -221,7 +228,6 @@ Provider adapter boundary:
 ## Future Issues
 
 - Future issue required: create payment initialization endpoint
-- Future issue required: persist payment transition idempotency/replay keys
 
 ## Constraints
 

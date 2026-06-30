@@ -197,10 +197,30 @@ Table payments {
     order_id [name: "ix_payments_order_id"]
     status [name: "ix_payments_status"]
     payment_provider_reference [name: "ix_payments_payment_provider_reference"]
+    (order_id, payment_provider_reference) [unique, name: "uq_payments_order_provider_reference"]
   }
 }
 
 Ref: payments.order_id > orders.id
+
+Table payment_webhook_events {
+  id integer [pk, increment]
+  event_id varchar(255) [not null, unique]
+  source varchar(64) [not null, default: "payment_provider_webhook"]
+  order_id integer
+  payment_id integer
+  received_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    id [name: "ix_payment_webhook_events_id"]
+    source [name: "ix_payment_webhook_events_source"]
+    order_id [name: "ix_payment_webhook_events_order_id"]
+    payment_id [name: "ix_payment_webhook_events_payment_id"]
+  }
+}
+
+Ref: payment_webhook_events.order_id > orders.id
+Ref: payment_webhook_events.payment_id > payments.id
 
 Table order_items {
   id integer [pk, increment]

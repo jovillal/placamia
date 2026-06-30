@@ -180,6 +180,9 @@ Current state:
 - Payment webhook processing persists Payment records, writes payment
   confirmation fields for verified events, and moves eligible draft orders to
   `confirmed`.
+- Payment webhook replay keys are persisted atomically with Payment and Order
+  mutation so replayed event ids do not duplicate confirmation or handoff
+  behavior.
 - Paid-order provider handoff orchestration attempts handoff after successful
   payment webhook confirmation. Failed handoff leaves the order `confirmed`
   with payment fields intact and provider handoff success fields empty for

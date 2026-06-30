@@ -9,6 +9,9 @@ from app.models.order import Order
 from app.models.payment import Payment
 from app.models.user import User
 from app.repositories.payment_repository import PaymentRepository
+from app.repositories.payment_webhook_event_repository import (
+    PaymentWebhookEventRepository,
+)
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
@@ -260,6 +263,119 @@ def test_payment_model_rejects_invalid_status_value():
         db.close()
 
 
+def test_payment_model_rejects_duplicate_provider_reference_for_same_order():
+    db = build_session()
+    try:
+        customer = create_customer(db)
+        order = create_order(db, customer)
+        db.add(
+            build_payment(
+                order,
+                status=PaymentStatus.PENDING,
+                provider_reference="pay-duplicate",
+            )
+        )
+        db.commit()
+
+        db.add(
+            build_payment(
+                order,
+                status=PaymentStatus.FAILED,
+                provider_reference="pay-duplicate",
+            )
+        )
+
+        with pytest.raises(IntegrityError):
+            db.commit()
+    finally:
+        db.close()
+
+
+def test_payment_model_allows_same_provider_reference_for_different_orders():
+    db = build_session()
+    try:
+        first_customer = create_customer(db, email="first@example.com")
+        second_customer = create_customer(db, email="second@example.com")
+        first_order = create_order(db, first_customer)
+        second_order = create_order(db, second_customer)
+        db.add_all(
+            [
+                build_payment(
+                    first_order,
+                    status=PaymentStatus.PENDING,
+                    provider_reference="pay-shared",
+                ),
+                build_payment(
+                    second_order,
+                    status=PaymentStatus.PENDING,
+                    provider_reference="pay-shared",
+                ),
+            ]
+        )
+        db.commit()
+
+        assert len(db.query(Payment).all()) == 2
+    finally:
+        db.close()
+
+
+def test_payment_webhook_event_repository_creates_and_reads_replay_key():
+    db = build_session()
+    try:
+        customer = create_customer(db)
+        order = create_order(db, customer)
+        payment = build_payment(
+            order,
+            status=PaymentStatus.VERIFIED,
+            provider_reference="pay-webhook-event",
+            verified_at=datetime(2026, 6, 18, tzinfo=UTC),
+        )
+        db.add(payment)
+        db.commit()
+        db.refresh(payment)
+        repository = PaymentWebhookEventRepository(db)
+
+        event = repository.create_event(
+            event_id="evt-webhook-1",
+            source="payment_provider_webhook",
+            order_id=order.id,
+            payment_id=payment.id,
+        )
+        db.commit()
+
+        stored_event = repository.get_event_by_event_id("evt-webhook-1")
+        assert stored_event == event
+        assert stored_event.source == "payment_provider_webhook"
+        assert stored_event.order_id == order.id
+        assert stored_event.payment_id == payment.id
+        assert stored_event.received_at is not None
+    finally:
+        db.close()
+
+
+def test_payment_webhook_event_model_rejects_duplicate_event_id():
+    db = build_session()
+    try:
+        customer = create_customer(db)
+        order = create_order(db, customer)
+        repository = PaymentWebhookEventRepository(db)
+        repository.create_event(
+            event_id="evt-duplicate",
+            source="payment_provider_webhook",
+            order_id=order.id,
+        )
+        db.commit()
+
+        with pytest.raises(IntegrityError):
+            repository.create_event(
+                event_id="evt-duplicate",
+                source="payment_provider_webhook",
+                order_id=order.id,
+            )
+    finally:
+        db.close()
+
+
 def test_payment_table_matches_minimal_payment_safe_fields():
     db = build_session()
     try:
@@ -277,6 +393,19 @@ def test_payment_table_matches_minimal_payment_safe_fields():
             "verified_at",
             "created_at",
             "updated_at",
+        }
+
+        webhook_event_columns = {
+            column["name"]
+            for column in inspect(db.bind).get_columns("payment_webhook_events")
+        }
+        assert webhook_event_columns == {
+            "id",
+            "event_id",
+            "source",
+            "order_id",
+            "payment_id",
+            "received_at",
         }
     finally:
         db.close()

@@ -20,6 +20,7 @@ from app.models.category import Category
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.payment import Payment
+from app.models.payment_webhook_event import PaymentWebhookEvent
 from app.models.product import Product
 from app.models.user import User
 from sqlalchemy import create_engine
@@ -164,7 +165,11 @@ def seed_payment(
     return payment
 
 
-def raw_payload(**data_overrides) -> bytes:
+def raw_payload(
+    *,
+    event_id: str | None = "evt_verified_123",
+    **data_overrides,
+) -> bytes:
     """Build a deterministic provider-neutral payment webhook payload."""
     data = {
         "order_id": 1,
@@ -175,11 +180,9 @@ def raw_payload(**data_overrides) -> bytes:
         "currency": "COP",
     }
     data.update(data_overrides)
-    payload = {
-        "id": "evt_verified_123",
-        "type": "payment.verified",
-        "data": data,
-    }
+    payload = {"type": "payment.verified", "data": data}
+    if event_id is not None:
+        payload["id"] = event_id
     return json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
 
 
@@ -278,6 +281,33 @@ def assert_no_payments_for_order(db, order_id: int) -> None:
     assert payments_for_order(db, order_id) == []
 
 
+def webhook_events_for_order(db, order_id: int) -> list[PaymentWebhookEvent]:
+    """Return webhook replay records for one order sorted by id."""
+    return (
+        db.query(PaymentWebhookEvent)
+        .filter(PaymentWebhookEvent.order_id == order_id)
+        .order_by(PaymentWebhookEvent.id.asc())
+        .all()
+    )
+
+
+def webhook_event_by_event_id(
+    db,
+    event_id: str,
+) -> PaymentWebhookEvent | None:
+    """Return one webhook replay record by provider event id."""
+    return (
+        db.query(PaymentWebhookEvent)
+        .filter(PaymentWebhookEvent.event_id == event_id)
+        .one_or_none()
+    )
+
+
+def assert_no_webhook_events_for_order(db, order_id: int) -> None:
+    """Assert no webhook replay records were created for one order."""
+    assert webhook_events_for_order(db, order_id) == []
+
+
 def test_verified_webhook_confirms_order_and_triggers_provider_handoff(monkeypatch):
     db = build_session()
     try:
@@ -315,6 +345,11 @@ def test_verified_webhook_confirms_order_and_triggers_provider_handoff(monkeypat
         assert payments[0].currency == "COP"
         assert payments[0].payment_provider_reference == "pay_verified_123"
         assert payments[0].verified_at is not None
+        webhook_events = webhook_events_for_order(db, order.id)
+        assert len(webhook_events) == 1
+        assert webhook_events[0].event_id == "evt_verified_123"
+        assert webhook_events[0].source == "payment_provider_webhook"
+        assert webhook_events[0].payment_id == payments[0].id
         assert len(adapter.handoffs_by_key) == 1
     finally:
         app.dependency_overrides.clear()
@@ -355,6 +390,10 @@ def test_verified_webhook_keeps_confirmed_order_when_provider_handoff_fails(
         assert payments[0].status == "verified"
         assert payments[0].payment_provider_reference == "pay_verified_123"
         assert payments[0].verified_at is not None
+        webhook_events = webhook_events_for_order(db, order.id)
+        assert len(webhook_events) == 1
+        assert webhook_events[0].event_id == "evt_verified_123"
+        assert webhook_events[0].payment_id == payments[0].id
         assert len(adapter.requests) == 1
         assert adapter.requests[0].idempotency_key == (
             f"order:{order.id}:provider:local-provider"
@@ -383,6 +422,7 @@ def test_invalid_signature_rejected_without_mutation(monkeypatch):
         assert_webhook_rejection(response, "invalid_signature")
         assert_order_unchanged(db, order.id)
         assert_no_payments_for_order(db, order.id)
+        assert_no_webhook_events_for_order(db, order.id)
     finally:
         app.dependency_overrides.clear()
         db.close()
@@ -404,6 +444,54 @@ def test_missing_signature_rejected_without_mutation(monkeypatch):
 
         assert_webhook_rejection(response, "missing_signature")
         assert_order_unchanged(db, order.id)
+        assert_no_payments_for_order(db, order.id)
+        assert_no_webhook_events_for_order(db, order.id)
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_missing_event_id_rejected_without_replay_key_or_mutation(monkeypatch):
+    db = build_session()
+    try:
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
+        user = seed_user(db)
+        order = seed_order(db, user)
+        raw_body = raw_payload(event_id=None, order_id=order.id, customer_id=user.id)
+        configure_webhook_endpoint_test(db)
+
+        response = asyncio.run(post_webhook(raw_body, signature_header(raw_body)))
+
+        assert_webhook_rejection(response, "missing_event_id")
+        assert_order_unchanged(db, order.id)
+        assert_no_payments_for_order(db, order.id)
+        assert_no_webhook_events_for_order(db, order.id)
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_malformed_payload_rejected_without_replay_key_or_mutation(monkeypatch):
+    db = build_session()
+    try:
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
+        user = seed_user(db)
+        order = seed_order(db, user)
+        raw_body = b"{not-valid-json"
+        configure_webhook_endpoint_test(db)
+
+        response = asyncio.run(post_webhook(raw_body, signature_header(raw_body)))
+
+        assert_webhook_rejection(response, "malformed_payload")
+        assert_order_unchanged(db, order.id)
+        assert_no_payments_for_order(db, order.id)
+        assert_no_webhook_events_for_order(db, order.id)
     finally:
         app.dependency_overrides.clear()
         db.close()
@@ -443,6 +531,82 @@ def test_failed_payment_persists_payment_without_confirming_order_or_handoff(
         assert payments[0].currency == "COP"
         assert payments[0].payment_provider_reference == "pay_verified_123"
         assert payments[0].verified_at is None
+        webhook_events = webhook_events_for_order(db, order.id)
+        assert len(webhook_events) == 1
+        assert webhook_events[0].event_id == "evt_verified_123"
+        assert webhook_events[0].payment_id == payments[0].id
+        assert adapter.requests == []
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_replayed_verified_event_id_rejected_without_duplicate_mutation_or_handoff(
+    monkeypatch,
+):
+    db = build_session()
+    try:
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
+        user = seed_user(db)
+        order = seed_order(db, user)
+        product = seed_product(db)
+        add_provider_ready_order_item(db, order, product)
+        adapter = LocalMockProviderAdapter()
+        raw_body = raw_payload(order_id=order.id, customer_id=user.id)
+        configure_webhook_endpoint_test(db, adapter)
+
+        first_response = asyncio.run(post_webhook(raw_body, signature_header(raw_body)))
+        second_response = asyncio.run(
+            post_webhook(raw_body, signature_header(raw_body))
+        )
+
+        assert first_response.status_code == 200
+        assert_webhook_rejection(second_response, "replayed_event")
+        stored_order = db.get(Order, order.id)
+        assert stored_order.status == OrderStatus.SENT_TO_PROVIDER.value
+        assert stored_order.payment_provider_reference == "pay_verified_123"
+        assert stored_order.payment_verified_at is not None
+        assert stored_order.provider_handoff_reference == f"local-order-{order.id}"
+        assert len(payments_for_order(db, order.id)) == 1
+        assert len(webhook_events_for_order(db, order.id)) == 1
+        assert len(adapter.handoffs_by_key) == 1
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_replayed_failed_event_id_rejected_without_order_mutation(monkeypatch):
+    db = build_session()
+    try:
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
+        user = seed_user(db)
+        order = seed_order(db, user)
+        adapter = RecordingAdapter(HandoffState.SENT)
+        raw_body = raw_payload(
+            order_id=order.id,
+            customer_id=user.id,
+            payment_status="failed",
+        )
+        configure_webhook_endpoint_test(db, adapter)
+
+        first_response = asyncio.run(post_webhook(raw_body, signature_header(raw_body)))
+        second_response = asyncio.run(
+            post_webhook(raw_body, signature_header(raw_body))
+        )
+
+        assert first_response.status_code == 200
+        assert_webhook_rejection(second_response, "replayed_event")
+        assert_order_unchanged(db, order.id)
+        payments = payments_for_order(db, order.id)
+        assert len(payments) == 1
+        assert payments[0].status == "failed"
+        assert len(webhook_events_for_order(db, order.id)) == 1
         assert adapter.requests == []
     finally:
         app.dependency_overrides.clear()
@@ -466,6 +630,7 @@ def test_amount_mismatch_rejected_without_mutation(monkeypatch):
         assert_webhook_rejection(response, "payment_amount_mismatch")
         assert_order_unchanged(db, order.id)
         assert_no_payments_for_order(db, order.id)
+        assert_no_webhook_events_for_order(db, order.id)
     finally:
         app.dependency_overrides.clear()
         db.close()
@@ -488,6 +653,7 @@ def test_currency_mismatch_rejected_without_mutation(monkeypatch):
         assert_webhook_rejection(response, "payment_currency_mismatch")
         assert_order_unchanged(db, order.id)
         assert_no_payments_for_order(db, order.id)
+        assert_no_webhook_events_for_order(db, order.id)
     finally:
         app.dependency_overrides.clear()
         db.close()
@@ -510,6 +676,7 @@ def test_customer_mismatch_rejected_without_mutation(monkeypatch):
         assert_webhook_rejection(response, "payment_customer_mismatch")
         assert_order_unchanged(db, order.id)
         assert_no_payments_for_order(db, order.id)
+        assert_no_webhook_events_for_order(db, order.id)
     finally:
         app.dependency_overrides.clear()
         db.close()
@@ -588,6 +755,7 @@ def test_different_order_provider_reference_is_rejected_without_mutation(
         assert stored_first_payment.status == "pending"
         assert stored_first_payment.verified_at is None
         assert_no_payments_for_order(db, second_order.id)
+        assert_no_webhook_events_for_order(db, second_order.id)
         assert adapter.requests == []
     finally:
         app.dependency_overrides.clear()
@@ -672,6 +840,9 @@ def test_already_confirmed_same_reference_replay_does_not_duplicate_payment(
         assert payments[0].id == existing_payment.id
         assert payments[0].status == "verified"
         assert payments[0].verified_at == original_payment_verified_at
+        webhook_events = webhook_events_for_order(db, order.id)
+        assert len(webhook_events) == 1
+        assert webhook_events[0].payment_id == existing_payment.id
     finally:
         app.dependency_overrides.clear()
         db.close()
@@ -706,6 +877,7 @@ def test_already_confirmed_same_reference_failed_status_is_rejected(monkeypatch)
         assert stored_order.status == OrderStatus.CONFIRMED.value
         assert stored_order.payment_provider_reference == "pay_verified_123"
         assert_no_payments_for_order(db, order.id)
+        assert_no_webhook_events_for_order(db, order.id)
     finally:
         app.dependency_overrides.clear()
         db.close()
@@ -736,6 +908,7 @@ def test_already_confirmed_different_reference_is_rejected(monkeypatch):
         assert stored_order.status == OrderStatus.CONFIRMED.value
         assert stored_order.payment_provider_reference == "pay_original"
         assert_no_payments_for_order(db, order.id)
+        assert_no_webhook_events_for_order(db, order.id)
     finally:
         app.dependency_overrides.clear()
         db.close()
