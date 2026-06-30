@@ -631,6 +631,52 @@ def test_already_confirmed_same_reference_is_idempotent(monkeypatch):
         db.close()
 
 
+def test_already_confirmed_same_reference_replay_does_not_duplicate_payment(
+    monkeypatch,
+):
+    db = build_session()
+    try:
+        monkeypatch.setattr(
+            "app.api.v1.endpoints.payments.settings.PAYMENT_WEBHOOK_SECRET",
+            WEBHOOK_SECRET,
+        )
+        user = seed_user(db)
+        original_verified_at = datetime(2026, 6, 9, tzinfo=UTC)
+        order = seed_order(
+            db,
+            user,
+            status=OrderStatus.CONFIRMED,
+            payment_provider_reference="pay_verified_123",
+            payment_verified_at=original_verified_at,
+        )
+        existing_payment = seed_payment(
+            db,
+            order,
+            status="verified",
+            provider_reference="pay_verified_123",
+            verified_at=original_verified_at,
+        )
+        original_payment_verified_at = existing_payment.verified_at
+        raw_body = raw_payload(order_id=order.id, customer_id=user.id)
+        configure_webhook_endpoint_test(db)
+
+        response = asyncio.run(post_webhook(raw_body, signature_header(raw_body)))
+
+        assert response.status_code == 200
+        stored_order = db.get(Order, order.id)
+        assert stored_order.status == OrderStatus.CONFIRMED.value
+        assert stored_order.payment_provider_reference == "pay_verified_123"
+        assert stored_order.payment_verified_at == order.payment_verified_at
+        payments = payments_for_order(db, order.id)
+        assert len(payments) == 1
+        assert payments[0].id == existing_payment.id
+        assert payments[0].status == "verified"
+        assert payments[0].verified_at == original_payment_verified_at
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
 def test_already_confirmed_same_reference_failed_status_is_rejected(monkeypatch):
     db = build_session()
     try:
