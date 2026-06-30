@@ -76,19 +76,21 @@ sudo usermod -aG docker "$USER"
 
 Then log out and back in before retrying without `sudo`.
 
-If Docker reports that port `5432` is already in use, another local PostgreSQL
-server is already listening on the default port. Check it with:
+The local database is published on host port `54322` to avoid colliding with
+other local PostgreSQL projects that commonly use `5432`. If Docker reports
+that port `54322` is already in use, another local service is already listening
+there. Check it with:
 
 ```bash
-sudo ss -ltnp 'sport = :5432'
+sudo ss -ltnp 'sport = :54322'
 ```
 
 Use one of these options:
 
 - Use the existing local PostgreSQL server and create the `placamia` database
-  and user there.
-- Change the Docker Compose port mapping to `5433:5432`, then update
-  `apps/api/.env` so `DATABASE_URL` and `DB_PORT` use port `5433`.
+  and user there, then update `apps/api/.env`.
+- Change the Docker Compose host port mapping, then update `apps/api/.env` so
+  `DATABASE_URL` and `DB_PORT` use the same host port.
 
 Apply migrations:
 
