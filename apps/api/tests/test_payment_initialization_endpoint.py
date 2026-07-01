@@ -3,10 +3,16 @@ from decimal import Decimal
 
 import httpx
 import pytest
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, get_provider_adapter
 from app.core.database import Base, get_db
 from app.domain.order_lifecycle import OrderStatus
 from app.domain.payment_lifecycle import PaymentStatus
+from app.domain.provider_adapter import (
+    AvailabilityState,
+    CatalogItemType,
+    LocalMockProviderAdapter,
+    LocalProviderFixture,
+)
 from app.main import app
 from app.models.category import Category
 from app.models.order import Order
@@ -101,7 +107,7 @@ def add_payment_ready_item(
             product_id=product.id,
             display_name="Snapshot product name",
             customer_safe_description="Snapshot description",
-            selected_options={"material": "acrylic", "size": "20x30"},
+            selected_options={},
             quantity=2,
             unit_price_amount=Decimal("20.00"),
             line_subtotal_amount=Decimal(total_amount),
@@ -115,7 +121,7 @@ def add_payment_ready_item(
                 "item_type": "product",
                 "product_id": product.id,
                 "display_name": "Snapshot product name",
-                "selected_options": {"material": "acrylic", "size": "20x30"},
+                "selected_options": {},
                 "quantity": 2,
                 "provider_quote_reference": provider_pricing_reference,
             },
@@ -157,12 +163,40 @@ def configure_payment_endpoint_test(db, current_user: User | None = None) -> Non
 
     app.dependency_overrides[get_db] = override_get_db
 
+    async def override_get_provider_adapter():
+        return LocalMockProviderAdapter(
+            {
+                (CatalogItemType.PRODUCT, product.id): available_provider_fixture()
+                for product in db.query(Product).all()
+            }
+        )
+
+    app.dependency_overrides[get_provider_adapter] = override_get_provider_adapter
+
     if current_user is not None:
 
         async def override_get_current_user():
             return current_user
 
         app.dependency_overrides[get_current_user] = override_get_current_user
+
+
+def available_provider_fixture() -> LocalProviderFixture:
+    """Return a direct-checkout eligible provider fixture."""
+    return LocalProviderFixture(
+        availability_state=AvailabilityState.AVAILABLE,
+        provider_cost=Decimal("12.00"),
+        supports_requested_configuration=True,
+    )
+
+
+def configure_provider_adapter(db, fixtures) -> None:
+    """Override the provider adapter with test-controlled fixtures."""
+
+    async def override_get_provider_adapter():
+        return LocalMockProviderAdapter(fixtures)
+
+    app.dependency_overrides[get_provider_adapter] = override_get_provider_adapter
 
 
 async def post_payment(payload: dict[str, object]):
@@ -367,6 +401,86 @@ def test_initialize_payment_rejects_inactive_product_snapshot_without_mutation()
         response = asyncio.run(post_payment({"order_id": order.id}))
 
         assert_payment_rejection(response, "order_items_not_payable")
+        assert_no_payment_or_order_mutation(db, order.id)
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+@pytest.mark.parametrize(
+    ("availability_state", "reason_code"),
+    [
+        (AvailabilityState.TEMPORARILY_UNAVAILABLE, "temporarily_unavailable"),
+        (AvailabilityState.MANUAL_QUOTE_REQUIRED, "manual_quote_required"),
+        (AvailabilityState.OUTSOURCED_NOT_MVP_DIRECT, "outsourced_not_mvp_direct"),
+    ],
+)
+def test_initialize_payment_rejects_currently_unavailable_or_manual_quote_items(
+    availability_state,
+    reason_code,
+):
+    db = build_session()
+    try:
+        user = seed_user(db)
+        product = seed_product(db)
+        order = seed_order(db, user)
+        add_payment_ready_item(db, order, product)
+        configure_payment_endpoint_test(db, user)
+        configure_provider_adapter(
+            db,
+            {
+                (CatalogItemType.PRODUCT, product.id): LocalProviderFixture(
+                    availability_state=availability_state,
+                    provider_cost=Decimal("12.00"),
+                    supports_requested_configuration=True,
+                    reason_code=reason_code,
+                )
+            },
+        )
+
+        response = asyncio.run(post_payment({"order_id": order.id}))
+
+        assert_payment_rejection(response, reason_code)
+        assert_no_payment_or_order_mutation(db, order.id)
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+@pytest.mark.parametrize(
+    ("provider_cost", "supports_requested_configuration", "reason_code"),
+    [
+        (None, True, "provider_cost_missing"),
+        (Decimal("12.00"), False, "configuration_not_supported"),
+    ],
+)
+def test_initialize_payment_rejects_currently_non_priceable_items(
+    provider_cost,
+    supports_requested_configuration,
+    reason_code,
+):
+    db = build_session()
+    try:
+        user = seed_user(db)
+        product = seed_product(db)
+        order = seed_order(db, user)
+        add_payment_ready_item(db, order, product)
+        configure_payment_endpoint_test(db, user)
+        configure_provider_adapter(
+            db,
+            {
+                (CatalogItemType.PRODUCT, product.id): LocalProviderFixture(
+                    availability_state=AvailabilityState.AVAILABLE,
+                    provider_cost=provider_cost,
+                    supports_requested_configuration=supports_requested_configuration,
+                    reason_code=reason_code,
+                )
+            },
+        )
+
+        response = asyncio.run(post_payment({"order_id": order.id}))
+
+        assert_payment_rejection(response, reason_code)
         assert_no_payment_or_order_mutation(db, order.id)
     finally:
         app.dependency_overrides.clear()

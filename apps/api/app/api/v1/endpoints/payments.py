@@ -62,6 +62,7 @@ async def initialize_payment(
     response: Response,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    provider_adapter: ProviderAdapter = Depends(get_provider_adapter),
 ) -> PaymentInitializationResponse:
     """Initialize or return a backend-owned payment attempt for a draft Order.
 
@@ -71,6 +72,8 @@ async def initialize_payment(
             Payment attempts and 200 for idempotent active attempts.
         db: SQLAlchemy session provided by FastAPI dependency injection.
         current_user: Authenticated user resolved from the bearer token.
+        provider_adapter: Provider adapter dependency used only to revalidate
+            current direct-checkout eligibility and priceability.
 
     Returns:
         Provider-neutral response containing the Payment identifier, Order
@@ -92,6 +95,7 @@ async def initialize_payment(
     service = PaymentInitializationService(
         OrderRepository(db),
         PaymentRepository(db),
+        provider_adapter,
     )
 
     try:

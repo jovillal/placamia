@@ -5,12 +5,19 @@ from decimal import Decimal
 
 from app.domain.order_lifecycle import OrderStatus
 from app.domain.payment_lifecycle import PaymentStatus, TERMINAL_PAYMENT_STATUSES
+from app.domain.provider_adapter import ProviderAdapter
 from app.models.order import Order
 from app.models.order_item import OrderItem, OrderItemType
 from app.models.payment import Payment
 from app.models.user import User
 from app.repositories.order_repository import OrderRepository
 from app.repositories.payment_repository import PaymentRepository
+from app.services.pricing_service import (
+    PathAPricingRequest,
+    PathAPricingService,
+    PricingItemType,
+    PricingRejected,
+)
 
 NON_TERMINAL_PAYMENT_STATUSES = frozenset(
     status for status in PaymentStatus if status not in TERMINAL_PAYMENT_STATUSES
@@ -67,15 +74,19 @@ class PaymentInitializationService:
         self,
         order_repository: OrderRepository,
         payment_repository: PaymentRepository,
+        provider_adapter: ProviderAdapter,
     ) -> None:
         """Store repositories used by payment initialization.
 
         Args:
             order_repository: Repository used to load authenticated Orders.
             payment_repository: Repository used to read or create Payments.
+            provider_adapter: Backend-owned provider boundary used to
+                revalidate current direct-checkout eligibility and priceability.
         """
         self.order_repository = order_repository
         self.payment_repository = payment_repository
+        self.pricing_service = PathAPricingService(provider_adapter)
 
     def initialize_payment(
         self,
@@ -96,7 +107,8 @@ class PaymentInitializationService:
         Raises:
             PaymentInitializationRejected: If the Order is missing, not owned by
                 the current user, not in a payable draft state, has stale or
-                ineligible item snapshots, or has unsupported Payment state.
+                ineligible or currently non-priceable item snapshots, or has
+                unsupported Payment state.
 
         Side effects:
             Stages one new Payment row in the current transaction when no active
@@ -202,6 +214,8 @@ class PaymentInitializationService:
                 message="Order item product is no longer active.",
             )
 
+        self._validate_current_product_priceability(item)
+
         if item.quantity <= 0 or item.line_total_amount <= ZERO_MONEY:
             raise PaymentInitializationRejected(
                 code="order_items_not_payable",
@@ -224,6 +238,29 @@ class PaymentInitializationService:
             raise PaymentInitializationRejected(
                 code="order_items_not_payable",
                 message="Order item is missing provider payload snapshot data.",
+            )
+
+    def _validate_current_product_priceability(self, item: OrderItem) -> None:
+        """Reject items that no longer pass current Path A pricing rules."""
+        try:
+            validation = self.pricing_service.validate_pricing_request(
+                PathAPricingRequest(
+                    item_type=PricingItemType.PRODUCT,
+                    item=item.product,
+                    quantity=item.quantity,
+                    options=item.selected_options,
+                )
+            )
+        except PricingRejected as exc:
+            raise PaymentInitializationRejected(
+                code=exc.code,
+                message=str(exc),
+            ) from exc
+
+        if validation.provider_quote_reference != item.provider_pricing_reference:
+            raise PaymentInitializationRejected(
+                code="order_items_not_payable",
+                message="Order item provider pricing reference is stale.",
             )
 
     def _payment_status(self, payment: Payment) -> PaymentStatus:
