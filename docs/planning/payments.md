@@ -140,6 +140,16 @@ Current implementation state:
   database transaction before provider handoff is attempted.
 - Payment records enforce one non-null payment provider reference per Order at
   the database level.
+- Payment initialization is implemented as `POST /api/v1/payments` for
+  authenticated owners of eligible draft Orders. The endpoint accepts only
+  `order_id`, derives amount, currency, ownership, and initial `initiated`
+  status from backend Order/OrderItem state, and rejects frontend payment,
+  pricing, provider-reference, card-data, status, ownership, or confirmation
+  claims.
+- Payment initialization returns an existing non-terminal Payment attempt for
+  the same eligible draft Order instead of duplicating active attempts.
+  Terminal Payment attempts allow a new initialization while leaving prior
+  Payment history intact.
 - Provider handoff transmission service validates verified payment status,
   confirmed order state, persisted payment verification timestamp, and
   backend-owned provider assignment before payload generation and adapter
@@ -147,7 +157,6 @@ Current implementation state:
 - Paid-order provider handoff orchestration delegates eligible confirmed paid
   orders to the provider handoff transmission service after successful payment
   webhook processing.
-- Payment initialization remains future work.
 
 ## Webhook Signature Verification Boundary
 
@@ -227,7 +236,8 @@ Provider adapter boundary:
 
 ## Future Issues
 
-- Future issue required: create payment initialization endpoint
+- Future issue required: integrate an actual payment provider initialization
+  adapter response when the provider-specific contract is documented.
 
 ## Constraints
 

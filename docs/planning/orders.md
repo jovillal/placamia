@@ -183,6 +183,9 @@ Current state:
 - Payment webhook replay keys are persisted atomically with Payment and Order
   mutation so replayed event ids do not duplicate confirmation or handoff
   behavior.
+- Payment initialization creates or returns a backend-owned Payment attempt for
+  eligible draft Orders without confirming the Order or triggering provider
+  handoff.
 - Paid-order provider handoff orchestration attempts handoff after successful
   payment webhook confirmation. Failed handoff leaves the order `confirmed`
   with payment fields intact and provider handoff success fields empty for
@@ -209,7 +212,6 @@ Current state:
   `in_production`; admins can approve requests to move orders to `cancelled`
   or reject them back to the stored prior paid state. Payment confirmation and
   provider fulfillment history remain unchanged.
-- Payment initialization remains future work.
 
 
 ## Related Endpoints

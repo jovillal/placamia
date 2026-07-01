@@ -1,16 +1,26 @@
+from app.api.dependencies import get_current_user, get_provider_adapter
 from app.core.config import settings
-from app.api.dependencies import get_provider_adapter
 from app.core.database import get_db
 from app.domain.payment_lifecycle import PaymentStatus
 from app.domain.provider_adapter import ProviderAdapter
+from app.models.user import User
 from app.repositories.order_repository import OrderRepository
 from app.repositories.payment_repository import PaymentRepository
 from app.repositories.payment_webhook_event_repository import (
     PaymentWebhookEventRepository,
 )
-from app.schemas.payment import PaymentWebhookResponse
+from app.schemas.payment import (
+    PaymentInitializationData,
+    PaymentInitializationRequest,
+    PaymentInitializationResponse,
+    PaymentWebhookResponse,
+)
 from app.services.paid_order_handoff_orchestration_service import (
     PaidOrderHandoffOrchestrationService,
+)
+from app.services.payment_initialization_service import (
+    PaymentInitializationRejected,
+    PaymentInitializationService,
 )
 from app.services.payment_webhook_processing_service import (
     PaymentWebhookProcessingRejected,
@@ -24,10 +34,92 @@ from app.services.provider_handoff_payload_service import ProviderHandoffPayload
 from app.services.provider_handoff_transmission_service import (
     ProviderHandoffTransmissionService,
 )
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/payments", tags=["payments"])
+
+
+@router.post(
+    "",
+    response_model=PaymentInitializationResponse,
+    summary="Initialize payment",
+    description=(
+        "Initializes a provider-neutral Payment attempt for an authenticated "
+        "customer's eligible draft order. The backend derives ownership, "
+        "amount, currency, and initial status from persisted Order state and "
+        "rejects frontend payment, pricing, provider, ownership, or "
+        "confirmation claims."
+    ),
+    responses={
+        400: {"description": "Payment initialization rejected"},
+        401: {"description": "Authentication required"},
+        404: {"description": "Order not found for authenticated user"},
+    },
+)
+async def initialize_payment(
+    payload: PaymentInitializationRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    provider_adapter: ProviderAdapter = Depends(get_provider_adapter),
+) -> PaymentInitializationResponse:
+    """Initialize or return a backend-owned payment attempt for a draft Order.
+
+    Args:
+        payload: Strict request containing only the Order identifier.
+        response: FastAPI response used to report 201 for newly created
+            Payment attempts and 200 for idempotent active attempts.
+        db: SQLAlchemy session provided by FastAPI dependency injection.
+        current_user: Authenticated user resolved from the bearer token.
+        provider_adapter: Provider adapter dependency used only to revalidate
+            current direct-checkout eligibility and priceability.
+
+    Returns:
+        Provider-neutral response containing the Payment identifier, Order
+        identifier, canonical Payment status, and backend-owned amount and
+        currency.
+
+    Side effects:
+        Creates one `initiated` Payment row only when the authenticated draft
+        Order is payable and has no existing non-terminal payment attempt.
+        Existing non-terminal attempts are returned without creating a duplicate
+        row. The endpoint never stores card data, confirms the Order, or
+        triggers provider handoff.
+
+    Raises:
+        HTTPException: When authentication, ownership, request shape, Order
+            eligibility, or existing Payment state validation rejects the
+            request.
+    """
+    service = PaymentInitializationService(
+        OrderRepository(db),
+        PaymentRepository(db),
+        provider_adapter,
+    )
+
+    try:
+        result = service.initialize_payment(
+            order_id=payload.order_id,
+            current_user=current_user,
+        )
+        db.commit()
+    except PaymentInitializationRejected as exc:
+        db.rollback()
+        raise _payment_initialization_rejection(exc) from exc
+
+    if result.created:
+        response.status_code = status.HTTP_201_CREATED
+
+    return PaymentInitializationResponse(
+        data=PaymentInitializationData(
+            payment_id=result.payment.id,
+            order_id=result.order.id,
+            payment_status=result.payment.status,
+            amount=result.payment.amount,
+            currency=result.payment.currency,
+        )
+    )
 
 
 @router.post(
@@ -138,5 +230,20 @@ def _webhook_rejection(
     """Return a safe HTTP error response for rejected payment webhooks."""
     return HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
+        detail={"code": exc.code, "message": str(exc)},
+    )
+
+
+def _payment_initialization_rejection(
+    exc: PaymentInitializationRejected,
+) -> HTTPException:
+    """Return a safe HTTP error response for rejected payment initialization."""
+    status_code = (
+        status.HTTP_404_NOT_FOUND
+        if exc.code == "order_not_found"
+        else status.HTTP_400_BAD_REQUEST
+    )
+    return HTTPException(
+        status_code=status_code,
         detail={"code": exc.code, "message": str(exc)},
     )
