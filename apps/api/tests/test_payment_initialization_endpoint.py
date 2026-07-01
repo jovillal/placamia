@@ -343,6 +343,10 @@ def test_initialize_payment_rejects_non_draft_order_without_mutation():
         ("payment_status", "verified"),
         ("payment_provider_reference", "pay_forged"),
         ("customer_id", 999),
+        ("user_id", 999),
+        ("role", "admin"),
+        ("is_admin", True),
+        ("ownership", "forged-owner"),
     ],
 )
 def test_initialize_payment_rejects_frontend_payment_claims_without_mutation(
@@ -514,6 +518,12 @@ def test_initialize_payment_returns_existing_non_terminal_attempt_without_duplic
         assert payload["payment_id"] == existing_payment.id
         assert payload["payment_status"] == existing_status.value
         assert table_count(db, Payment) == 1
+        stored_order = db.get(Order, order.id)
+        assert stored_order.status == OrderStatus.DRAFT.value
+        assert stored_order.payment_provider_reference is None
+        assert stored_order.payment_verified_at is None
+        assert stored_order.provider_handoff_reference is None
+        assert stored_order.provider_handoff_sent_at is None
     finally:
         app.dependency_overrides.clear()
         db.close()
