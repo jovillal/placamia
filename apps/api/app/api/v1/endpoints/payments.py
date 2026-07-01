@@ -5,6 +5,9 @@ from app.domain.payment_lifecycle import PaymentStatus
 from app.domain.provider_adapter import ProviderAdapter
 from app.repositories.order_repository import OrderRepository
 from app.repositories.payment_repository import PaymentRepository
+from app.repositories.payment_webhook_event_repository import (
+    PaymentWebhookEventRepository,
+)
 from app.schemas.payment import PaymentWebhookResponse
 from app.services.paid_order_handoff_orchestration_service import (
     PaidOrderHandoffOrchestrationService,
@@ -84,6 +87,7 @@ async def process_payment_webhook(
     )
     order_repository = OrderRepository(db)
     payment_repository = PaymentRepository(db)
+    webhook_event_repository = PaymentWebhookEventRepository(db)
 
     try:
         trusted_webhook = verification_service.verify_webhook(
@@ -93,6 +97,7 @@ async def process_payment_webhook(
         result = PaymentWebhookProcessingService(
             order_repository,
             payment_repository,
+            webhook_event_repository,
         ).process_verified_webhook(trusted_webhook)
         db.commit()
     except PaymentWebhookVerificationRejected as exc:

@@ -22,9 +22,14 @@ from app.domain.payment_lifecycle import (
 )
 from app.models.order import Order
 from app.models.payment import Payment
+from app.models.payment_webhook_event import PaymentWebhookEvent
 from app.repositories.order_repository import OrderRepository
 from app.repositories.payment_repository import PaymentRepository
+from app.repositories.payment_webhook_event_repository import (
+    PaymentWebhookEventRepository,
+)
 from app.services.payment_webhook_verification_service import TrustedPaymentWebhook
+from sqlalchemy.exc import IntegrityError
 
 
 @dataclass(frozen=True)
@@ -74,12 +79,14 @@ class PaymentWebhookProcessingResult:
     Attributes:
         order: Persisted or idempotently matched Order.
         payment: Persisted Payment record created or updated from the webhook.
+        webhook_event: Durable replay key stored for this trusted webhook.
         event: Trusted provider-neutral payment event.
         payment_confirmed: Whether this webhook newly confirmed a draft Order.
     """
 
     order: Order
     payment: Payment
+    webhook_event: PaymentWebhookEvent
     event: TrustedPaymentEvent
     payment_confirmed: bool
 
@@ -89,10 +96,10 @@ class PaymentWebhookProcessingService:
 
     The service receives a webhook that has already passed signature
     verification, validates provider-neutral payment fields against persisted
-    Order state, and persists only payment confirmation fields plus the
-    `draft -> confirmed` order transition. It does not initialize payments,
-    trust frontend claims, call provider handoff, or persist provider
-    acceptance/rejection.
+    Order and Payment state, durably claims the webhook event id against
+    replay, and persists Payment state plus the `draft -> confirmed` Order
+    transition when applicable. It does not initialize payments, trust frontend
+    claims, call provider handoff, or persist provider acceptance/rejection.
     """
 
     event_source = PaymentEventSource.PAYMENT_PROVIDER_WEBHOOK
@@ -101,18 +108,21 @@ class PaymentWebhookProcessingService:
         self,
         order_repository: OrderRepository,
         payment_repository: PaymentRepository,
+        webhook_event_repository: PaymentWebhookEventRepository,
     ) -> None:
         """Store repositories used for payment webhook processing.
 
         Args:
             order_repository: Repository used to read and update Orders.
             payment_repository: Repository used to create or update Payments.
+            webhook_event_repository: Repository used to persist replay keys.
 
         Side effects:
             None.
         """
         self.order_repository = order_repository
         self.payment_repository = payment_repository
+        self.webhook_event_repository = webhook_event_repository
 
     def process_verified_webhook(
         self,
@@ -134,11 +144,11 @@ class PaymentWebhookProcessingService:
                 lifecycle validation rejects the confirmation.
 
         Side effects:
-            Creates or updates a Payment row after payload validation. On first
-            valid confirmation, also updates the Order status to `confirmed`,
-            writes `payment_provider_reference`, and writes
-            `payment_verified_at`. Idempotent same-reference replays do not
-            mutate the Order. Provider handoff is never triggered here.
+            Durably claims the webhook event id and creates or updates a
+            Payment row after payload validation. On first valid confirmation,
+            also updates the Order status to `confirmed`, writes
+            `payment_provider_reference`, and writes `payment_verified_at`.
+            Provider handoff is never triggered here.
         """
         event = self._trusted_payment_event_from_webhook(trusted_webhook)
         self._validate_confirmation_source()
@@ -148,6 +158,10 @@ class PaymentWebhookProcessingService:
         self._validate_amount(order, event)
         self._validate_currency(order, event)
         payment = self._payment_for_event(event)
+        webhook_event = self._claim_webhook_event(
+            event.event_id,
+            order_id=order.id,
+        )
 
         order_status = self._order_status(order)
         if order_status is OrderStatus.CONFIRMED:
@@ -161,6 +175,9 @@ class PaymentWebhookProcessingService:
             return PaymentWebhookProcessingResult(
                 order=order,
                 payment=persisted_payment,
+                webhook_event=self._link_webhook_event(
+                    webhook_event, persisted_payment
+                ),
                 event=event,
                 payment_confirmed=False,
             )
@@ -185,6 +202,9 @@ class PaymentWebhookProcessingService:
             return PaymentWebhookProcessingResult(
                 order=order,
                 payment=persisted_payment,
+                webhook_event=self._link_webhook_event(
+                    webhook_event, persisted_payment
+                ),
                 event=event,
                 payment_confirmed=False,
             )
@@ -197,9 +217,38 @@ class PaymentWebhookProcessingService:
         return PaymentWebhookProcessingResult(
             order=updated_order,
             payment=persisted_payment,
+            webhook_event=self._link_webhook_event(webhook_event, persisted_payment),
             event=event,
             payment_confirmed=True,
         )
+
+    def _claim_webhook_event(
+        self,
+        event_id: str,
+        *,
+        order_id: int,
+    ) -> PaymentWebhookEvent:
+        """Insert the durable replay key before Payment or Order mutation."""
+        try:
+            return self.webhook_event_repository.create_event(
+                event_id=event_id,
+                source=self.event_source.value,
+                order_id=order_id,
+            )
+        except IntegrityError as exc:
+            raise PaymentWebhookProcessingRejected(
+                code="replayed_event",
+                message="Payment webhook event has already been processed.",
+            ) from exc
+
+    def _link_webhook_event(
+        self,
+        webhook_event: PaymentWebhookEvent,
+        payment: Payment,
+    ) -> PaymentWebhookEvent:
+        """Attach the persisted Payment identifier to the replay key."""
+        webhook_event.payment_id = payment.id
+        return self.webhook_event_repository.update_event(webhook_event)
 
     def _payment_for_event(self, event: TrustedPaymentEvent) -> Payment | None:
         """Return the same-order Payment for this provider reference.
@@ -234,16 +283,22 @@ class PaymentWebhookProcessingService:
                 PaymentStatus.INITIATED,
                 event.payment_status,
             )
-            return self.payment_repository.create_payment(
-                Payment(
-                    order_id=event.order_id,
-                    status=event.payment_status.value,
-                    amount=event.amount,
-                    currency=event.currency,
-                    payment_provider_reference=event.payment_provider_reference,
-                    verified_at=verified_at,
+            try:
+                return self.payment_repository.create_payment(
+                    Payment(
+                        order_id=event.order_id,
+                        status=event.payment_status.value,
+                        amount=event.amount,
+                        currency=event.currency,
+                        payment_provider_reference=event.payment_provider_reference,
+                        verified_at=verified_at,
+                    )
                 )
-            )
+            except IntegrityError as exc:
+                raise PaymentWebhookProcessingRejected(
+                    code="payment_reference_conflict",
+                    message="Payment webhook provider reference is already used.",
+                ) from exc
 
         current_status = self._persisted_payment_status(payment)
         if current_status is event.payment_status:
@@ -259,7 +314,13 @@ class PaymentWebhookProcessingService:
         payment.amount = event.amount
         payment.currency = event.currency
         payment.verified_at = verified_at
-        return self.payment_repository.update_payment(payment)
+        try:
+            return self.payment_repository.update_payment(payment)
+        except IntegrityError as exc:
+            raise PaymentWebhookProcessingRejected(
+                code="payment_reference_conflict",
+                message="Payment webhook provider reference is already used.",
+            ) from exc
 
     def _validate_payment_transition(
         self,

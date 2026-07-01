@@ -6,7 +6,15 @@ from typing import TYPE_CHECKING
 
 from app.core.database import Base
 from app.domain.payment_lifecycle import PaymentStatus
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Numeric, String, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Numeric,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
@@ -39,6 +47,11 @@ class Payment(Base):
         CheckConstraint(
             "amount >= 0",
             name="ck_payments_amount_nonnegative",
+        ),
+        UniqueConstraint(
+            "order_id",
+            "payment_provider_reference",
+            name="uq_payments_order_provider_reference",
         ),
     )
 

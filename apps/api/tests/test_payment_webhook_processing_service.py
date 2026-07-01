@@ -8,6 +8,9 @@ from app.models.payment import Payment
 from app.models.user import User
 from app.repositories.order_repository import OrderRepository
 from app.repositories.payment_repository import PaymentRepository
+from app.repositories.payment_webhook_event_repository import (
+    PaymentWebhookEventRepository,
+)
 from app.services.payment_webhook_processing_service import (
     PaymentWebhookProcessingRejected,
     PaymentWebhookProcessingService,
@@ -113,6 +116,7 @@ def build_processing_service(db) -> PaymentWebhookProcessingService:
     return PaymentWebhookProcessingService(
         OrderRepository(db),
         PaymentRepository(db),
+        PaymentWebhookEventRepository(db),
     )
 
 

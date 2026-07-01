@@ -137,6 +137,18 @@ Webhook endpoints must verify payment provider signatures.
 
 Never fulfill an order based only on frontend confirmation.
 
+Payment webhook replay protection is durable. After a webhook signature and
+trusted payment-event fields are validated against backend Order and Payment
+state, the backend stores a minimal replay key containing only the event id,
+source, received timestamp, and linked Order/Payment identifiers when
+available. Raw webhook payloads, signatures, secrets, card data, and full
+payment details must not be stored in replay records.
+
+The replay key, Payment mutation, and Order mutation are committed in one
+database transaction before provider handoff is attempted. Replayed event ids
+are rejected with a stable replay error and must not reapply Payment, Order, or
+provider handoff state.
+
 ### 7. File and Image Security
 
 Product images, previews, or generated assets must be stored securely.
