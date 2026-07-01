@@ -166,6 +166,37 @@ Content-Type: application/json
 }
 ```
 
+## Payment Initialization
+
+```http
+POST /api/v1/payments
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+```json
+{
+  "order_id": 1
+}
+```
+
+```json
+{
+  "data": {
+    "payment_id": 1,
+    "order_id": 1,
+    "payment_status": "initiated",
+    "amount": "54000.00",
+    "currency": "COP"
+  }
+}
+```
+
+The request must not include amount, currency, ownership, status, provider
+reference, card data, or payment confirmation claims. The backend derives those
+values from the authenticated draft Order and its immutable OrderItem
+snapshots.
+
 ## Authentication Error
 
 ```json

@@ -54,6 +54,9 @@ flowchart TD
 - Manual quotes and provider-confirmed pricing are out of scope for the direct
   checkout MVP path
 - Cancellation and refund terms must be shown before payment
+- Payment initialization must use backend-owned draft Order and OrderItem
+  snapshot state; it must not accept frontend amount, currency, status,
+  provider-reference, card-data, ownership, or confirmation claims
 - Payment must be verified via provider webhook
 - Paid-order provider handoff happens through the provider adapter boundary
   only after verified payment
@@ -62,6 +65,8 @@ flowchart TD
 
 ## Constraints
 - No order is confirmed without verified payment
+- Payment initialization creates or returns only an active Payment attempt; it
+  does not confirm orders or trigger provider handoff
 - Invalid payments must not mutate order state
 - Replayed payment events must not duplicate state changes
 - Manufacturing provider confirmation must not be used as a pre-payment
@@ -85,4 +90,5 @@ flowchart TD
 - Do not trust frontend confirmation
 - Do not trust frontend-supplied price, availability, quantity limits, or
   ownership claims
+- Do not store card data during payment initialization
 - Ensure idempotency in payment handling
