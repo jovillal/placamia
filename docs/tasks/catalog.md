@@ -27,6 +27,7 @@ Implemented:
 
 - category model and endpoint
 - product model and list/detail endpoints
+- product listing category filter and pagination for the public browse contract
 - kit and kit item models
 - public kit listing endpoint
 - active product filtering for public catalog behavior

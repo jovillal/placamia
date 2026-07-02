@@ -14,8 +14,7 @@ fully priceable by backend rules.
 
 - Categories
 - Products
-- Product filters and pagination only after a dedicated issue defines the
-  supported parameters
+- Product filters and pagination for the documented public browse parameters
 - Kit browsing is related catalog behavior, but kit-specific model and endpoint
   work is tracked in `docs/planning/kits.md`
 - Provider adapter boundary responses for availability, direct-checkout
@@ -55,9 +54,16 @@ Implemented:
 - GET /api/v1/catalog/products/{product_id}
 - GET /api/v1/catalog/kits
 
-Planned:
+`GET /api/v1/catalog/products` supports only these optional query parameters:
 
-- GET /api/v1/catalog/products with filtering and pagination
+- `category_id`: positive integer category filter.
+- `page`: positive integer page number; defaults to `1`.
+- `page_size`: positive integer page size; defaults to `20` and is capped at
+  `50`.
+
+Unknown query parameters are rejected. Product listing applies stable ordering
+by `name ASC, id ASC` before pagination and returns pagination metadata:
+`page`, `page_size`, `total_items`, and `total_pages`.
 
 ## Direct-Checkout Eligibility Contract
 
@@ -107,9 +113,6 @@ Completed:
 - #18 Create GET categories endpoint with tests
 - #19 Create GET products endpoint with tests
 - #20 Create GET product detail endpoint with tests
-
-Planned:
-
 - #77 GET catalog products with filtering and pagination
 
 Related Kits milestone:
@@ -142,8 +145,10 @@ Related Security milestone:
 - Partner validation may update adapter fixtures and seed data later, but
   catalog architecture must not wait for a real-provider integration
 - No write operations in MVP (admin handled later)
-- Product listing filters and pagination must not be added until their accepted
-  query parameters and validation behavior are documented
+- Product listing filters and pagination are limited to the documented
+  `category_id`, `page`, and `page_size` query parameters. They must not let
+  clients choose provider, availability, direct-checkout eligibility, lead
+  time, price, or arbitrary sorting.
 
 ## Security Considerations
 
@@ -165,7 +170,8 @@ Related Security milestone:
 - Inactive products are excluded from public catalog responses
 - Unavailable and manual-quote-only products are not exposed as directly
   purchasable
-- Product filters and pagination are implemented after #77 defines the contract
+- Product filters and pagination use the documented `category_id`, `page`, and
+  `page_size` contract
 - Kit public visibility refinements are handled by #87 when phase-2/mobile UX
   needs require them
 - All catalog endpoints are tested
