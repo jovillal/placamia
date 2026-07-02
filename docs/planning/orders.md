@@ -186,6 +186,12 @@ Current state:
 - Payment initialization creates or returns a backend-owned Payment attempt for
   eligible draft Orders without confirming the Order or triggering provider
   handoff.
+- Until a real payment-provider initialization adapter response is defined,
+  the initialized Payment attempt does not carry a provider reference. A later
+  verified webhook may therefore persist the provider-referenced verified
+  Payment as a separate row while moving the Order out of `draft`, which
+  prevents that initialized attempt from being reused through the initialization
+  endpoint.
 - Paid-order provider handoff orchestration attempts handoff after successful
   payment webhook confirmation. Failed handoff leaves the order `confirmed`
   with payment fields intact and provider handoff success fields empty for
@@ -217,7 +223,7 @@ Current state:
 ## Related Endpoints
 
 - POST /api/v1/orders
-- GET /api/v1/orders/{id}/status
+- GET /api/v1/orders/{order_id}/status
 
 See docs/api/endpoint-structure.md.
 

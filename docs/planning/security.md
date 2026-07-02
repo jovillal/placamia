@@ -49,6 +49,12 @@ test-coverage work.
 - #49 Add authentication and current-user dependency for protected endpoints
 - #50 Add authorization and audit logging foundation for admin endpoints
 - #59 Document security-focused testing architecture
+- Payment webhook replay/idempotency behavior is defined and implemented for
+  provider-neutral webhook event ids. Replayed ids are rejected without
+  reapplying Payment, Order, or provider handoff state.
+- Payment initialization rejects frontend ownership, role, admin, pricing,
+  provider-reference, card-data, status, and confirmation claims through the
+  strict request schema and authenticated-owner lookup.
 
 ## Child Issues
 
@@ -70,7 +76,6 @@ Needs issue-template cleanup before implementation:
 ## Future Issues
 
 - Future issue required: define authorization matrix for user-owned resources
-- Future issue required: define payment webhook replay/idempotency behavior
 - Future issue required: define audit event retention expectations
 - Future issue required: define admin action audit event coverage
 
@@ -92,5 +97,6 @@ Needs issue-template cleanup before implementation:
 - Pricing, checkout, payment, order, and admin issues include security test
   expectations before implementation.
 - Direct-checkout issues reject inactive, unavailable, manual-quote-only, and
-  non-priceable items without creating orders or triggering provider handoff.
+  non-priceable items without creating orders, initializing payments, or
+  triggering provider handoff.
 - Security planning stays aligned with architecture and testing docs.

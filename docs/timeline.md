@@ -25,12 +25,15 @@ Current implementation checkpoint:
   trace fields.
 - Paid-order handoff payload preparation and provider adapter transmission are
   implemented through the local/mock adapter after verified payment.
-- Payment webhook signature verification foundation exists, but Payment model
-  persistence, payment initialization, payment webhook processing, and order
-  confirmation after verified payment remain future work.
-- Provider acceptance/rejection lifecycle persistence, provider status
-  reconciliation, production status updates, QR shipment, and operator
-  shipment fallback remain future work.
+- Payment model persistence, payment initialization, signed payment webhook
+  processing, durable webhook replay protection, and order confirmation after
+  verified payment are implemented for the Path A provider-neutral payment
+  boundary.
+- Provider acceptance/rejection lifecycle persistence, production status
+  updates, QR shipment ingestion, delivery confirmation, and paid-order
+  cancellation requests are implemented for the MVP domain-local path.
+- Real-provider adapter integrations, provider status reconciliation, and
+  carrier API integration remain future work.
 
 Template and design concepts remain part of the domain, but standalone template
 endpoint expansion is supporting work. It should not block provider adapter,

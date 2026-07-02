@@ -248,6 +248,30 @@ Current relationship rules:
 - Payment persistence does not itself confirm orders, initialize payments, or
   trigger provider handoff.
 
+### PaymentWebhookEvent
+
+Represents a durable replay key for one trusted provider-neutral payment
+webhook event.
+
+Current data fields:
+- id
+- event_id
+- source
+- order_id
+- payment_id
+- received_at
+
+Current relationship rules:
+- PaymentWebhookEvent may link to one Order when the webhook references a known
+  backend order.
+- PaymentWebhookEvent may link to one Payment after the webhook payment record
+  is created or updated.
+- PaymentWebhookEvent stores only replay-safe identifiers and timestamps.
+- Raw webhook payloads, signatures, secrets, card data, and full payment
+  details must not be stored.
+- Replayed event ids must not reapply Payment, Order, checkout, or provider
+  handoff state.
+
 ### OrderItem
 
 Represents an immutable purchased item snapshot inside an Order.
