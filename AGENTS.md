@@ -363,6 +363,11 @@ When adding or modifying code:
   - repositories
   - endpoints
 
+- Backend test functions may rely on descriptive names by default. Add test
+  docstrings when they clarify security-sensitive behavior, complex setup,
+  lifecycle or transaction invariants, or regression context that is not clear
+  from the test name.
+
 - Docstrings must explain:
   - purpose of the function/class
   - inputs

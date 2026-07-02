@@ -129,6 +129,25 @@ Prefer clear fixture names that describe the security posture:
 Fixtures should avoid hardcoded production-like secrets. Test-only secrets may
 be defined in test configuration or monkeypatched environment variables.
 
+## Test Function Docstrings
+
+Descriptive backend test function names are sufficient by default. New and
+materially modified tests do not need docstrings when the behavior is clear
+from the test name, fixtures, and assertions.
+
+Use a test docstring when it explains context that would otherwise be easy to
+miss, such as:
+
+- security-sensitive behavior or threat boundaries
+- non-obvious lifecycle, state-machine, or transaction invariants
+- complex setup that is not apparent from fixture names
+- regression scenarios where the historical failure is important context
+- why a documentation-only or policy-only test choice intentionally has no
+  runtime assertion changes
+
+This rule is prospective. Existing tests do not need repository-wide docstring
+cleanup solely to match this guidance.
+
 ## Security Test Expectations
 
 When applicable, add tests for:
