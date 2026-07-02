@@ -1,0 +1,31 @@
+meta {
+  name: Initialize Payment
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}{{api_prefix}}/payments
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "order_id": {{payment_order_id}}
+  }
+}
+
+docs {
+  Initializes or returns a backend-owned payment attempt for an authenticated
+  user's eligible draft order. Set `access_token` and `payment_order_id` in the
+  Local environment before running this request.
+}

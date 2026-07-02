@@ -132,6 +132,10 @@ Current implementation state:
   Same-reference events may update the same Order's Payment when the canonical
   lifecycle allows it; references already associated with another Order are
   rejected without mutation.
+- Payment provider reference lookup is intentionally scoped/list-based rather
+  than globally unique. Repository access returns Payments by provider
+  reference as a collection so webhook processing can enforce Order-scoped
+  conflict rules instead of relying on an unsafe singleton lookup.
 - Durable payment webhook replay/idempotency keys are persisted after
   signature verification and trusted payment-event validation. Replayed event
   ids are rejected without reapplying Payment, Order, or provider handoff
@@ -139,7 +143,9 @@ Current implementation state:
 - The replay key, Payment mutation, and Order mutation are committed in one
   database transaction before provider handoff is attempted.
 - Payment records enforce one non-null payment provider reference per Order at
-  the database level.
+  the database level. Populated-environment deploys must run the duplicate
+  `(order_id, payment_provider_reference)` preflight query documented in
+  `docs/architecture/environment-strategy.md` before applying this constraint.
 - Payment initialization is implemented as `POST /api/v1/payments` for
   authenticated owners of eligible draft Orders. The endpoint accepts only
   `order_id`, derives amount, currency, ownership, and initial `initiated`
@@ -238,6 +244,13 @@ Provider adapter boundary:
 
 - Future issue required: integrate an actual payment provider initialization
   adapter response when the provider-specific contract is documented.
+- Future issue required: make payment initialization concurrency-safe before it
+  creates external provider payment sessions. The current provider-neutral
+  endpoint is sequentially idempotent, but simultaneous first requests can both
+  observe no active Payment and create separate `initiated` rows.
+- Future issue required: add payment-provider-specific secret and sensitive
+  payload examples to audit redaction tests when the real provider contract
+  documents concrete header names, secret fields, tokens, or payload keys.
 
 ## Constraints
 
@@ -256,6 +269,8 @@ Provider adapter boundary:
   or handoff-eligible state.
 - Do not let webhook signature verification by itself mutate payment, order,
   checkout, or provider handoff state.
+- Do not treat payment provider references as globally unique application
+  identifiers. Conflict checks must remain Order-scoped and explicit.
 
 ## Security Considerations
 

@@ -279,6 +279,15 @@ redacts explicitly documented token/key patterns:
   JSON object containing `alg` or `typ`
 - PEM private-key blocks containing `BEGIN`, `PRIVATE KEY`, and `END` markers
 
+This JWT value detection is intentionally narrow. It does not guarantee
+redaction of malformed, truncated, partially corrupted, or embedded token
+fragments that may still contain sensitive information. The primary control is
+still to avoid logging authorization headers, raw request bodies, bearer
+tokens, secrets, or sensitive payloads. Broader token-fragment redaction should
+be handled as dedicated hardening work when request/error logging expands. Any
+change to the JWT-like value rule must keep this documented shape in sync with
+tests so redaction does not expand accidentally.
+
 Do not add generic secret detection or entropy-based scanning to audit logs
 without a dedicated issue and tests. Broad heuristic scanning risks hiding
 useful incident context and making audit behavior difficult to reason about.
@@ -287,7 +296,10 @@ Role handling remains string-based for the MVP, with supported values defined
 in the backend `UserRole` constants. Admin authorization must continue to use
 the reusable admin dependency, which compares the authenticated database user
 role to `UserRole.ADMIN`. No full RBAC system or role migration is required
-until a planning document and implementation issue define that expansion.
+until a planning document and implementation issue define that expansion. If a
+future admin API accepts role values as input, that API must add explicit
+request validation for allowed role values instead of relying solely on backend
+constants or downstream comparisons.
 
 ### 12. Security Testing Requirements
 
