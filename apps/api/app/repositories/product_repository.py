@@ -1,5 +1,5 @@
 from app.models.product import Product
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 
@@ -34,9 +34,58 @@ class ProductRepository:
             A list of active product model instances sorted alphabetically.
         """
         result = self.db.execute(
-            select(Product).where(Product.is_active.is_(True)).order_by(Product.name)
+            select(Product)
+            .where(Product.is_active.is_(True))
+            .order_by(Product.name, Product.id)
         )
         return list(result.scalars().all())
+
+    def get_active_products_page(
+        self,
+        *,
+        category_id: int | None,
+        offset: int,
+        limit: int,
+    ) -> list[Product]:
+        """Return one page of active products ordered by name and id.
+
+        Args:
+            category_id: Optional category identifier used to narrow active
+                products.
+            offset: Number of matching active products to skip.
+            limit: Maximum number of matching active products to return.
+
+        Returns:
+            A stable page of active product model instances.
+        """
+        filters = [Product.is_active.is_(True)]
+        if category_id is not None:
+            filters.append(Product.category_id == category_id)
+
+        result = self.db.execute(
+            select(Product)
+            .where(*filters)
+            .order_by(Product.name.asc(), Product.id.asc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    def count_active_products(self, *, category_id: int | None) -> int:
+        """Count active products, optionally narrowed by category.
+
+        Args:
+            category_id: Optional category identifier used to narrow active
+                products.
+
+        Returns:
+            Number of active products visible through the public catalog.
+        """
+        filters = [Product.is_active.is_(True)]
+        if category_id is not None:
+            filters.append(Product.category_id == category_id)
+
+        return self.db.scalar(select(func.count()).select_from(Product).where(*filters))
 
     def get_product_by_id(self, product_id: int) -> Product | None:
         """Return one product by primary key.

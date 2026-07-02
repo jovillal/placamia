@@ -31,6 +31,35 @@ class ProductService:
         """
         return self.product_repository.get_active_products()
 
+    def list_products_page(
+        self,
+        *,
+        category_id: int | None,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[Product], int]:
+        """List one active catalog product page for public browsing.
+
+        Args:
+            category_id: Optional category identifier used to narrow active
+                products.
+            page: One-based page number.
+            page_size: Maximum number of products to include in the page.
+
+        Returns:
+            A tuple containing the active Product page and the total number of
+            active Products matching the filter before pagination.
+        """
+        offset = (page - 1) * page_size
+        return (
+            self.product_repository.get_active_products_page(
+                category_id=category_id,
+                offset=offset,
+                limit=page_size,
+            ),
+            self.product_repository.count_active_products(category_id=category_id),
+        )
+
     def get_product(self, product_id: int) -> Product | None:
         """Get a single active catalog product by identifier.
 

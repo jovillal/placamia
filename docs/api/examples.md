@@ -54,7 +54,7 @@ GET /api/v1/catalog/categories
 ## Catalog Products
 
 ```http
-GET /api/v1/catalog/products
+GET /api/v1/catalog/products?category_id=1&page=1&page_size=20
 ```
 
 ```json
@@ -72,9 +72,19 @@ GET /api/v1/catalog/products
       "production_lead_time_days": 5,
       "dispatch_lead_time_days": 1
     }
-  ]
+  ],
+  "meta": {
+    "page": 1,
+    "page_size": 20,
+    "total_items": 1,
+    "total_pages": 1
+  }
 }
 ```
+
+Supported product list query parameters are `category_id`, `page`, and
+`page_size` only. `page` defaults to `1`, `page_size` defaults to `20`, and
+`page_size` may not exceed `50`.
 
 ## Catalog Product Detail
 
