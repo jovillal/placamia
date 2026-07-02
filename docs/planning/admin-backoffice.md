@@ -61,6 +61,65 @@ admin/operator endpoint. It is authenticated through `get_current_user`,
 enforces ownership, and records a customer audit event, but it is not part of
 the admin/operator matrix.
 
+### Minimum Operating Surface
+
+The Path A admin/operator surface should stay intentionally small. It exists to
+let PlacamIA safely operate paid orders, inspect stuck states, and prove what
+happened without introducing a broad backoffice product before the MVP needs
+one.
+
+Minimum implemented surface:
+
+- Provider acceptance/rejection recording after paid-order handoff.
+- Provider production progress recording for `accepted -> in_production` and
+  `in_production -> ready_for_pickup`.
+- Shipment recording for carrier QR pickup scan or authorized operator
+  fallback.
+- Delivery confirmation recording for shipped orders.
+- Cancellation request approval/rejection for paid order states that support
+  customer cancellation requests.
+
+Minimum likely gaps before operational hardening:
+
+- Provider handoff retry for confirmed paid orders whose adapter transmission
+  failed before `sent_to_provider`.
+- Provider handoff status reconciliation for handed-off orders whose local
+  state may drift from provider-side state.
+- Operator-facing inspection or documented smoke procedure for stuck paid
+  orders, using existing read surfaces where possible before adding new
+  endpoints.
+
+### QA, Docs, And Examples Minimums
+
+Every new admin/operator mutation must satisfy the following before it is
+considered ready for review:
+
+- Requires backend-derived admin authorization.
+- Rejects frontend `role`, `is_admin`, ownership, status, payment,
+  provider-reference, and lifecycle claims.
+- Rejects invalid lifecycle states without mutating Order, Payment, provider,
+  or audit-log state.
+- Writes a minimal admin audit log for successful security-relevant mutations.
+- Does not alter payment confirmation fields unless a payment-specific planning
+  document and issue explicitly define that behavior.
+- Is listed in `docs/api/endpoint-structure.md`.
+- Updates this admin/operator matrix when the endpoint is implemented or
+  behavior changes.
+- Includes at least one happy-path test and one rejection/no-mutation test.
+- Includes API examples or a documented smoke path when manual QA is expected.
+
+Minimum operator smoke path:
+
+1. Create and pay a Path A order through the existing checkout/payment flow.
+2. Confirm the order reaches `sent_to_provider` after provider handoff.
+3. Record provider acceptance.
+4. Record production start.
+5. Record package ready for pickup.
+6. Record shipment through QR pickup scan or authorized fallback.
+7. Record delivery confirmation.
+8. Verify payment confirmation fields remain unchanged through fulfillment
+   mutations.
+
 ### Required Future Endpoint Candidates
 
 These are not implemented by this definition issue. Each needs a scoped

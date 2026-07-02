@@ -88,6 +88,28 @@ Future production configuration must still follow these rules:
 - require HTTPS for public traffic
 - avoid storing payment card data
 
+### Migration Preflight Notes
+
+Before applying migrations to any populated environment, run data-shape checks
+for constraints that may fail on legacy rows. For the payments uniqueness
+constraint on non-null `(order_id, payment_provider_reference)` pairs, verify
+there are no duplicates before running Alembic:
+
+```sql
+SELECT
+    order_id,
+    payment_provider_reference,
+    COUNT(*) AS duplicate_count
+FROM payments
+WHERE payment_provider_reference IS NOT NULL
+GROUP BY order_id, payment_provider_reference
+HAVING COUNT(*) > 1;
+```
+
+If this query returns rows, stop the migration and resolve the duplicate
+payment history through a scoped data-cleanup issue or runbook before applying
+the constraint. Do not delete or merge payment rows ad hoc during deploy.
+
 ## Environment Variables
 
 | Variable | Required Locally | Purpose |

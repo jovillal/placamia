@@ -36,6 +36,8 @@
 - [ ] Request validation uses Pydantic schemas
 - [ ] Responses are consistent with the API style guide
 - [ ] Errors are meaningful and do not leak internals
+- [ ] New or changed endpoints are reflected in
+  `docs/api/endpoint-structure.md`, especially admin/operator mutations
 
 ## 6. Testing
 - [ ] Tests were added or updated

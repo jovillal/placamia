@@ -113,8 +113,9 @@ The current implemented API endpoints are:
 | `POST` | `/api/v1/provider/orders/{order_id}/shipment` | Provider | Admin | `ProviderShipmentResponse` object |
 | `POST` | `/api/v1/provider/orders/{order_id}/delivery` | Provider | Admin | `ProviderDeliveryResponse` object |
 
-The demo Bruno collection in `bruno/placamia-api` should be updated by
-endpoint implementation issues when manual demo coverage is needed.
+The demo Bruno collection in `bruno/placamia-api` is intentionally partial and
+should be updated by endpoint implementation issues when manual demo coverage
+is needed.
 
 ## Reserved And Continuing MVP Endpoint Groups
 

@@ -87,25 +87,6 @@ class PaymentRepository:
         )
         return list(result.scalars().all())
 
-    def get_payment_by_provider_reference(
-        self,
-        provider_reference: str,
-    ) -> Payment | None:
-        """Return one Payment by payment-provider reference.
-
-        Args:
-            provider_reference: Payment-provider reference to look up.
-
-        Returns:
-            The matching Payment model instance, or None when no row exists.
-        """
-        result = self.db.execute(
-            select(Payment).where(
-                Payment.payment_provider_reference == provider_reference
-            )
-        )
-        return result.scalar_one_or_none()
-
     def get_payments_by_provider_reference(
         self,
         provider_reference: str,

@@ -78,6 +78,14 @@ Needs issue-template cleanup before implementation:
 - Future issue required: define authorization matrix for user-owned resources
 - Future issue required: define audit event retention expectations
 - Future issue required: define admin action audit event coverage
+- Future issue required: add explicit role-value validation before any
+  admin/operator API accepts role values as input. This should remain separate
+  from current string-constant role handling.
+- Future issue required: evaluate broader token-fragment redaction for
+  malformed, truncated, partially corrupted, or embedded JWT-like values before
+  expanding raw request, header, or exception-payload logging. If audit-log
+  service tests are split from admin authorization tests, include direct
+  service-level coverage for the documented `_is_sensitive_value()` behavior.
 
 ## Constraints
 

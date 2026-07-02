@@ -351,17 +351,27 @@ Related docs:
 
 Only build admin/operator tools required to operate Path A:
 
-- availability update
-- price table maintenance if not seeded/manual
-- provider handoff retry/status update
+- keep the admin/operator endpoint matrix in
+  `docs/planning/admin-backoffice.md` aligned with implemented mutations
+- provider handoff retry for confirmed paid orders whose adapter transmission
+  failed before `sent_to_provider`
+- provider handoff status reconciliation for handed-off orders whose local
+  state may drift from provider-side state
 - cancellation request resolution
-- shipment fallback event
+- provider acceptance, production progress, shipment, and delivery mutation
+  coverage
+- availability update and price table maintenance only if seed/manual data
+  updates become insufficient
 
 ### Documentation and QA
 
 - Update API examples
 - Update Bruno examples if applicable
 - Verify `/docs` endpoint descriptions
+- Keep `docs/api/endpoint-structure.md` updated for every new or changed
+  endpoint, especially admin/operator mutations
+- Maintain an operator smoke path: paid order -> sent to provider -> accepted
+  -> in production -> ready for pickup -> shipped -> delivered
 - Run full backend test suite
 - Review security-sensitive rejection tests
 

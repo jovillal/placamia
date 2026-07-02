@@ -24,6 +24,15 @@ docs, and accepted implementation issues.
 - `docs/api/api-style.md`
 - `docs/architecture/database-diagram.dbml`
 
+## Current State
+
+- API endpoint inventory is maintained in `docs/api/endpoint-structure.md`.
+- The Bruno collection under `bruno/placamia-api` is maintained as partial
+  local demo/manual-check coverage, not as the complete endpoint source of
+  truth.
+- Bruno currently covers health, catalog browsing, authenticated current-user
+  lookup, and payment initialization.
+
 ## Child Issues
 
 Open:
@@ -36,6 +45,9 @@ Open:
   more duplicate docs issues are created.
 - Future issue required: define when generated diagrams should be refreshed from
   source docs.
+- Future issue required: expand Bruno manual-check coverage when an endpoint
+  needs repeatable local demo coverage, while keeping FastAPI `/docs` and the
+  endpoint inventory as the complete API references.
 
 ## Constraints
 

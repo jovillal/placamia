@@ -114,7 +114,7 @@ def test_payment_model_links_to_order_and_allows_multiple_payments_per_order():
         db.close()
 
 
-def test_payment_repository_creates_and_reads_payments_by_id_and_provider_reference():
+def test_payment_repository_creates_and_lists_payments_by_provider_reference():
     db = build_session()
     try:
         customer = create_customer(db)
@@ -138,11 +138,10 @@ def test_payment_repository_creates_and_reads_payments_by_id_and_provider_refere
 
         assert repository.get_payment_by_id(older_payment.id) == older_payment
         assert repository.get_payment_by_id(999) is None
-        assert (
-            repository.get_payment_by_provider_reference("pay-attempt-2")
-            == newer_payment
-        )
-        assert repository.get_payment_by_provider_reference("missing-ref") is None
+        assert repository.get_payments_by_provider_reference("pay-attempt-2") == [
+            newer_payment
+        ]
+        assert repository.get_payments_by_provider_reference("missing-ref") == []
     finally:
         db.close()
 
@@ -202,7 +201,7 @@ def test_payment_repository_create_payment_does_not_commit_transaction():
         db.rollback()
 
         assert staged_payment.id is not None
-        assert repository.get_payment_by_provider_reference("pay-staged") is None
+        assert repository.get_payments_by_provider_reference("pay-staged") == []
     finally:
         db.close()
 
