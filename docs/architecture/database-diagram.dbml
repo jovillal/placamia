@@ -1,6 +1,6 @@
 Project placamia {
   database_type: "PostgreSQL"
-  Note: "Current PlacamIA backend schema generated from SQLAlchemy models."
+  Note: "Current PlacamIA backend schema generated from SQLAlchemy models and Alembic migrations."
 }
 
 Table users {
@@ -170,6 +170,17 @@ Table orders {
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
 
+  Note: '''
+  Check constraints:
+  - ck_orders_status_supported: status is one of draft, confirmed, sent_to_provider, accepted, in_production, ready_for_pickup, shipped, delivered, cancellation_requested, cancelled
+  - ck_orders_currency_iso_uppercase: currency is uppercase ISO-like 3-character code
+  - ck_orders_subtotal_amount_nonnegative: subtotal_amount >= 0
+  - ck_orders_discount_amount_nonnegative: discount_amount >= 0
+  - ck_orders_tax_amount_nonnegative: tax_amount >= 0
+  - ck_orders_total_amount_nonnegative: total_amount >= 0
+  - ck_orders_cancellation_requested_from_matches_status: cancellation_requested_from is set only when status is cancellation_requested and must be confirmed, accepted, or in_production
+  '''
+
   indexes {
     id [name: "ix_orders_id"]
     customer_id [name: "ix_orders_customer_id"]
@@ -191,6 +202,15 @@ Table payments {
   verified_at timestamptz
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
+
+  Note: '''
+  Check constraints:
+  - ck_payments_status_supported: status is one of initiated, pending, requires_action, verified, failed, cancelled, expired
+  - ck_payments_currency_iso_uppercase: currency is uppercase ISO-like 3-character code
+  - ck_payments_amount_nonnegative: amount >= 0
+  Unique constraints:
+  - uq_payments_order_provider_reference: one non-null provider payment reference per order
+  '''
 
   indexes {
     id [name: "ix_payments_id"]
@@ -244,6 +264,18 @@ Table order_items {
   provider_pricing_reference varchar(255)
   provider_payload_snapshot json [not null]
   created_at timestamptz [not null, default: `now()`]
+
+  Note: '''
+  Check constraints:
+  - ck_order_items_item_type_supported: item_type is one of product, kit, design
+  - ck_order_items_quantity_positive: quantity > 0
+  - ck_order_items_currency_iso_uppercase: currency is uppercase ISO-like 3-character code
+  - ck_order_items_unit_price_amount_nonnegative: unit_price_amount >= 0
+  - ck_order_items_line_subtotal_amount_nonnegative: line_subtotal_amount >= 0
+  - ck_order_items_line_discount_amount_nonnegative: line_discount_amount >= 0
+  - ck_order_items_line_tax_amount_nonnegative: line_tax_amount >= 0
+  - ck_order_items_line_total_amount_nonnegative: line_total_amount >= 0
+  '''
 
   indexes {
     id [name: "ix_order_items_id"]
