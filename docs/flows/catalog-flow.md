@@ -41,7 +41,8 @@ flowchart TD
     B6 --> U2
 
     B3 -. inactive or unavailable .-> R1[Do not expose product as purchasable]
-    B5 -. no active purchasable contents .-> R2[Apply documented kit visibility rule]
+    B5 -. zero active required contents .-> R2[Hide kit]
+    B5 -. unavailable required contents .-> R3[Return kit as not directly purchasable]
 ```
 
 ## Constraints
@@ -53,6 +54,14 @@ flowchart TD
 - Public product and kit eligibility fields are backend-derived through the
   provider adapter boundary. Frontend-supplied availability, eligibility,
   provider cost, lead time, or price claims must be ignored or rejected.
+- Active kits are visible only when they have at least one active required
+  content item.
+- Unavailable, manual-quote-only, or non-priceable required kit contents must
+  not be omitted from a visible kit; the kit must be returned as not directly
+  purchasable with a backend-derived reason.
+- Public kit contents use customer-safe product summaries and must not expose
+  provider cost, provider assignment, or internal eligibility inputs.
+  Implementation of this approved response contract is tracked by #172.
 - Weekly provider availability is a soft operational input, not exact inventory
   reservation
 - No write operations allowed
@@ -71,3 +80,5 @@ flowchart TD
 - Prevent data leakage
 - Do not expose inactive, unavailable, or manual-quote-only products as direct
   checkout items
+- Do not let frontend input redefine kit contents, kit price, kit availability,
+  direct-checkout eligibility, lead time, provider assignment, or provider cost

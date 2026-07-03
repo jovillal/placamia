@@ -38,6 +38,7 @@ Still needed for Path A:
 - local/mock provider adapter availability fixtures (#108)
 - product listing/detail eligibility fields (#109)
 - kit direct-checkout eligibility behavior (#110)
+- approved public kit visibility and content response contract (#172)
 - seed/admin data updates after validation partner findings are available (#111)
 - tests for unavailable/manual-quote-only purchasability behavior in
   implementation issues
@@ -121,9 +122,19 @@ Acceptance criteria:
 - kit is purchasable only when required contents are active, available through
   the provider adapter boundary, and backend-priceable
 - kits do not expose inactive products as available contents
-- empty or partially unavailable kit behavior is documented and tested
+- active kits with zero active required contents are hidden
+- unavailable, manual-quote-only, or non-priceable required contents are not
+  omitted from visible kits; they make the kit visible but not directly
+  purchasable with a backend-derived reason
+- kit contents return customer-safe product summaries rather than only
+  `product_id`
+- kit content product summaries use `category_id`
+- provider cost, provider assignment, raw provider payloads, and internal
+  eligibility inputs are never exposed in public kit contents
 - frontend cannot override kit contents, availability, eligibility, lead time,
   or provider cost/capability claims
+- implementation is completed by #172 so API examples, schemas, and endpoint
+  tests match the approved contract before consumers rely on it
 
 ### 5. MVP Seed Data After Validation Findings (#111)
 

@@ -53,7 +53,7 @@ Completed:
 ## Future Issues
 
 - Future issue required: create kit detail endpoint with tests
-- #87 Define kit public visibility rules
+- #172 Implement approved public kit visibility and content response contract
 - Future issue required: define kit pricing interaction with pricing rules and
   provider cost inputs from the provider adapter boundary
 
@@ -61,20 +61,46 @@ Completed:
 
 `GET /api/v1/catalog/kits` returns active Kits only.
 
-Kit contents expose active Product references only. Inactive Products are
-omitted from each Kit's `items` array and are not shown as available kit
-contents.
+Current `KitItem` rows are treated as required kit contents because the model
+does not yet include optional kit items.
 
-Direct-checkout eligibility is stricter than public listing. A listed Kit must
-not be purchasable unless its required contents are active, compatible with
-provider adapter boundary responses, and priceable by backend rules.
+Active Kits remain visible only when they have at least one active required
+Product. Active Kits with zero active required Products are hidden from the
+public catalog rather than returned with an empty `items` array.
 
-Current public KitItem shape:
+Decision status: approved by #87, implementation pending in #172. Until #172 is
+implemented, the current endpoint may still return active Kits with empty
+`items` arrays.
+
+Kit contents must not expose inactive Products as available contents. Inactive
+Product contents are omitted from the customer-visible kit contents and cannot
+make the Kit purchasable. If all required Product contents are inactive, the Kit
+is hidden.
+
+Unavailable, manual-quote-only, or non-priceable required Product contents must
+not be silently omitted from a visible Kit because omission would change what
+the Kit is. A Kit with at least one active required Product remains visible,
+but its kit-level eligibility fields must report that the Kit is not directly
+purchasable when any required content is unavailable, manual-quote-only,
+otherwise ineligible, or not backend-priceable.
+
+Public Kit item responses must include customer-safe Product summaries rather
+than only a `product_id`, so customers can understand what the bundle contains.
+The summary must not expose provider cost, provider assignment, raw provider
+payloads, internal eligibility inputs, or inactive-product internals.
+
+Decision status: approved by #87, implementation pending in #172. Until #172 is
+implemented, the current endpoint may still expose the older KitItem shape.
+
+Public Kit content shape:
 
 - product_id
+- product name
+- customer-safe product description
+- category_id
 - quantity
 
-Planned public Kit direct-checkout signals:
+Public Kit direct-checkout signals:
 
 - `availability_state`
 - `direct_checkout_eligible`
@@ -97,12 +123,7 @@ Kit direct checkout follows the catalog availability state contract in
 - the Kit itself is compatible with provider adapter availability and
   direct-checkout eligibility
 
-Implementation is tracked by #110.
-
-Active Kits with zero active Product contents are currently returned with an
-empty `items` array. Whether those Kits should be hidden, and whether kit
-responses should include product summaries instead of only product identifiers,
-is tracked by #87 as phase-2 work.
+Implementation is tracked by #110 and #172.
 
 ## Constraints
 
@@ -111,6 +132,10 @@ is tracked by #87 as phase-2 work.
 - Kits must not expose inactive products as available for purchase.
 - Kits must not be directly purchasable when required contents are inactive,
   unavailable, manual-quote-only, or not backend-priceable.
+- Kits with zero active required contents must be hidden.
+- Unavailable required contents must not be omitted from visible Kits; they must
+  make the Kit visible but not directly purchasable with a backend-derived
+  eligibility reason.
 - Kit availability, direct-checkout eligibility, lead time, and provider
   capability signals must come through the backend provider adapter boundary,
   starting with a local/mock adapter for MVP backend development.
@@ -137,5 +162,11 @@ is tracked by #87 as phase-2 work.
 - Inactive products are not exposed as available kit contents.
 - Kit checkout eligibility follows active product, provider adapter boundary,
   and backend pricing rules.
+- Kits with unavailable, manual-quote-only, or non-priceable required contents
+  are visible only when at least one required Product is active, and are
+  returned as not directly purchasable instead of having contents silently
+  omitted.
+- Public kit contents include customer-safe Product summaries and exclude
+  provider/internal fields.
 - Kit endpoints are tested.
-- Phase-2 public visibility refinements are tracked by #87.
+- Kit visibility and purchasability refinements from #87 are documented.
