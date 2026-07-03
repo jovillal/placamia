@@ -31,6 +31,7 @@ Implemented:
 - kit and kit item models
 - public kit listing endpoint
 - active product filtering for public catalog behavior
+- approved public kit visibility and content response contract (#172)
 
 Still needed for Path A:
 
@@ -38,7 +39,6 @@ Still needed for Path A:
 - local/mock provider adapter availability fixtures (#108)
 - product listing/detail eligibility fields (#109)
 - kit direct-checkout eligibility behavior (#110)
-- approved public kit visibility and content response contract (#172)
 - seed/admin data updates after validation partner findings are available (#111)
 - tests for unavailable/manual-quote-only purchasability behavior in
   implementation issues
@@ -133,8 +133,8 @@ Acceptance criteria:
   eligibility inputs are never exposed in public kit contents
 - frontend cannot override kit contents, availability, eligibility, lead time,
   or provider cost/capability claims
-- implementation is completed by #172 so API examples, schemas, and endpoint
-  tests match the approved contract before consumers rely on it
+- implementation from #172 keeps API examples, schemas, and endpoint tests
+  aligned with the approved contract before consumers rely on it
 
 ### 5. MVP Seed Data After Validation Findings (#111)
 

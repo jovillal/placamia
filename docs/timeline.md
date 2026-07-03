@@ -32,6 +32,9 @@ Current implementation checkpoint:
 - Provider acceptance/rejection lifecycle persistence, production status
   updates, QR shipment ingestion, delivery confirmation, and paid-order
   cancellation requests are implemented for the MVP domain-local path.
+- The Path A MVP mobile screen map is documented in
+  `docs/planning/mobile-placeholder.md`, including screen dependencies,
+  deferred mobile behavior, and backend gaps for the Expo placeholder.
 - Real-provider adapter integrations, provider status reconciliation, and
   carrier API integration remain future work.
 
@@ -385,6 +388,21 @@ support:
 - pricing preview
 - checkout
 - order tracking
+
+The initial screen map for this mobile placeholder is complete. #37 may begin
+with static/mock data and navigation placeholders as long as it does not present
+documented-but-pending backend dependencies as real integrations.
+
+Backend dependencies that must remain visible as gaps during #37:
+
+- customer sign-in/token acquisition beyond authenticated context lookup
+- kit detail endpoint
+- template and design endpoints
+- kit and design pricing contracts
+- customer-visible cancellation/refund terms content source
+- provider-specific payment initialization response
+- customer payment-status refresh path
+- customer order list and full order detail endpoints
 
 Future work:
 

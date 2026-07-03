@@ -61,7 +61,6 @@ flowchart TD
   purchasable with a backend-derived reason.
 - Public kit contents use customer-safe product summaries and must not expose
   provider cost, provider assignment, or internal eligibility inputs.
-  Implementation of this approved response contract is tracked by #172.
 - Weekly provider availability is a soft operational input, not exact inventory
   reservation
 - No write operations allowed

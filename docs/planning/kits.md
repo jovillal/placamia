@@ -49,11 +49,11 @@ Completed:
 
 - #24 Create Kit and KitItem models, migrations, and tests
 - #25 Create GET kits endpoint with tests
+- #172 Implement approved public kit visibility and content response contract
 
 ## Future Issues
 
 - Future issue required: create kit detail endpoint with tests
-- #172 Implement approved public kit visibility and content response contract
 - Future issue required: define kit pricing interaction with pricing rules and
   provider cost inputs from the provider adapter boundary
 
@@ -67,10 +67,6 @@ does not yet include optional kit items.
 Active Kits remain visible only when they have at least one active required
 Product. Active Kits with zero active required Products are hidden from the
 public catalog rather than returned with an empty `items` array.
-
-Decision status: approved by #87, implementation pending in #172. Until #172 is
-implemented, the current endpoint may still return active Kits with empty
-`items` arrays.
 
 Kit contents must not expose inactive Products as available contents. Inactive
 Product contents are omitted from the customer-visible kit contents and cannot
@@ -88,9 +84,6 @@ Public Kit item responses must include customer-safe Product summaries rather
 than only a `product_id`, so customers can understand what the bundle contains.
 The summary must not expose provider cost, provider assignment, raw provider
 payloads, internal eligibility inputs, or inactive-product internals.
-
-Decision status: approved by #87, implementation pending in #172. Until #172 is
-implemented, the current endpoint may still expose the older KitItem shape.
 
 Public Kit content shape:
 
@@ -123,7 +116,7 @@ Kit direct checkout follows the catalog availability state contract in
 - the Kit itself is compatible with provider adapter availability and
   direct-checkout eligibility
 
-Implementation is tracked by #110 and #172.
+Implementation is tracked by #110 and was refined by #172.
 
 ## Constraints
 
