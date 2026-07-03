@@ -123,6 +123,9 @@ GET /api/v1/catalog/kits
       "items": [
         {
           "product_id": 1,
+          "name": "Emergency exit sign",
+          "description": "Standard sign for marking emergency exits.",
+          "category_id": 1,
           "quantity": 4
         }
       ],
@@ -135,6 +138,11 @@ GET /api/v1/catalog/kits
   ]
 }
 ```
+
+Kit contents include customer-safe active Product summaries. Inactive required
+contents are not exposed as available contents; active unavailable,
+manual-quote-only, or non-priceable required contents remain listed and make
+the kit not directly purchasable through backend-derived eligibility fields.
 
 ## Pricing Preview
 

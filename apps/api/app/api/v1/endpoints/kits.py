@@ -22,14 +22,14 @@ class KitListResponse(BaseModel):
     response_model=KitListResponse,
     summary="List catalog kits",
     description=(
-        "Returns active catalog kits with active product references and "
-        "backend-derived direct-checkout eligibility signals."
+        "Returns active catalog kits with customer-safe active product "
+        "summaries and backend-derived direct-checkout eligibility signals."
     ),
 )
 async def list_kits(
     db: Session = Depends(get_db),
     provider_adapter=Depends(get_provider_adapter),
-) -> dict[str, list[KitRead]]:
+) -> KitListResponse:
     """Return active catalog kits ordered by name.
 
     Args:
@@ -45,10 +45,10 @@ async def list_kits(
     """
     kit_repository = KitRepository(db)
     kit_service = KitService(kit_repository)
-    kits = kit_service.list_kits()
+    kits = kit_service.list_public_kits()
 
-    return {
-        "data": [
+    return KitListResponse(
+        data=[
             _kit_read_from_eligibility(
                 kit=kit,
                 items=kit_service.list_public_kit_items(kit),
@@ -59,7 +59,7 @@ async def list_kits(
             )
             for kit in kits
         ]
-    }
+    )
 
 
 def _kit_read_from_eligibility(
@@ -72,10 +72,21 @@ def _kit_read_from_eligibility(
         id=kit.id,
         name=kit.name,
         description=kit.description,
-        items=[KitItemRead.model_validate(item) for item in items],
+        items=[_kit_item_read(item) for item in items],
         availability_state=eligibility.availability_state.value,
         direct_checkout_eligible=eligibility.direct_checkout_eligible,
         eligibility_reason=eligibility.eligibility_reason,
         production_lead_time_days=eligibility.production_lead_time_days,
         dispatch_lead_time_days=eligibility.dispatch_lead_time_days,
+    )
+
+
+def _kit_item_read(item) -> KitItemRead:
+    """Build a customer-safe public Product summary for one KitItem."""
+    return KitItemRead(
+        product_id=item.product_id,
+        name=item.product.name,
+        description=item.product.description,
+        category_id=item.product.category_id,
+        quantity=item.quantity,
     )

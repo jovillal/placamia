@@ -111,16 +111,20 @@ class KitEligibilityService:
         if not kit_items:
             return "empty_kit"
 
-        if any(not item.product.is_active for item in kit_items):
+        active_items = [item for item in kit_items if item.product.is_active]
+        if not active_items:
             return "inactive_kit_item"
 
-        for item in kit_items:
+        for item in active_items:
             product_eligibility = self.product_eligibility_service.evaluate_product(
                 product=item.product,
                 quantity=item.quantity,
             )
             if not product_eligibility.direct_checkout_eligible:
                 return product_eligibility.eligibility_reason or "kit_item_not_eligible"
+
+        if len(active_items) < len(kit_items):
+            return "inactive_kit_item"
 
         return None
 
