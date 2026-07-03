@@ -97,7 +97,7 @@ The current implemented API endpoints are:
 | `GET` | `/api/v1/health/` | Health | Public | `{ "status": "ok" }` |
 | `GET` | `/api/v1/auth/me` | Auth | Required | `UserRead` object |
 | `GET` | `/api/v1/catalog/categories` | Catalog | Public | `{ "data": CategoryRead[] }` |
-| `GET` | `/api/v1/catalog/kits` | Catalog | Public | `{ "data": KitRead[] }` |
+| `GET` | `/api/v1/catalog/kits` | Catalog | Public | `{ "data": KitRead[] }` with customer-safe product summaries |
 | `GET` | `/api/v1/catalog/products` | Catalog | Public | `{ "data": ProductRead[], "meta": pagination }` |
 | `GET` | `/api/v1/catalog/products/{product_id}` | Catalog | Public | `ProductRead` object |
 | `POST` | `/api/v1/pricing/quotes` | Pricing | Public | `PricingQuoteResponse` object |

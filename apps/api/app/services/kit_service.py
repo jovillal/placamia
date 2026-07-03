@@ -32,6 +32,20 @@ class KitService:
         """
         return self.kit_repository.get_active_kits()
 
+    def list_public_kits(self) -> list[Kit]:
+        """List active catalog kits with at least one active required Product.
+
+        Returns:
+            Active kits that have at least one active Product in their required
+            KitItem contents. Kits with zero active required contents are
+            hidden from the public catalog.
+        """
+        return [
+            kit
+            for kit in self.list_kits()
+            if any(item.product.is_active for item in kit.kit_items)
+        ]
+
     def list_public_kit_items(self, kit: Kit) -> list[KitItem]:
         """List public KitItems for one Kit.
 
