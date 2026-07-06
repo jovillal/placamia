@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "PlacamIA Placeholder",
+    "slug": "placamia-placeholder",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "placamia",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "placeholderOnly": true
+    }
+  }
+}

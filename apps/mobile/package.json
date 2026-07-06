@@ -1,0 +1,29 @@
+{
+  "name": "@placamia/mobile-placeholder",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo/AppEntry",
+  "engines": {
+    "node": "^20.19.4 || ^22.13.0 || ^24.3.0 || >=25.0.0"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "validate": "node scripts/validate-placeholder.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run validate && npm run typecheck"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "57.0.3",
+    "expo": "57.0.2",
+    "react": "19.2.7",
+    "react-native": "0.86.0",
+    "react-native-web": "0.21.2"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.7",
+    "typescript": "5.9.3"
+  }
+}
