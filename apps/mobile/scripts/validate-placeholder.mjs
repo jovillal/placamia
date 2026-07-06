@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 
 const root = new URL("..", import.meta.url).pathname;
 const contractPath = join(root, "src", "placeholderContract.json");
@@ -7,7 +7,6 @@ const appPath = join(root, "App.tsx");
 const packagePath = join(root, "package.json");
 
 const contract = JSON.parse(readFileSync(contractPath, "utf8"));
-const appSource = readFileSync(appPath, "utf8");
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 
 const requiredScreens = [
@@ -30,7 +29,8 @@ const allowedStatuses = new Set([
   "Documented-but-pending",
   "Intentionally deferred",
 ]);
-const forbiddenAppPatterns = [
+const sourceExtensions = new Set([".js", ".jsx", ".ts", ".tsx"]);
+const forbiddenSourcePatterns = [
   /fetch\s*\(/,
   /axios/i,
   /AsyncStorage/,
@@ -46,6 +46,15 @@ function assert(condition, message) {
     throw new Error(message);
   }
 }
+
+function sourceFilesIn(directory) {
+  return readdirSync(directory, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => join(entry.parentPath, entry.name))
+    .filter((path) => sourceExtensions.has(path.slice(path.lastIndexOf("."))));
+}
+
+const sourcePaths = [appPath, ...sourceFilesIn(join(root, "src"))];
 
 assert(packageJson.scripts?.start === "expo start", "start script must use Expo");
 assert(
@@ -106,8 +115,15 @@ assert(
   "placeholder contract must include payment SDK guardrail",
 );
 
-for (const pattern of forbiddenAppPatterns) {
-  assert(!pattern.test(appSource), `App.tsx contains forbidden pattern: ${pattern}`);
+for (const sourcePath of sourcePaths) {
+  const source = readFileSync(sourcePath, "utf8");
+  const displayPath = relative(root, sourcePath);
+  for (const pattern of forbiddenSourcePatterns) {
+    assert(
+      !pattern.test(source),
+      `${displayPath} contains forbidden pattern: ${pattern}`,
+    );
+  }
 }
 
 console.log(

@@ -21,11 +21,14 @@ static/mock-only until the corresponding backend contracts are implemented.
 
 ## Local Setup
 
-Install dependencies from this directory:
+Install dependencies reproducibly from this directory:
 
 ```bash
-npm install
+npm ci
 ```
+
+Use `npm install` only when intentionally updating dependencies and refreshing
+`package-lock.json`.
 
 Run validation:
 
