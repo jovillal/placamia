@@ -1,0 +1,392 @@
+{
+  "contractNotice": "This app is a non-production Expo placeholder. It mirrors the Path A screen map with static/mock data only and does not call backend, payment, provider, operator, or admin endpoints.",
+  "guardrails": [
+    "No real authentication flow, embedded credentials, bearer tokens, persisted sessions, or backend-auth bypass.",
+    "No production API base URL or production customer data.",
+    "No persisted customer, payment, order, or provider data.",
+    "No checkout submission against live backend state.",
+    "No payment provider SDK, provider payment session, card collection, or raw provider payload handling.",
+    "No direct mobile calls to payment webhook, provider, operator, or admin endpoints.",
+    "No static legal copy presented as production cancellation/refund policy.",
+    "No real-time payment confirmation claims without a documented customer payment-status refresh contract."
+  ],
+  "backendGaps": [
+    "Customer sign-in/token acquisition flow beyond GET /auth/me.",
+    "GET /api/v1/catalog/kits/{kit_id} for real kit detail.",
+    "Template and Design endpoints: GET /templates, GET /templates/{id}, POST /designs, and GET /designs/{id}.",
+    "Kit and Design pricing contracts beyond the current product preview slice.",
+    "Customer-visible cancellation/refund terms content source.",
+    "Provider-specific payment initialization response for real payment handoff.",
+    "Customer payment-status polling or order/payment result reconciliation path.",
+    "Customer order list endpoint.",
+    "Full customer order detail endpoint if status-only tracking is insufficient."
+  ],
+  "screens": [
+    {
+      "id": "auth-entry",
+      "title": "Authentication Entry",
+      "section": "Entry",
+      "purpose": "Orient the customer into public browse mode or mock authenticated navigation without implementing sign-in.",
+      "mockState": "Mock auth state only. No token, credential, persisted session, or backend-auth bypass exists in this placeholder.",
+      "keyActions": [
+        "Open the app.",
+        "Show public catalog access.",
+        "Show protected-path affordances as mock authenticated navigation only."
+      ],
+      "dependencies": [
+        {
+          "name": "GET /api/v1/auth/me",
+          "status": "Implemented",
+          "note": "Authenticated context lookup exists for protected backend flows."
+        },
+        {
+          "name": "Customer token acquisition/sign-in endpoint",
+          "status": "Documented-but-pending",
+          "note": "The placeholder does not embed credentials, tokens, sessions, or backend-auth bypasses."
+        }
+      ]
+    },
+    {
+      "id": "catalog-home",
+      "title": "Catalog Home And Category Browse",
+      "section": "Catalog",
+      "purpose": "Represent public category browsing as the read-only entry point into products and kits.",
+      "mockState": "Static categories only. No customer write or provider filter is available.",
+      "keyActions": [
+        "View categories.",
+        "Select a category.",
+        "Move to product or kit browsing."
+      ],
+      "dependencies": [
+        {
+          "name": "GET /api/v1/catalog/categories",
+          "status": "Implemented",
+          "note": "Public category collection."
+        },
+        {
+          "name": "Public catalog eligibility rules",
+          "status": "Implemented",
+          "note": "Eligibility remains backend-derived and output-only."
+        }
+      ]
+    },
+    {
+      "id": "product-list",
+      "title": "Product List",
+      "section": "Catalog",
+      "purpose": "Show active products with backend-derived direct-checkout signals and documented list controls.",
+      "mockState": "Static products demonstrate eligibility states without making price, provider, or availability claims from the client.",
+      "keyActions": [
+        "Browse products.",
+        "Filter by category_id.",
+        "Page using page and page_size.",
+        "Open product detail."
+      ],
+      "dependencies": [
+        {
+          "name": "GET /api/v1/catalog/products",
+          "status": "Implemented",
+          "note": "Supports category_id, page, and page_size only."
+        },
+        {
+          "name": "Product eligibility fields",
+          "status": "Implemented",
+          "note": "Uses backend-owned availability_state, direct_checkout_eligible, eligibility_reason, and lead-time fields."
+        },
+        {
+          "name": "Client-side provider or price filters",
+          "status": "Intentionally deferred",
+          "note": "The public contract rejects arbitrary provider, price, lead-time, eligibility, and sorting controls."
+        }
+      ]
+    },
+    {
+      "id": "product-detail",
+      "title": "Product Detail",
+      "section": "Catalog",
+      "purpose": "Show customer-safe product information and purchasability without trusting client-owned eligibility.",
+      "mockState": "Static detail content. Pricing and checkout actions stay mock-only.",
+      "keyActions": [
+        "View product metadata.",
+        "Review direct-checkout eligibility.",
+        "Move to supported customization or pricing preview."
+      ],
+      "dependencies": [
+        {
+          "name": "GET /api/v1/catalog/products/{product_id}",
+          "status": "Implemented",
+          "note": "Public product detail for active products."
+        },
+        {
+          "name": "Product direct-checkout eligibility",
+          "status": "Implemented",
+          "note": "Backend-owned and output-only."
+        }
+      ]
+    },
+    {
+      "id": "kit-list",
+      "title": "Kit List",
+      "section": "Catalog",
+      "purpose": "Show visible kits with customer-safe active product summaries and kit-level eligibility.",
+      "mockState": "Static kits demonstrate visible but not directly purchasable states without hiding active unavailable contents.",
+      "keyActions": [
+        "Browse kits.",
+        "Inspect kit contents.",
+        "See direct-checkout eligibility.",
+        "Move to kit detail placeholder."
+      ],
+      "dependencies": [
+        {
+          "name": "GET /api/v1/catalog/kits",
+          "status": "Implemented",
+          "note": "Returns visible active kits and customer-safe product summaries."
+        },
+        {
+          "name": "Kit visibility and eligibility contract",
+          "status": "Implemented",
+          "note": "Kits with zero active required contents are hidden; active unavailable contents remain listed and make the kit not directly purchasable."
+        }
+      ]
+    },
+    {
+      "id": "kit-detail",
+      "title": "Kit Detail",
+      "section": "Catalog",
+      "purpose": "Reserve a customer-safe kit inspection screen without pretending a detail endpoint exists.",
+      "mockState": "Mock-only detail. Real backend wiring waits for GET /api/v1/catalog/kits/{kit_id}.",
+      "keyActions": [
+        "View kit metadata.",
+        "Review content summaries.",
+        "Review kit eligibility.",
+        "Keep pricing disabled unless eligible."
+      ],
+      "dependencies": [
+        {
+          "name": "GET /api/v1/catalog/kits/{kit_id}",
+          "status": "Documented-but-pending",
+          "note": "Future kit detail endpoint."
+        },
+        {
+          "name": "Kit pricing interaction",
+          "status": "Documented-but-pending",
+          "note": "Kit pricing method is not yet documented."
+        }
+      ]
+    },
+    {
+      "id": "template-design-input",
+      "title": "Template Selection And Rules-Based Design Input",
+      "section": "Design",
+      "purpose": "Represent backend-defined TemplateField customization without AI, AR, 3D, file review, or design generation.",
+      "mockState": "Static fields only. No Design record is created by this placeholder.",
+      "keyActions": [
+        "Browse or select a template placeholder.",
+        "Fill backend-shaped fields.",
+        "Submit mock customization values.",
+        "Show that valid Design persistence is pending."
+      ],
+      "dependencies": [
+        {
+          "name": "GET /api/v1/templates",
+          "status": "Documented-but-pending",
+          "note": "Reserved by planning docs but not implemented in endpoint inventory."
+        },
+        {
+          "name": "GET /api/v1/templates/{id}",
+          "status": "Documented-but-pending",
+          "note": "Needed for real TemplateField-driven input."
+        },
+        {
+          "name": "POST /api/v1/designs",
+          "status": "Documented-but-pending",
+          "note": "Needed for persisted Design creation."
+        },
+        {
+          "name": "AI/AR/3D/file-based design generation",
+          "status": "Intentionally deferred",
+          "note": "Out of MVP scope."
+        }
+      ]
+    },
+    {
+      "id": "pricing-preview",
+      "title": "Pricing Preview",
+      "section": "Checkout",
+      "purpose": "Show backend-calculated pricing as the only authoritative price source.",
+      "mockState": "Static quote sample. The app does not compute or submit totals.",
+      "keyActions": [
+        "Submit supported product pricing inputs in future wiring.",
+        "Display backend-calculated amount.",
+        "Block checkout for unavailable, manual-quote-only, or non-priceable states."
+      ],
+      "dependencies": [
+        {
+          "name": "POST /api/v1/pricing/quotes",
+          "status": "Implemented",
+          "note": "Public pricing preview endpoint."
+        },
+        {
+          "name": "Product pricing preview",
+          "status": "Implemented",
+          "note": "Current product preview uses backend base price and quantity."
+        },
+        {
+          "name": "Kit and Design pricing preview",
+          "status": "Documented-but-pending",
+          "note": "Deferred until kit and persisted Design pricing rules exist."
+        },
+        {
+          "name": "Frontend-supplied totals/provider cost",
+          "status": "Intentionally deferred",
+          "note": "Must be ignored or rejected; never authoritative."
+        }
+      ]
+    },
+    {
+      "id": "checkout-review",
+      "title": "Checkout Review",
+      "section": "Checkout",
+      "purpose": "Reserve a review step for backend-derived checkout state and cancellation/refund terms before payment.",
+      "mockState": "No live order creation. Sample terms copy must remain visibly non-production.",
+      "keyActions": [
+        "Review item snapshots.",
+        "Review sample terms.",
+        "Confirm checkout only in mock navigation.",
+        "Show draft order creation as an implemented backend dependency."
+      ],
+      "dependencies": [
+        {
+          "name": "POST /api/v1/orders",
+          "status": "Implemented",
+          "note": "Authenticated draft order creation from backend-validated checkout state."
+        },
+        {
+          "name": "Customer-visible terms content surface",
+          "status": "Documented-but-pending",
+          "note": "Placeholder terms must not be presented as production legal policy."
+        },
+        {
+          "name": "Frontend ownership, price, or provider claims",
+          "status": "Intentionally deferred",
+          "note": "Checkout derives owner from auth and totals from backend."
+        }
+      ]
+    },
+    {
+      "id": "payment-initiation",
+      "title": "Payment Initiation",
+      "section": "Payment",
+      "purpose": "Represent backend-owned payment attempt initialization without card handling or provider secrets.",
+      "mockState": "No payment provider SDK, payment session, card collection, or live backend call.",
+      "keyActions": [
+        "Start payment placeholder.",
+        "Show initiated or retry-safe active attempt state.",
+        "Keep order unconfirmed until backend verification."
+      ],
+      "dependencies": [
+        {
+          "name": "POST /api/v1/payments",
+          "status": "Implemented",
+          "note": "Accepts only order_id and returns provider-neutral payment data."
+        },
+        {
+          "name": "Provider-specific payment session/client secret",
+          "status": "Documented-but-pending",
+          "note": "Future issue required when real provider contract is documented."
+        },
+        {
+          "name": "Card data collection/storage in PlacamIA backend",
+          "status": "Intentionally deferred",
+          "note": "Backend must not store card data."
+        }
+      ]
+    },
+    {
+      "id": "payment-result-states",
+      "title": "Payment Result States",
+      "section": "Payment",
+      "purpose": "Show payment lifecycle labels without trusting frontend return pages as confirmation.",
+      "mockState": "Static states only. No real-time payment confirmation is implied.",
+      "keyActions": [
+        "Show initiated, pending, requires_action, verified, failed, cancelled, and expired states.",
+        "Make frontend success claims non-authoritative.",
+        "Route to order tracking only as a placeholder."
+      ],
+      "dependencies": [
+        {
+          "name": "POST /api/v1/payments/webhook",
+          "status": "Implemented",
+          "note": "Backend/provider boundary only; not called by the mobile app."
+        },
+        {
+          "name": "Customer payment-status polling endpoint",
+          "status": "Documented-but-pending",
+          "note": "No customer refresh endpoint exists yet; placeholder states are static/mock."
+        },
+        {
+          "name": "Frontend payment success claim",
+          "status": "Intentionally deferred",
+          "note": "Never marks payment verified or order confirmed."
+        }
+      ]
+    },
+    {
+      "id": "order-list",
+      "title": "Order List",
+      "section": "Orders",
+      "purpose": "Reserve a customer-owned order summary list without inventing a list endpoint.",
+      "mockState": "Static order summaries only. Ownership is not client-filtered.",
+      "keyActions": [
+        "View mock customer-owned order summaries.",
+        "Open order tracking placeholder."
+      ],
+      "dependencies": [
+        {
+          "name": "Customer order list endpoint",
+          "status": "Documented-but-pending",
+          "note": "No GET /api/v1/orders customer list endpoint exists in the implemented inventory."
+        },
+        {
+          "name": "Cross-user order visibility",
+          "status": "Intentionally deferred",
+          "note": "Mobile must never rely on client filtering for ownership."
+        }
+      ]
+    },
+    {
+      "id": "order-detail-tracking",
+      "title": "Order Detail And Tracking",
+      "section": "Orders",
+      "purpose": "Show canonical order lifecycle states and cancellation request boundaries.",
+      "mockState": "Static tracking data only. Provider/admin status mutations are not customer actions.",
+      "keyActions": [
+        "View canonical status labels.",
+        "Show cancellation request only for allowed paid states.",
+        "Avoid provider/admin controls."
+      ],
+      "dependencies": [
+        {
+          "name": "GET /api/v1/orders/{order_id}/status",
+          "status": "Implemented",
+          "note": "Authenticated owner status retrieval."
+        },
+        {
+          "name": "POST /api/v1/orders/{order_id}/cancellation-request",
+          "status": "Implemented",
+          "note": "Owning customer can request cancellation from confirmed, accepted, or in_production."
+        },
+        {
+          "name": "Full order detail endpoint",
+          "status": "Documented-but-pending",
+          "note": "No customer order detail endpoint separate from status exists yet."
+        },
+        {
+          "name": "Admin/provider mutation endpoints",
+          "status": "Intentionally deferred",
+          "note": "Not mobile-facing customer UI actions."
+        }
+      ]
+    }
+  ]
+}
