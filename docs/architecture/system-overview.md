@@ -1,22 +1,36 @@
 # System Overview
 
 ## Purpose
-PlacamIA allows users to create and purchase customized signage using predefined templates and AI-assisted customization.
+PlacamIA allows users to browse, customize, price, purchase, and track
+industrial safety signage using predefined templates and deterministic,
+rules-based customization.
 
-## Initial architecture
+AI-assisted generation, recommendations, and variations are outside the MVP.
+
+## Current architecture
 - mobile-first product vision
 - backend implemented as a modular monolith
 - single PostgreSQL database
-- local-first execution during initial phase
+- FastAPI API with SQLAlchemy persistence and Alembic migrations
+- Expo mobile placeholder using static/mock contract data until remaining
+  customer API contracts are implemented
+- provider-neutral payment and manufacturing adapter boundaries, currently
+  exercised through deterministic local/mock behavior
 
 ## Main backend responsibilities
-- user management
-- template catalog
-- design customization
-- project grouping
-- quoting and pricing
-- ordering and payments
-- production workflow
-- shipment tracking
-- AI variations
-- credit accounting
+- authentication, authorization, and customer ownership enforcement
+- product, kit, and template catalog behavior
+- deterministic Design customization validation and persistence
+- direct-checkout eligibility and backend-owned pricing
+- checkout, orders, and verified payment processing
+- paid-order provider handoff and production lifecycle tracking
+- cancellation requests, shipment events, and delivery tracking
+- admin/operator authorization and audit logging for protected mutations
+
+## Explicitly deferred responsibilities
+
+- AI-assisted customization, recommendations, or variations
+- project grouping or collaborative workspaces
+- credit or gamified accounting systems
+- RFQ/manual-quote workflows
+- real-provider and carrier integrations beyond the current adapter boundaries
