@@ -6,8 +6,8 @@ PlacamIA is a mobile-first application that allows users to design, quote, and p
 Path A MVP implementation:
 
 - FastAPI modular-monolith backend with PostgreSQL, SQLAlchemy, and Alembic
-- authenticated catalog, pricing, checkout, order, payment, provider handoff,
-  and fulfillment foundations
+- public catalog and pricing foundations, plus authenticated checkout, order,
+  payment, provider handoff, and fulfillment foundations
 - deterministic local/mock provider boundaries for backend development
 - pytest security and behavior coverage
 - Expo mobile placeholder with static/mock Path A screens and explicit backend

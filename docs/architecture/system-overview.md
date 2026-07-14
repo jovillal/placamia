@@ -19,8 +19,9 @@ AI-assisted generation, recommendations, and variations are outside the MVP.
 
 ## Main backend responsibilities
 - authentication, authorization, and customer ownership enforcement
-- product, kit, and template catalog behavior
-- deterministic Design customization validation and persistence
+- product and kit catalog behavior
+- template persistence plus deterministic Design customization validation and
+  persistence
 - direct-checkout eligibility and backend-owned pricing
 - checkout, orders, and verified payment processing
 - paid-order provider handoff and production lifecycle tracking
