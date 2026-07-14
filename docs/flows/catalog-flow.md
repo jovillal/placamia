@@ -42,6 +42,7 @@ flowchart TD
 
     B3 -. inactive or unavailable .-> R1[Do not expose product as purchasable]
     B5 -. zero active required contents .-> R2[Hide kit]
+    B5 -. omitted inactive required contents .-> R3
     B5 -. unavailable required contents .-> R3[Return kit as not directly purchasable]
 ```
 
@@ -56,9 +57,15 @@ flowchart TD
   provider cost, lead time, or price claims must be ignored or rejected.
 - Active kits are visible only when they have at least one active required
   content item.
+- Inactive required kit contents are omitted from public item summaries. A
+  visible mixed-content kit remains not directly purchasable and uses the
+  customer-safe aggregate reason `kit_contents_unavailable` when the omitted
+  contents are the only blocker.
 - Unavailable, manual-quote-only, or non-priceable required kit contents must
   not be omitted from a visible kit; the kit must be returned as not directly
   purchasable with a backend-derived reason.
+- A reason derived from visible active content takes precedence over
+  `kit_contents_unavailable`.
 - Public kit contents use customer-safe product summaries and must not expose
   provider cost, provider assignment, or internal eligibility inputs.
 - Weekly provider availability is a soft operational input, not exact inventory

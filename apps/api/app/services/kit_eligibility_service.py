@@ -16,6 +16,8 @@ from app.services.product_eligibility_service import (
     ProductEligibilityService,
 )
 
+KIT_CONTENTS_UNAVAILABLE_REASON = "kit_contents_unavailable"
+
 
 @dataclass(frozen=True)
 class KitEligibility:
@@ -107,13 +109,25 @@ class KitEligibilityService:
         )
 
     def _required_content_reason(self, kit_items: list[KitItem]) -> str | None:
-        """Return the first reason required KitItems block direct checkout."""
+        """Return the customer-safe reason required contents block checkout.
+
+        Args:
+            kit_items: Required KitItems loaded from backend persistence.
+
+        Returns:
+            The first visible active-content reason, an aggregate unavailable
+            reason for inactive contents, or None when all contents are eligible.
+
+        Side effects:
+            Calls the provider adapter through ProductEligibilityService for
+            each active required content item until a blocker is found.
+        """
         if not kit_items:
             return "empty_kit"
 
         active_items = [item for item in kit_items if item.product.is_active]
         if not active_items:
-            return "inactive_kit_item"
+            return KIT_CONTENTS_UNAVAILABLE_REASON
 
         for item in active_items:
             product_eligibility = self.product_eligibility_service.evaluate_product(
@@ -124,7 +138,7 @@ class KitEligibilityService:
                 return product_eligibility.eligibility_reason or "kit_item_not_eligible"
 
         if len(active_items) < len(kit_items):
-            return "inactive_kit_item"
+            return KIT_CONTENTS_UNAVAILABLE_REASON
 
         return None
 

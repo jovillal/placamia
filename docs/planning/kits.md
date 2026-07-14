@@ -51,6 +51,10 @@ Completed:
 - #25 Create GET kits endpoint with tests
 - #172 Implement approved public kit visibility and content response contract
 
+In progress:
+
+- #176 Use a customer-safe reason for omitted inactive required contents
+
 ## Future Issues
 
 - Future issue required: create kit detail endpoint with tests
@@ -73,12 +77,24 @@ Product contents are omitted from the customer-visible kit contents and cannot
 make the Kit purchasable. If all required Product contents are inactive, the Kit
 is hidden.
 
+When a visible Kit contains both active required Products and omitted inactive
+required Products, it remains not directly purchasable. If the omitted inactive
+contents are the only blocker, the public `eligibility_reason` is the aggregate
+code `kit_contents_unavailable`. The response must not identify, count, or expose
+the internal status of omitted contents.
+
 Unavailable, manual-quote-only, or non-priceable required Product contents must
 not be silently omitted from a visible Kit because omission would change what
 the Kit is. A Kit with at least one active required Product remains visible,
 but its kit-level eligibility fields must report that the Kit is not directly
 purchasable when any required content is unavailable, manual-quote-only,
 otherwise ineligible, or not backend-priceable.
+
+A customer-visible active content reason takes precedence over
+`kit_contents_unavailable`. For example, if a visible active required Product is
+temporarily unavailable or requires a manual quote, that Product-derived reason
+is returned because the blocking content is already present in the public
+summary.
 
 Public Kit item responses must include customer-safe Product summaries rather
 than only a `product_id`, so customers can understand what the bundle contains.
@@ -116,7 +132,7 @@ Kit direct checkout follows the catalog availability state contract in
 - the Kit itself is compatible with provider adapter availability and
   direct-checkout eligibility
 
-Implementation is tracked by #110 and was refined by #172.
+Implementation is tracked by #110 and was refined by #172 and #176.
 
 ## Constraints
 
@@ -125,6 +141,9 @@ Implementation is tracked by #110 and was refined by #172.
 - Kits must not expose inactive products as available for purchase.
 - Kits must not be directly purchasable when required contents are inactive,
   unavailable, manual-quote-only, or not backend-priceable.
+- Omitted inactive required contents must use `kit_contents_unavailable` as the
+  customer-safe aggregate reason when no visible active content supplies a more
+  specific reason.
 - Kits with zero active required contents must be hidden.
 - Unavailable required contents must not be omitted from visible Kits; they must
   make the Kit visible but not directly purchasable with a backend-derived
