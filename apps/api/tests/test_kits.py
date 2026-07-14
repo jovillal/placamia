@@ -17,9 +17,12 @@ from app.models.kit import Kit
 from app.models.kit_item import KitItem
 from app.models.product import Product
 from app.repositories.kit_repository import KitRepository
-from app.services.kit_eligibility_service import KitEligibilityService
+from app.services.kit_eligibility_service import (
+    KIT_CONTENTS_UNAVAILABLE_REASON,
+    KitEligibilityService,
+)
 from app.services.kit_service import KitService
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -65,6 +68,19 @@ def available_fixture(cost: str = "12.50") -> LocalProviderFixture:
         provider_cost=Decimal(cost),
         supports_requested_configuration=True,
     )
+
+
+def catalog_persistence_snapshot(db):
+    """Return stored catalog rows for read-only endpoint assertions."""
+    return {
+        table.name: db.execute(select(table).order_by(table.c.id)).all()
+        for table in (
+            Category.__table__,
+            Product.__table__,
+            Kit.__table__,
+            KitItem.__table__,
+        )
+    }
 
 
 def test_kit_model_persists_catalog_bundle():
@@ -264,7 +280,7 @@ def test_kit_service_lists_public_items_for_active_products_only():
     assert items == [active_item]
 
 
-def test_kit_eligibility_uses_customer_safe_reason_for_inactive_required_content():
+def test_kit_eligibility_uses_customer_safe_reason_for_omitted_inactive_content():
     active_product = Product(
         id=1,
         name="Exit route sign",
@@ -296,7 +312,30 @@ def test_kit_eligibility_uses_customer_safe_reason_for_inactive_required_content
     eligibility = KitEligibilityService(provider_adapter).evaluate_kit(kit)
 
     assert eligibility.direct_checkout_eligible is False
-    assert eligibility.eligibility_reason == "kit_contents_unavailable"
+    assert eligibility.eligibility_reason == KIT_CONTENTS_UNAVAILABLE_REASON
+
+
+def test_kit_eligibility_retains_internal_reason_for_all_inactive_contents():
+    inactive_product = Product(
+        id=1,
+        name="Retired sign",
+        description=None,
+        category_id=1,
+        base_price=Decimal("9.00"),
+        is_active=False,
+    )
+    kit = Kit(id=1, name="Retired contents kit", description=None, is_active=True)
+    kit.kit_items = [
+        KitItem(product=inactive_product, product_id=1, quantity=1),
+    ]
+    provider_adapter = LocalMockProviderAdapter(
+        {(CatalogItemType.KIT, kit.id): available_fixture("20.00")}
+    )
+
+    eligibility = KitEligibilityService(provider_adapter).evaluate_kit(kit)
+
+    assert eligibility.direct_checkout_eligible is False
+    assert eligibility.eligibility_reason == "inactive_kit_item"
 
 
 def test_kit_service_lists_kits_from_repository():
@@ -419,6 +458,7 @@ def test_list_kits_endpoint_omits_inactive_content_with_customer_safe_reason():
         ]
     )
     db.commit()
+    persistence_before = catalog_persistence_snapshot(db)
 
     async def override_get_db():
         try:
@@ -461,6 +501,10 @@ def test_list_kits_endpoint_omits_inactive_content_with_customer_safe_reason():
                 }
             ]
         }
+        assert catalog_persistence_snapshot(db) == persistence_before
+        assert not db.new
+        assert not db.dirty
+        assert not db.deleted
     finally:
         app.dependency_overrides.clear()
         db.close()

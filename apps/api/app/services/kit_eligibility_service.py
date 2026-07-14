@@ -116,7 +116,8 @@ class KitEligibilityService:
 
         Returns:
             The first visible active-content reason, an aggregate unavailable
-            reason for inactive contents, or None when all contents are eligible.
+            reason for omitted inactive contents, or None when all contents are
+            eligible. The hidden all-inactive path retains its internal reason.
 
         Side effects:
             Calls the provider adapter through ProductEligibilityService for
@@ -127,7 +128,7 @@ class KitEligibilityService:
 
         active_items = [item for item in kit_items if item.product.is_active]
         if not active_items:
-            return KIT_CONTENTS_UNAVAILABLE_REASON
+            return "inactive_kit_item"
 
         for item in active_items:
             product_eligibility = self.product_eligibility_service.evaluate_product(
