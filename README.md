@@ -3,24 +3,26 @@
 PlacamIA is a mobile-first application that allows users to design, quote, and purchase industrial safety signage using templates and rules-based customization.
 
 ## Current phase
-Backend foundation:
+Path A MVP implementation:
 
-- repository structure
-- FastAPI backend
-- local PostgreSQL
-- SQLAlchemy models
-- Alembic migrations
-- pytest test suite
-- architecture and API documentation
+- FastAPI modular-monolith backend with PostgreSQL, SQLAlchemy, and Alembic
+- public catalog and pricing foundations, plus authenticated checkout, order,
+  payment, provider handoff, and fulfillment foundations
+- deterministic local/mock provider boundaries for backend development
+- pytest security and behavior coverage
+- Expo mobile placeholder with static/mock Path A screens and explicit backend
+  dependency gaps
 
-AI-assisted generation is out of scope for the MVP.
+The remaining MVP contracts and validation dependencies are tracked in
+`docs/timeline.md` and the GitHub `Current MVP` milestone. AI-assisted
+generation remains out of scope for the MVP.
 
 ## Monorepo structure
 
 ```text
 apps/
   api/        FastAPI backend
-  mobile/     Future mobile application
+  mobile/     Expo mobile placeholder (static/mock contract data)
 docs/
   api/
   architecture/

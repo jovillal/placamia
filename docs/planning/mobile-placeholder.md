@@ -358,18 +358,21 @@ navigation placeholders if it does not pretend these gaps are implemented.
 
 Backend gaps to resolve before connecting each screen to real behavior:
 
-- Customer sign-in/token acquisition flow beyond `GET /auth/me`.
-- `GET /api/v1/catalog/kits/{kit_id}` for real kit detail.
-- Template and Design endpoints: `GET /templates`,
-  `GET /templates/{id}`, `POST /designs`, and `GET /designs/{id}`.
-- Kit and Design pricing contracts beyond the current product preview slice.
-- Customer-visible cancellation/refund terms content source if static copy is
-  not acceptable for the placeholder.
-- Provider-specific payment initialization response for real payment handoff.
-- Customer payment-status polling or a documented order/payment result
-  reconciliation path for mobile state refresh.
-- Customer order list endpoint.
-- Full customer order detail endpoint if status-only tracking is insufficient.
+- #179: customer sign-in/token acquisition flow beyond `GET /auth/me`.
+- #180: `GET /api/v1/catalog/kits/{kit_id}` for real kit detail.
+- #181: `GET /api/v1/templates` and `GET /api/v1/templates/{id}`.
+- #182: `POST /api/v1/designs` and owner-only
+  `GET /api/v1/designs/{id}`.
+- #183: kit pricing beyond the current product preview slice.
+- #184: persisted Design pricing beyond the current product preview slice.
+- #185: versioned customer-visible cancellation/refund terms content source.
+- #186: real-provider payment initialization handoff response. The current
+  provider-neutral `POST /api/v1/payments` attempt initialization is already
+  implemented and must not be presented as a real provider session.
+- #187: customer payment-status polling or documented order/payment result
+  reconciliation for mobile state refresh.
+- #188: customer order list endpoint.
+- #189: full customer order detail endpoint.
 
 ## #37 Implementation Guardrails
 
@@ -403,14 +406,20 @@ The Expo placeholder must stay non-authoritative and non-production-facing:
 
 ## Child Issues
 
-Planned:
+Completed:
 
 - #36 Define initial screen map for MVP flow
 - #37 Scaffold Expo placeholder app
 
+Backend contract backlog:
+
+- #179 through #189, mapped individually in
+  `Minimum API Contract Gaps Before Real Backend Wiring`.
+
 ## Constraints
 
-- Mobile placeholder work is phase 2.
+- Mobile backend wiring follows the `Current MVP` milestone and the dependency
+  status of each screen; it is not governed by the retired phase labels.
 - Do not implement backend behavior in mobile placeholder issues.
 - Do not introduce AI, AR, 3D rendering, or gamified credit systems.
 - Keep the placeholder aligned with MVP flow: catalog, templates/designs,
