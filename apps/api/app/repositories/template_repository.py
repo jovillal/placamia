@@ -19,13 +19,16 @@ class TemplateRepository:
         self.db = db
 
     def get_active_templates(self) -> list[Template]:
-        """Return active reusable base templates ordered by name.
+        """Return active reusable base templates ordered by name and id.
 
         Returns:
-            A list of active Template model instances sorted alphabetically.
+            Active Template model instances sorted alphabetically with id as a
+            deterministic tie-breaker.
         """
         result = self.db.execute(
-            select(Template).where(Template.is_active.is_(True)).order_by(Template.name)
+            select(Template)
+            .where(Template.is_active.is_(True))
+            .order_by(Template.name, Template.id)
         )
         return list(result.scalars().all())
 

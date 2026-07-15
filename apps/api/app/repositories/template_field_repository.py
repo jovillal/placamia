@@ -28,8 +28,9 @@ class TemplateFieldRepository:
                 retrieved.
 
         Returns:
-            Active TemplateField model instances ordered by display_order. An
-            empty list is returned when the Template is missing or inactive.
+            Active TemplateField model instances ordered by display_order and
+            id. An empty list is returned when the Template is missing or
+            inactive.
         """
         result = self.db.execute(
             select(TemplateField)
@@ -39,6 +40,6 @@ class TemplateFieldRepository:
                 Template.is_active.is_(True),
                 TemplateField.is_active.is_(True),
             )
-            .order_by(TemplateField.display_order)
+            .order_by(TemplateField.display_order, TemplateField.id)
         )
         return list(result.scalars().all())

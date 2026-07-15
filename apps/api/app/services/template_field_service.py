@@ -27,7 +27,7 @@ class TemplateFieldService:
 
         Returns:
             Active TemplateFields returned by the repository, currently ordered
-            by display_order.
+            by display_order and id.
         """
         return self.template_field_repository.get_active_fields_for_template(
             template_id

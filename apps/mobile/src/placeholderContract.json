@@ -13,7 +13,7 @@
   "backendGaps": [
     "Customer sign-in/token acquisition flow beyond GET /auth/me.",
     "GET /api/v1/catalog/kits/{kit_id} for real kit detail.",
-    "Template and Design endpoints: GET /templates, GET /templates/{id}, POST /designs, and GET /designs/{id}.",
+    "Design endpoints: POST /designs and GET /designs/{id}.",
     "Kit and Design pricing contracts beyond the current product preview slice.",
     "Customer-visible cancellation/refund terms content source.",
     "Provider-specific payment initialization response for real payment handoff.",
@@ -189,13 +189,13 @@
       "dependencies": [
         {
           "name": "GET /api/v1/templates",
-          "status": "Documented-but-pending",
-          "note": "Reserved by planning docs but not implemented in endpoint inventory."
+          "status": "Implemented",
+          "note": "Returns public active Template summaries in deterministic order."
         },
         {
-          "name": "GET /api/v1/templates/{id}",
-          "status": "Documented-but-pending",
-          "note": "Needed for real TemplateField-driven input."
+          "name": "GET /api/v1/templates/{template_id}",
+          "status": "Implemented",
+          "note": "Returns public active Template detail with active backend-owned fields."
         },
         {
           "name": "POST /api/v1/designs",

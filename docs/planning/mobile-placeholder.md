@@ -178,8 +178,8 @@ Backend dependencies:
 
 | Dependency | Status | Notes |
 | --- | --- | --- |
-| `GET /api/v1/templates` | Documented-but-pending | Reserved by endpoint structure and planning docs, but not implemented in the endpoint inventory. |
-| `GET /api/v1/templates/{id}` | Documented-but-pending | Needed for real TemplateField-driven mobile input. |
+| `GET /api/v1/templates` | Implemented | Public active Template summaries with deterministic ordering. |
+| `GET /api/v1/templates/{template_id}` | Implemented | Public active Template detail with active backend-owned TemplateFields. |
 | `POST /api/v1/designs` | Documented-but-pending | Future issue required for persisted Design creation. |
 | `GET /api/v1/designs/{id}` | Documented-but-pending | Future issue required with ownership checks. |
 | AI/AR/3D/file-based design generation | Intentionally deferred | Out of MVP scope. |
@@ -360,7 +360,6 @@ Backend gaps to resolve before connecting each screen to real behavior:
 
 - #179: customer sign-in/token acquisition flow beyond `GET /auth/me`.
 - #180: `GET /api/v1/catalog/kits/{kit_id}` for real kit detail.
-- #181: `GET /api/v1/templates` and `GET /api/v1/templates/{id}`.
 - #182: `POST /api/v1/designs` and owner-only
   `GET /api/v1/designs/{id}`.
 - #183: kit pricing beyond the current product preview slice.
@@ -413,7 +412,7 @@ Completed:
 
 Backend contract backlog:
 
-- #179 through #189, mapped individually in
+- #179, #180, and #182 through #189, mapped individually in
   `Minimum API Contract Gaps Before Real Backend Wiring`.
 
 ## Constraints

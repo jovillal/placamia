@@ -84,7 +84,7 @@ def test_template_field_model_table_matches_mvp_fields():
         db.close()
 
 
-def test_template_field_repository_lists_active_fields_by_template_ordered():
+def test_template_field_repository_lists_active_fields_by_display_order_and_id():
     db = build_session()
     try:
         template = Template(
@@ -114,6 +114,13 @@ def test_template_field_repository_lists_active_fields_by_template_ordered():
                 ),
                 TemplateField(
                     template=template,
+                    field_name="reflective",
+                    field_type="boolean",
+                    allowed_values=None,
+                    display_order=1,
+                ),
+                TemplateField(
+                    template=template,
                     field_name="retired_option",
                     field_type="select",
                     allowed_values=["retired"],
@@ -134,7 +141,11 @@ def test_template_field_repository_lists_active_fields_by_template_ordered():
 
         fields = repository.get_active_fields_for_template(template.id)
 
-        assert [field.field_name for field in fields] == ["text", "size"]
+        assert [field.field_name for field in fields] == [
+            "text",
+            "reflective",
+            "size",
+        ]
         assert all(field.is_active for field in fields)
         assert {field.template_id for field in fields} == {template.id}
     finally:
