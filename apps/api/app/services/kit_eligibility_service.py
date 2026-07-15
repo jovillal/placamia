@@ -52,11 +52,13 @@ class KitEligibilityService:
             assigned_provider_id=assigned_provider_id,
         )
 
-    def evaluate_kit(self, kit: Kit) -> KitEligibility:
+    def evaluate_kit(self, kit: Kit, quantity: int = 1) -> KitEligibility:
         """Return public eligibility fields for an active catalog Kit.
 
         Args:
             kit: Kit model read from backend persistence with KitItems loaded.
+            quantity: Requested Kit quantity used for Kit provider checks and
+                effective required-content quantities.
 
         Returns:
             Backend-derived eligibility data for public kit responses.
@@ -67,7 +69,7 @@ class KitEligibilityService:
         request = ProviderItemRequest(
             item_type=CatalogItemType.KIT,
             item_id=kit.id,
-            quantity=1,
+            quantity=quantity,
             assigned_provider_id=self.assigned_provider_id,
             options={},
         )
@@ -82,7 +84,7 @@ class KitEligibilityService:
             pricing.provider_cost is not None
             and pricing.supports_requested_configuration
         )
-        content_reason = self._required_content_reason(kit.kit_items)
+        content_reason = self._required_content_reason(kit.kit_items, quantity)
         direct_checkout_eligible = (
             kit.is_active
             and content_reason is None
@@ -108,11 +110,17 @@ class KitEligibilityService:
             dispatch_lead_time_days=lead_time.dispatch_days,
         )
 
-    def _required_content_reason(self, kit_items: list[KitItem]) -> str | None:
+    def _required_content_reason(
+        self,
+        kit_items: list[KitItem],
+        kit_quantity: int = 1,
+    ) -> str | None:
         """Return the customer-safe reason required contents block checkout.
 
         Args:
             kit_items: Required KitItems loaded from backend persistence.
+            kit_quantity: Requested number of Kits used to derive each
+                required Product's effective quantity.
 
         Returns:
             The first visible active-content reason, an aggregate unavailable
@@ -126,14 +134,18 @@ class KitEligibilityService:
         if not kit_items:
             return "empty_kit"
 
-        active_items = [item for item in kit_items if item.product.is_active]
+        ordered_items = sorted(
+            kit_items,
+            key=lambda item: item.id if item.id is not None else 0,
+        )
+        active_items = [item for item in ordered_items if item.product.is_active]
         if not active_items:
             return "inactive_kit_item"
 
         for item in active_items:
             product_eligibility = self.product_eligibility_service.evaluate_product(
                 product=item.product,
-                quantity=item.quantity,
+                quantity=item.quantity * kit_quantity,
             )
             if not product_eligibility.direct_checkout_eligible:
                 return product_eligibility.eligibility_reason or "kit_item_not_eligible"

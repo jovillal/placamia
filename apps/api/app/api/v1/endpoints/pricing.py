@@ -1,8 +1,16 @@
 from app.api.dependencies import get_provider_adapter
 from app.core.database import get_db
+from app.repositories.kit_repository import KitRepository
 from app.repositories.product_repository import ProductRepository
-from app.schemas.pricing import PricingQuoteRequest, PricingQuoteResponse
+from app.schemas.pricing import (
+    KitPricingLineResponse,
+    KitPricingQuoteResponse,
+    PricingQuoteRequest,
+    PricingQuoteResponse,
+    ProductPricingQuoteResponse,
+)
 from app.services.pricing_service import (
+    PathAKitPricingPreview,
     PathAPricingRequest,
     PathAPricingService,
     PricingItemType,
@@ -20,7 +28,8 @@ router = APIRouter(prefix="/pricing", tags=["pricing"])
     summary="Preview Path A pricing",
     description=(
         "Returns a backend-calculated temporary pricing preview for eligible "
-        "direct-checkout products. Kit and design pricing remain deferred."
+        "direct-checkout Products and fixed-content Kits. Design pricing "
+        "remains deferred."
     ),
     responses={
         400: {"description": "Pricing request rejected"},
@@ -32,7 +41,7 @@ async def preview_pricing_quote(
     db: Session = Depends(get_db),
     provider_adapter=Depends(get_provider_adapter),
 ) -> PricingQuoteResponse:
-    """Return a backend-owned pricing preview for a Path A product request.
+    """Return a backend-owned pricing preview for a Product or fixed Kit.
 
     Args:
         request: Validated pricing quote request body.
@@ -41,7 +50,7 @@ async def preview_pricing_quote(
             and provider cost/capability checks.
 
     Returns:
-        Temporary product pricing preview from the pricing service.
+        Temporary Product or Kit pricing preview from the pricing service.
 
     Side effects:
         None. The endpoint does not create orders, payments, designs, checkout
@@ -54,15 +63,39 @@ async def preview_pricing_quote(
     pricing_service = PathAPricingService(provider_adapter)
 
     try:
-        preview = pricing_service.preview_price(pricing_request)
+        preview = pricing_service.preview_quote(pricing_request)
     except PricingRejected as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"code": exc.code, "message": str(exc)},
         ) from exc
 
-    return PricingQuoteResponse(
-        item_type=preview.item_type,
+    if isinstance(preview, PathAKitPricingPreview):
+        return KitPricingQuoteResponse(
+            item_type=PricingItemType.KIT,
+            item_id=preview.item_id,
+            quantity=preview.quantity,
+            currency=preview.currency,
+            customer_unit_price=preview.customer_unit_price,
+            customer_subtotal=preview.customer_subtotal,
+            preview_total=preview.customer_total,
+            pricing_rule=preview.pricing_rule,
+            provider_quote_reference=preview.provider_quote_reference,
+            lines=[
+                KitPricingLineResponse(
+                    product_id=line.product_id,
+                    product_name=line.product_name,
+                    quantity_per_kit=line.quantity_per_kit,
+                    total_quantity=line.total_quantity,
+                    customer_unit_price=line.customer_unit_price,
+                    customer_subtotal=line.customer_subtotal,
+                )
+                for line in preview.lines
+            ],
+        )
+
+    return ProductPricingQuoteResponse(
+        item_type=PricingItemType.PRODUCT,
         item_id=preview.item_id,
         quantity=preview.quantity,
         currency=preview.currency,
@@ -87,6 +120,14 @@ def _pricing_request_from_api_request(
                 detail={"code": "product_not_found", "message": "Product not found."},
             )
         item = product
+    elif request.item_type is PricingItemType.KIT:
+        kit = KitRepository(db).get_kit_by_id(request.item_id)
+        if kit is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "kit_not_found", "message": "Kit not found."},
+            )
+        item = kit
     else:
         item = object()
 

@@ -13,7 +13,7 @@
   "backendGaps": [
     "Customer sign-in/token acquisition flow beyond GET /auth/me.",
     "GET /api/v1/catalog/kits/{kit_id} for real kit detail.",
-    "Kit and Design pricing contracts beyond the current product preview slice.",
+    "Design pricing contract beyond the current Product and fixed-content Kit preview slice.",
     "Customer-visible cancellation/refund terms content source.",
     "Provider-specific payment initialization response for real payment handoff.",
     "Customer payment-status polling or order/payment result reconciliation path.",
@@ -168,8 +168,8 @@
         },
         {
           "name": "Kit pricing interaction",
-          "status": "Documented-but-pending",
-          "note": "Kit pricing method is not yet documented."
+          "status": "Implemented",
+          "note": "Fixed-content Kit previews use backend KitItem quantities and Product base prices."
         }
       ]
     },
@@ -220,7 +220,7 @@
       "purpose": "Show backend-calculated pricing as the only authoritative price source.",
       "mockState": "Static quote sample. The app does not compute or submit totals.",
       "keyActions": [
-        "Submit supported product pricing inputs in future wiring.",
+        "Submit supported Product or fixed-content Kit pricing inputs in future wiring.",
         "Display backend-calculated amount.",
         "Block checkout for unavailable, manual-quote-only, or non-priceable states."
       ],
@@ -236,9 +236,14 @@
           "note": "Current product preview uses backend base price and quantity."
         },
         {
-          "name": "Kit and Design pricing preview",
+          "name": "Kit pricing preview",
+          "status": "Implemented",
+          "note": "Temporary fixed-content rule uses backend KitItems, Product base prices, and effective quantities."
+        },
+        {
+          "name": "Design pricing preview",
           "status": "Documented-but-pending",
-          "note": "Deferred until kit and persisted Design pricing rules exist."
+          "note": "Deferred until persisted Design pricing rules exist."
         },
         {
           "name": "Frontend-supplied totals/provider cost",

@@ -173,14 +173,46 @@ Content-Type: application/json
 }
 ```
 
-### Pricing Rejection
+### Fixed-Content Kit Pricing Preview
 
 ```json
 {
-  "detail": {
-    "code": "kit_pricing_deferred",
-    "message": "Kit pricing preview is deferred until a documented kit pricing method exists."
-  }
+  "item_type": "kit",
+  "item_id": 10,
+  "quantity": 3,
+  "options": {}
+}
+```
+
+```json
+{
+  "item_type": "kit",
+  "item_id": 10,
+  "quantity": 3,
+  "currency": "COP",
+  "customer_unit_price": "50000.00",
+  "customer_subtotal": "150000.00",
+  "preview_total": "150000.00",
+  "pricing_rule": "temporary_kit_contents_base_price_v1",
+  "provider_quote_reference": "local-quote-kit-10",
+  "lines": [
+    {
+      "product_id": 1,
+      "product_name": "Exit route sign",
+      "quantity_per_kit": 2,
+      "total_quantity": 6,
+      "customer_unit_price": "20000.00",
+      "customer_subtotal": "120000.00"
+    },
+    {
+      "product_id": 2,
+      "product_name": "Assembly point sign",
+      "quantity_per_kit": 1,
+      "total_quantity": 3,
+      "customer_unit_price": "10000.00",
+      "customer_subtotal": "30000.00"
+    }
+  ]
 }
 ```
 

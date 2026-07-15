@@ -119,9 +119,76 @@ finalization rules. Provider cost/capability input is required for backend
 eligibility and traceability, but provider cost is not exposed as a
 customer-facing amount.
 
-Kit pricing preview remains explicitly deferred until a documented kit pricing
-method exists. Design pricing preview remains explicitly deferred until design
-pricing rules exist.
+## Temporary Fixed-Content Kit Pricing Preview
+
+Issue #183 extends the existing public quote endpoint to fixed-content Kits.
+Until validation fills `docs/validation/pricing-model.md`, the temporary rule
+`temporary_kit_contents_base_price_v1` uses only persisted backend catalog data:
+
+- each line's quantity per Kit is `KitItem.quantity`
+- each line's effective quantity is `KitItem.quantity` multiplied by the
+  requested Kit quantity
+- each line's customer unit price is the related `Product.base_price`
+- each line's subtotal is customer unit price multiplied by effective quantity
+- the Kit customer unit price is the sum of each Product base price multiplied
+  by its quantity per Kit
+- the Kit subtotal and preview total are the sum of line subtotals
+
+The fixed Kit response is a direct resource with this exact public shape:
+
+```json
+{
+  "item_type": "kit",
+  "item_id": 10,
+  "quantity": 3,
+  "currency": "COP",
+  "customer_unit_price": "50.00",
+  "customer_subtotal": "150.00",
+  "preview_total": "150.00",
+  "pricing_rule": "temporary_kit_contents_base_price_v1",
+  "provider_quote_reference": "local-quote-kit-10",
+  "lines": [
+    {
+      "product_id": 1,
+      "product_name": "Exit route sign",
+      "quantity_per_kit": 2,
+      "total_quantity": 6,
+      "customer_unit_price": "20.00",
+      "customer_subtotal": "120.00"
+    },
+    {
+      "product_id": 2,
+      "product_name": "Assembly point sign",
+      "quantity_per_kit": 1,
+      "total_quantity": 3,
+      "customer_unit_price": "10.00",
+      "customer_subtotal": "30.00"
+    }
+  ]
+}
+```
+
+Lines are returned in persisted `KitItem.id` order. Distinct KitItem rows remain
+distinct even when they reference the same Product. The temporary rule applies
+no tax, fee, margin, discount, or provider-cost arithmetic.
+
+Kit quote requests use the requested Kit quantity for Kit-level provider checks
+and the effective Product quantity for each required-content provider check.
+Both the requested Kit quantity and every effective Product quantity must be at
+most 100. Provider cost/capability input remains required for eligibility and
+traceability, but no provider cost or Product-level provider reference is
+exposed in the public response.
+
+The Kit quote contract accepts no editable contents or options and rejects all
+extra frontend claims. Inactive Kits, empty Kits, invalid persisted quantities,
+unavailable required contents, manual-quote-only states, and missing provider
+cost input are rejected without persistence or provider handoff side effects.
+Inactive required contents use the aggregate customer-safe reason
+`kit_contents_unavailable`.
+
+This issue implements pricing preview only. Kit checkout, orders, payment, and
+provider handoff remain outside #183. Design pricing preview remains explicitly
+deferred until persisted Design pricing rules exist.
 
 ## Related Validation Docs
 
