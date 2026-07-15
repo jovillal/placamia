@@ -11,6 +11,7 @@ from app.domain.provider_adapter import (
     ProviderItemRequest,
 )
 from app.models.kit import Kit
+from app.models.kit_item import KitItem
 from app.models.product import Product
 from app.services.kit_eligibility_service import KitEligibilityService
 from app.services.product_eligibility_service import (
@@ -86,17 +87,17 @@ class PathAPricingRequest:
     Attributes:
         item_type: Product, kit, or design pricing contract target.
         item: Backend-loaded model or validated design pricing payload.
-        quantity: Backend-validated requested item quantity.
-        options: Backend-validated material, size, finish, template, or design
-            options. No product/kit options are supported yet.
+        quantity: Submitted item quantity validated by this service before use.
+        options: Submitted material, size, finish, template, or design options
+            validated by this service. No Product/Kit options are supported yet.
         frontend_claims: Raw frontend price, provider, availability, discount,
             or total claims to reject before calculation.
     """
 
     item_type: PricingItemType
     item: Product | Kit | object
-    quantity: int
-    options: dict[str, Any] = field(default_factory=dict)
+    quantity: Any
+    options: Any = field(default_factory=dict)
     frontend_claims: dict[str, Any] = field(default_factory=dict)
 
 
@@ -148,8 +149,36 @@ class PathAPricingPreview:
     provider_quote_reference: str | None
 
 
+@dataclass(frozen=True)
+class KitPricingLine:
+    """Backend-calculated customer pricing for one persisted KitItem."""
+
+    product_id: int
+    product_name: str
+    quantity_per_kit: int
+    total_quantity: int
+    customer_unit_price: Decimal
+    customer_subtotal: Decimal
+
+
+@dataclass(frozen=True)
+class PathAKitPricingPreview:
+    """Temporary MVP customer-facing pricing preview for one fixed Kit."""
+
+    item_type: PricingItemType
+    item_id: int
+    quantity: int
+    currency: str
+    customer_unit_price: Decimal
+    customer_subtotal: Decimal
+    customer_total: Decimal
+    pricing_rule: str
+    provider_quote_reference: str | None
+    lines: tuple[KitPricingLine, ...]
+
+
 class PathAPricingService:
-    """Validate Path A pricing contracts before calculation is implemented."""
+    """Validate and calculate temporary Path A Product and Kit previews."""
 
     def __init__(
         self,
@@ -187,6 +216,7 @@ class PathAPricingService:
                 direct-checkout eligible.
         """
         self._reject_frontend_pricing_claims(request.frontend_claims)
+        self._reject_kit_frontend_claims(request)
         self._validate_quantity(request.quantity)
         self._validate_options(request.options)
 
@@ -209,19 +239,71 @@ class PathAPricingService:
             message="Pricing item type is not supported.",
         )
 
-    def preview_price(self, request: PathAPricingRequest) -> PathAPricingPreview:
-        """Return a temporary MVP pricing preview for an eligible Product.
+    def preview_quote(
+        self,
+        request: PathAPricingRequest,
+    ) -> PathAPricingPreview | PathAKitPricingPreview:
+        """Return a public pricing quote preview for an eligible Product or Kit.
 
         Args:
             request: Backend-owned pricing request.
 
         Returns:
-            Customer-facing product preview amounts calculated by the temporary
-            #27 MVP rule.
+            Customer-facing Product or Kit amounts from the applicable
+            temporary quote rule.
 
         Raises:
             PricingRejected: If request data is unsafe, unsupported, not
-                direct-checkout eligible, or not supported by #27.
+                direct-checkout eligible, or unsupported by the public quote.
+        """
+        if request.item_type is not PricingItemType.KIT:
+            return self.preview_price(request)
+
+        self._reject_frontend_pricing_claims(request.frontend_claims)
+        self._reject_kit_frontend_claims(request)
+        self._validate_quantity(request.quantity)
+        self._validate_options(request.options)
+
+        validation = self._validate_kit_pricing(request)
+        kit = self._require_kit(request.item)
+        lines = tuple(
+            self._kit_pricing_line(item, request.quantity)
+            for item in self._ordered_kit_items(kit)
+        )
+        unit_price = sum(
+            (line.customer_unit_price * line.quantity_per_kit for line in lines),
+            start=Decimal("0.00"),
+        )
+        subtotal = sum(
+            (line.customer_subtotal for line in lines),
+            start=Decimal("0.00"),
+        )
+        return PathAKitPricingPreview(
+            item_type=PricingItemType.KIT,
+            item_id=kit.id,
+            quantity=request.quantity,
+            currency=self.currency,
+            customer_unit_price=unit_price,
+            customer_subtotal=subtotal,
+            customer_total=subtotal,
+            pricing_rule="temporary_kit_contents_base_price_v1",
+            provider_quote_reference=validation.provider_quote_reference,
+            lines=lines,
+        )
+
+    def preview_price(self, request: PathAPricingRequest) -> PathAPricingPreview:
+        """Return the existing checkout-facing Product pricing preview.
+
+        Args:
+            request: Backend-owned pricing request.
+
+        Returns:
+            Customer-facing Product amounts calculated by the temporary #27
+            MVP rule.
+
+        Raises:
+            PricingRejected: If request data is unsafe, unsupported, not
+                direct-checkout eligible, or outside the Product preview.
         """
         self._reject_frontend_pricing_claims(request.frontend_claims)
         self._validate_quantity(request.quantity)
@@ -274,7 +356,10 @@ class PathAPricingService:
     ) -> PathAPricingValidation:
         """Validate pricing contract inputs for one Product request."""
         product = self._require_product(request.item)
-        eligibility_service = ProductEligibilityService(self.provider_adapter)
+        eligibility_service = ProductEligibilityService(
+            self.provider_adapter,
+            assigned_provider_id=self.assigned_provider_id,
+        )
         eligibility = eligibility_service.evaluate_product(
             product=product,
             quantity=request.quantity,
@@ -304,11 +389,18 @@ class PathAPricingService:
     ) -> PathAPricingValidation:
         """Validate pricing contract inputs for one Kit request."""
         kit = self._require_kit(request.item)
-        eligibility_service = KitEligibilityService(self.provider_adapter)
-        eligibility = eligibility_service.evaluate_kit(kit)
+        self._validate_kit_contents(kit, request.quantity)
+        eligibility_service = KitEligibilityService(
+            self.provider_adapter,
+            assigned_provider_id=self.assigned_provider_id,
+        )
+        eligibility = eligibility_service.evaluate_kit(kit, request.quantity)
         if not eligibility.direct_checkout_eligible:
+            rejection_code = eligibility.eligibility_reason or "not_eligible"
+            if rejection_code == "inactive_kit_item":
+                rejection_code = "kit_contents_unavailable"
             raise PricingRejected(
-                code=eligibility.eligibility_reason or "not_eligible",
+                code=rejection_code,
                 message="Kit is not eligible for direct checkout pricing.",
             )
 
@@ -324,6 +416,69 @@ class PathAPricingService:
             provider_cost_input_available=True,
             provider_quote_reference=quote_reference,
         )
+
+    def _validate_kit_contents(self, kit: Kit, kit_quantity: int) -> None:
+        """Reject invalid fixed Kit composition before provider evaluation."""
+        if not kit.is_active:
+            raise PricingRejected(
+                code="inactive",
+                message="Kit is not eligible for direct checkout pricing.",
+            )
+
+        kit_items = self._ordered_kit_items(kit)
+        if not kit_items:
+            raise PricingRejected(
+                code="empty_kit",
+                message="Kit is not eligible for direct checkout pricing.",
+            )
+
+        for item in kit_items:
+            if (
+                not isinstance(item.quantity, int)
+                or isinstance(item.quantity, bool)
+                or item.quantity < 1
+            ):
+                raise PricingRejected(
+                    code="invalid_kit_configuration",
+                    message="Kit contains an invalid required Product quantity.",
+                )
+            if item.quantity * kit_quantity > MAX_PRICING_QUANTITY:
+                raise PricingRejected(
+                    code="quantity_too_high",
+                    message="Effective Product quantity exceeds the pricing limit.",
+                )
+
+    def _ordered_kit_items(self, kit: Kit) -> list[KitItem]:
+        """Return persisted KitItems ordered deterministically by identifier."""
+        return sorted(
+            kit.kit_items,
+            key=lambda item: item.id if item.id is not None else 0,
+        )
+
+    def _kit_pricing_line(
+        self,
+        item: KitItem,
+        kit_quantity: int,
+    ) -> KitPricingLine:
+        """Calculate one customer-facing line from backend-owned Kit contents."""
+        total_quantity = item.quantity * kit_quantity
+        customer_unit_price = item.product.base_price
+        return KitPricingLine(
+            product_id=item.product.id,
+            product_name=item.product.name,
+            quantity_per_kit=item.quantity,
+            total_quantity=total_quantity,
+            customer_unit_price=customer_unit_price,
+            customer_subtotal=customer_unit_price * total_quantity,
+        )
+
+    def _reject_kit_frontend_claims(self, request: PathAPricingRequest) -> None:
+        """Reject every extra public field for the strict Kit quote contract."""
+        if request.item_type is PricingItemType.KIT and request.frontend_claims:
+            raise PricingRejected(
+                code="frontend_pricing_claim_not_allowed",
+                message="Extra frontend claims are not accepted for Kit pricing.",
+            )
 
     def _reject_frontend_pricing_claims(
         self,
@@ -343,7 +498,7 @@ class PathAPricingService:
                 ),
             )
 
-    def _validate_quantity(self, quantity: int) -> None:
+    def _validate_quantity(self, quantity: Any) -> None:
         """Reject non-integer or abusive pricing quantities."""
         if not isinstance(quantity, int) or isinstance(quantity, bool):
             raise PricingRejected(
@@ -361,7 +516,7 @@ class PathAPricingService:
                 message="Quantity exceeds the Path A pricing limit.",
             )
 
-    def _validate_options(self, options: dict[str, Any]) -> None:
+    def _validate_options(self, options: Any) -> None:
         """Reject unsupported material, size, finish, or template options."""
         if not isinstance(options, dict):
             raise PricingRejected(

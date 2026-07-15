@@ -1,22 +1,19 @@
 from decimal import Decimal
-from typing import Any
+from typing import Annotated, Any, Literal
 
 from app.services.pricing_service import PricingItemType
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class PricingQuoteRequest(BaseModel):
-    """Request schema for a Path A pricing preview.
+class BasePricingQuoteRequest(BaseModel):
+    """Shared request fields for one Path A pricing preview.
 
     Known fields are validated explicitly. Extra frontend-supplied fields are
     preserved so pricing services can reject price, provider, availability,
     eligibility, ownership, or total claims instead of silently trusting them.
     """
 
-    item_type: PricingItemType
     item_id: int = Field(gt=0)
-    quantity: int
-    options: dict[str, Any] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="allow")
 
@@ -25,10 +22,41 @@ class PricingQuoteRequest(BaseModel):
         return dict(self.model_extra or {})
 
 
-class PricingQuoteResponse(BaseModel):
+class ProductPricingQuoteRequest(BasePricingQuoteRequest):
+    """Existing Product pricing request contract."""
+
+    item_type: Literal[PricingItemType.PRODUCT]
+    quantity: int
+    options: dict[str, Any] = Field(default_factory=dict)
+
+
+class KitPricingQuoteRequest(BasePricingQuoteRequest):
+    """Strict Kit request whose business values are validated by pricing rules."""
+
+    item_type: Literal[PricingItemType.KIT]
+    quantity: Any
+    options: Any = Field(default_factory=dict)
+
+
+class DesignPricingQuoteRequest(BasePricingQuoteRequest):
+    """Existing deferred Design pricing request contract."""
+
+    item_type: Literal[PricingItemType.DESIGN]
+    quantity: int
+    options: dict[str, Any] = Field(default_factory=dict)
+
+
+PricingQuoteRequest = Annotated[
+    ProductPricingQuoteRequest | KitPricingQuoteRequest | DesignPricingQuoteRequest,
+    Field(discriminator="item_type"),
+]
+"""Discriminated Product, Kit, or Design pricing quote request."""
+
+
+class ProductPricingQuoteResponse(BaseModel):
     """Response schema for a temporary product pricing preview."""
 
-    item_type: PricingItemType
+    item_type: Literal[PricingItemType.PRODUCT]
     item_id: int
     quantity: int
     currency: str
@@ -37,3 +65,36 @@ class PricingQuoteResponse(BaseModel):
     preview_total: Decimal
     pricing_rule: str
     provider_quote_reference: str | None
+
+
+class KitPricingLineResponse(BaseModel):
+    """Customer-safe calculated pricing for one fixed Kit content line."""
+
+    product_id: int
+    product_name: str
+    quantity_per_kit: int
+    total_quantity: int
+    customer_unit_price: Decimal
+    customer_subtotal: Decimal
+
+
+class KitPricingQuoteResponse(BaseModel):
+    """Response schema for a temporary fixed-content Kit pricing preview."""
+
+    item_type: Literal[PricingItemType.KIT]
+    item_id: int
+    quantity: int
+    currency: str
+    customer_unit_price: Decimal
+    customer_subtotal: Decimal
+    preview_total: Decimal
+    pricing_rule: str
+    provider_quote_reference: str | None
+    lines: list[KitPricingLineResponse]
+
+
+PricingQuoteResponse = Annotated[
+    ProductPricingQuoteResponse | KitPricingQuoteResponse,
+    Field(discriminator="item_type"),
+]
+"""Discriminated Product or Kit pricing quote response."""
