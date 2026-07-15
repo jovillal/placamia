@@ -157,7 +157,7 @@ Backend dependencies:
 | Dependency | Status | Notes |
 | --- | --- | --- |
 | `GET /api/v1/catalog/kits/{kit_id}` | Documented-but-pending | `docs/planning/kits.md` lists this as a future issue. |
-| Kit pricing interaction | Documented-but-pending | Kit pricing details remain pending until the kit pricing method is documented. |
+| Kit pricing interaction | Implemented | Fixed-content Kits use backend KitItem quantities and Product base prices for temporary quote previews. |
 
 ### 7. Template Selection And Rules-Based Design Input
 
@@ -193,7 +193,7 @@ Purpose:
 
 Key actions:
 
-- Submit supported product pricing inputs.
+- Submit supported Product or fixed-content Kit pricing inputs.
 - Display backend-calculated amount and currency.
 - Reject or block checkout for inactive, unavailable, manual-quote-only,
   non-priceable, or invalid configurations.
@@ -204,7 +204,7 @@ Backend dependencies:
 | --- | --- | --- |
 | `POST /api/v1/pricing/quotes` | Implemented | Public pricing preview endpoint. |
 | Product pricing preview | Implemented | Temporary Path A product rule uses backend `Product.base_price` and quantity. |
-| Kit pricing preview | Documented-but-pending | Explicitly deferred until kit pricing method exists. |
+| Kit pricing preview | Implemented | Temporary fixed-content rule uses backend KitItems, Product base prices, and effective quantities. |
 | Design pricing preview | Documented-but-pending | Explicitly deferred until persisted Design pricing rules exist. |
 | Frontend-supplied totals/provider cost | Intentionally deferred | Must be ignored or rejected; never authoritative. |
 
@@ -360,7 +360,6 @@ Backend gaps to resolve before connecting each screen to real behavior:
 
 - #179: customer sign-in/token acquisition flow beyond `GET /auth/me`.
 - #180: `GET /api/v1/catalog/kits/{kit_id}` for real kit detail.
-- #183: kit pricing beyond the current product preview slice.
 - #184: persisted Design pricing beyond the current product preview slice.
 - #185: versioned customer-visible cancellation/refund terms content source.
 - #186: real-provider payment initialization handoff response. The current
@@ -410,7 +409,7 @@ Completed:
 
 Backend contract backlog:
 
-- #179, #180, and #183 through #189, mapped individually in
+- #179, #180, and #184 through #189, mapped individually in
   `Minimum API Contract Gaps Before Real Backend Wiring`.
 
 ## Constraints

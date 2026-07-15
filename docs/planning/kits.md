@@ -19,6 +19,7 @@ responses, and backend-priceable.
 - Public kit listing endpoint
 - Active product visibility rules for kit contents
 - Direct-checkout eligibility rules for kits
+- Temporary fixed-content Kit pricing preview
 - Provider adapter boundary responses for kit availability, direct-checkout
   eligibility, lead time, and fulfillment capability
 
@@ -54,12 +55,13 @@ Completed:
 In progress:
 
 - #176 Use a customer-safe reason for omitted inactive required contents
+- #183 Implement the temporary fixed-content Path A Kit pricing preview
 
 ## Future Issues
 
 - Future issue required: create kit detail endpoint with tests
-- Future issue required: define kit pricing interaction with pricing rules and
-  provider cost inputs from the provider adapter boundary
+- Future issue required: replace the temporary Kit contents/base-price rule
+  after commercial pricing validation is approved
 
 ## Current MVP Listing Behavior
 
@@ -133,6 +135,22 @@ Kit direct checkout follows the catalog availability state contract in
   direct-checkout eligibility
 
 Implementation is tracked by #110 and was refined by #172 and #176.
+
+## Temporary Kit Pricing Interaction
+
+`POST /api/v1/pricing/quotes` supports fixed-content Kits using the temporary
+`temporary_kit_contents_base_price_v1` rule documented in
+`docs/planning/pricing.md`. The backend loads the Kit and every KitItem/Product;
+the frontend cannot submit or edit Kit contents, quantities per Kit, prices,
+provider assignment, availability, or eligibility.
+
+The quote response includes deterministic KitItem lines ordered by KitItem id.
+Each line reports the customer-safe Product identity, quantity per Kit,
+effective total quantity, Product base price, and calculated subtotal. Provider
+cost and Product-level provider references remain internal.
+
+This interaction is read-only pricing preview. It does not make Kit checkout,
+order creation, payment, or provider handoff part of #183.
 
 ## Constraints
 

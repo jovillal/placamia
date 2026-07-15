@@ -104,7 +104,7 @@ The current implemented API endpoints are:
 | `GET` | `/api/v1/templates/{template_id}` | Templates | Public | `TemplateDetailRead` object with active fields |
 | `POST` | `/api/v1/designs` | Designs | Required | `DesignRead` object |
 | `GET` | `/api/v1/designs/{design_id}` | Designs | Required | Owner-scoped `DesignRead` object |
-| `POST` | `/api/v1/pricing/quotes` | Pricing | Public | `PricingQuoteResponse` object |
+| `POST` | `/api/v1/pricing/quotes` | Pricing | Public | Direct Product or fixed-content Kit pricing quote |
 | `POST` | `/api/v1/orders` | Orders | Required | `OrderRead` object |
 | `GET` | `/api/v1/orders/{order_id}/status` | Orders | Required | `OrderStatusRead` object |
 | `POST` | `/api/v1/orders/{order_id}/cancellation-request` | Orders | Required owner | `OrderCancellationResponse` object |
