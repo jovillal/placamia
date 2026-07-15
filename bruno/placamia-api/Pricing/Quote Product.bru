@@ -1,0 +1,29 @@
+meta {
+  name: Quote Product
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}{{api_prefix}}/pricing/quotes
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "item_type": "product",
+    "item_id": {{product_id}},
+    "quantity": {{pricing_quantity}},
+    "options": {}
+  }
+}
+
+docs {
+  Returns a public backend-calculated Product pricing preview. Product pricing
+  does not require or validate `access_token`.
+}

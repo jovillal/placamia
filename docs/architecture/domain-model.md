@@ -6,9 +6,10 @@ This document summarizes PlacamIA domain entities and their current MVP status.
 It must stay aligned with the SQLAlchemy models, migrations, and canonical
 planning docs.
 
-The MVP follows Path A: direct checkout for fully parametrizable,
-backend-priceable products and kits, with provider-neutral fulfillment after
-verified payment.
+The MVP follows Path A. Product, fixed-content Kit, and persisted Design pricing
+previews use backend-owned inputs. The current order path consumes Product
+pricing; Kit and Design order creation remain separate work, with
+provider-neutral fulfillment after verified payment.
 
 ## Critical Rules
 
@@ -41,6 +42,7 @@ Current data fields:
 
 Current relationship rules:
 - User role is backend-owned.
+- User may own many persisted Designs.
 - Admin authorization must use the persisted role, never frontend claims.
 
 ### AuditLog
@@ -91,10 +93,12 @@ Current data fields:
 Current relationship rules:
 - Product belongs to one Category.
 - Product may appear inside many KitItems.
+- Product may provide the required sellable pricing anchor for many Templates.
 - Inactive Products are not returned by public product endpoints.
 - `base_price` is foundation catalog data, not a final checkout price.
-- Product does not yet store provider assignment, provider availability,
-  direct-checkout eligibility, or deterministic pricing rules.
+- Temporary Product, Kit, and persisted Design previews may derive customer
+  amounts from backend-owned Product base prices. Product does not store
+  provider assignment or provider availability.
 
 ### Kit
 
@@ -138,6 +142,7 @@ Represents a reusable, catalog-level design base.
 
 Current data fields:
 - id
+- product_id
 - name
 - description
 - is_active
@@ -145,6 +150,8 @@ Current data fields:
 - updated_at
 
 Current relationship rules:
+- Template belongs to one Product that provides the backend-owned temporary
+  sellable pricing anchor for its Designs.
 - Template may have many TemplateFields.
 - Template may have many Designs.
 - Inactive Templates cannot be used to create valid Designs.
@@ -178,17 +185,24 @@ Represents a user-customized instance derived from a Template.
 
 Current data fields:
 - id
+- customer_id
 - template_id
 - customization_values
 - created_at
 - updated_at
 
 Current relationship rules:
+- Design belongs to one authenticated customer.
 - Design belongs to one valid Template.
 - Design stores validated customization values.
 - Design does not store TemplateField definitions.
 - Design customization values are keyed by TemplateField `field_name`.
 - Rejected customization must not create a Design record.
+- Persisted Design pricing loads the owner-scoped Design, revalidates its
+  customization, and derives the temporary amount through
+  `Design -> Template -> Product`.
+- Design pricing does not expose ownership, persisted customization, Product
+  mapping, provider cost, or provider assignment.
 
 ### Order
 

@@ -39,13 +39,18 @@ http://localhost:8000
 - `Catalog / List Products`
 - `Catalog / Get Product`
 - `Catalog / List Kits`
+- `Pricing / Quote Product`
+- `Pricing / Quote Kit`
+- `Pricing / Quote Design`
 - `Auth / Current User`
 - `Payments / Initialize Payment`
 
-The catalog requests are public. `Auth / Current User` uses the `access_token`
-environment variable and returns `401` until a valid local bearer token is
-provided. `Payments / Initialize Payment` also uses `access_token` and expects
-`payment_order_id` to point at an eligible authenticated draft order.
+The catalog and Product/Kit pricing requests are public. `Pricing / Quote
+Design` loads an owner-scoped persisted Design and uses the `access_token`
+environment variable. It returns `401` until a valid local bearer token is
+provided. `Auth / Current User` and `Payments / Initialize Payment` also use
+`access_token`; payment initialization expects `payment_order_id` to point at
+an eligible authenticated draft order.
 
 ## Local Variables
 
@@ -54,5 +59,8 @@ provided. `Payments / Initialize Payment` also uses `access_token` and expects
 | `base_url` | `http://localhost:8000` | Local API origin. |
 | `api_prefix` | `/api/v1` | Versioned API prefix. |
 | `product_id` | `1` | Product id used by `Catalog / Get Product`. |
+| `kit_id` | `1` | Kit id used by `Pricing / Quote Kit`. |
+| `design_id` | `1` | Owned persisted Design id used by `Pricing / Quote Design`. |
+| `pricing_quantity` | `1` | Quantity used by all pricing preview requests. |
 | `payment_order_id` | `1` | Draft order id used by `Payments / Initialize Payment`. |
 | `access_token` | empty | Optional bearer token for authenticated requests. |

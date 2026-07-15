@@ -7,9 +7,11 @@ verification.
 
 This flow is security-critical.
 
-The MVP checkout path is direct checkout for fully parametrizable catalog items.
-Checkout must not wait for provider quote confirmation, but it must reject any
-item that cannot be priced and validated by backend-owned rules.
+The implemented checkout path is direct checkout for fully parametrizable
+Products. Checkout must not wait for provider quote confirmation, but it must
+reject any item that cannot be priced and validated by backend-owned rules.
+Fixed-content Kits and persisted Designs have pricing previews; their order
+creation paths remain separate work and do not enter this flow.
 
 ## Flow Diagram
 
@@ -17,8 +19,8 @@ item that cannot be priced and validated by backend-owned rules.
 flowchart TD
     U1[User requests checkout] --> B1[Validate direct-checkout eligibility]
 
-    B1 --> D1[(Design)]
-    B1 --> D2[(Catalog, pricing rules, provider adapter responses)]
+    B1 --> D1[(Product catalog state)]
+    B1 --> D2[(Pricing rules and provider adapter responses)]
 
     B1 --> B2[Recalculate backend price]
     B2 --> B3[Show cancellation and refund terms]
@@ -49,9 +51,13 @@ flowchart TD
 ### Key Rules
 - Orders must be created from backend-validated data
 - Frontend price must be ignored
-- Checkout eligibility is limited to active, fully parametrizable,
-  backend-priceable products, kits, and persisted Design configurations.
-  Design order creation remains separate implementation work.
+- Checkout eligibility in this implemented flow is limited to active,
+  fully parametrizable, backend-priceable Products.
+- Fixed-content Kit pricing is public, but Kit order creation remains separate
+  work.
+- Persisted Design pricing is owner-scoped, revalidates current TemplateFields,
+  and derives its temporary amount through `Design -> Template -> Product`, but
+  it does not create an Order or enter payment initialization.
 - Manual quotes and provider-confirmed pricing are out of scope for the direct
   checkout MVP path
 - Cancellation and refund terms must be shown before payment

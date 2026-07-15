@@ -1,0 +1,34 @@
+meta {
+  name: Quote Design
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}{{api_prefix}}/pricing/quotes
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "item_type": "design",
+    "item_id": {{design_id}},
+    "quantity": {{pricing_quantity}}
+  }
+}
+
+docs {
+  Returns a backend-calculated pricing preview for the authenticated customer's
+  persisted Design. Set `access_token` and an owner-scoped `design_id` before
+  running this request. Customization, Product mapping, and price claims are
+  intentionally absent because the backend reloads and revalidates them.
+}
