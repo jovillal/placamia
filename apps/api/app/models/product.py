@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 if TYPE_CHECKING:
     from app.models.category import Category
     from app.models.kit_item import KitItem
+    from app.models.template import Template
 
 
 class Product(Base):
@@ -49,5 +50,9 @@ class Product(Base):
     )
     kit_items: Mapped[list[KitItem]] = relationship(
         "KitItem",
+        back_populates="product",
+    )
+    templates: Mapped[list[Template]] = relationship(
+        "Template",
         back_populates="product",
     )

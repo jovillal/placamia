@@ -7,13 +7,20 @@ from typing import Any
 
 from app.domain.provider_adapter import (
     CatalogItemType,
+    EligibilityState,
+    LOCAL_DIRECT_CHECKOUT_ELIGIBLE_STATES,
     ProviderAdapter,
     ProviderItemRequest,
 )
+from app.models.design import Design
 from app.models.kit import Kit
 from app.models.kit_item import KitItem
 from app.models.product import Product
 from app.services.kit_eligibility_service import KitEligibilityService
+from app.services.design_validation_service import (
+    DesignValidationError,
+    DesignValidationService,
+)
 from app.services.product_eligibility_service import (
     DEFAULT_PROVIDER_ID,
     ProductEligibilityService,
@@ -86,7 +93,7 @@ class PathAPricingRequest:
 
     Attributes:
         item_type: Product, kit, or design pricing contract target.
-        item: Backend-loaded model or validated design pricing payload.
+        item: Backend-loaded Product, Kit, or persisted Design model.
         quantity: Submitted item quantity validated by this service before use.
         options: Submitted material, size, finish, template, or design options
             validated by this service. No Product/Kit options are supported yet.
@@ -95,7 +102,7 @@ class PathAPricingRequest:
     """
 
     item_type: PricingItemType
-    item: Product | Kit | object
+    item: Product | Kit | Design | object
     quantity: Any
     options: Any = field(default_factory=dict)
     frontend_claims: dict[str, Any] = field(default_factory=dict)
@@ -131,8 +138,8 @@ class PathAPricingPreview:
         customer_unit_price: Temporary customer unit price.
         customer_subtotal: Temporary subtotal before future tax, fee, discount,
             margin, or checkout finalization rules.
-        customer_total: Temporary preview total. For #27 only, this equals the
-            subtotal.
+        customer_total: Temporary preview total. For the current Product and
+            Design rules, this equals the subtotal.
         pricing_rule: Stable name for the temporary rule used.
         provider_quote_reference: Provider adapter trace reference. This is not
             a customer-facing price or provider cost.
@@ -178,13 +185,14 @@ class PathAKitPricingPreview:
 
 
 class PathAPricingService:
-    """Validate and calculate temporary Path A Product and Kit previews."""
+    """Validate and calculate temporary Path A pricing previews."""
 
     def __init__(
         self,
         provider_adapter: ProviderAdapter,
         currency: str = "COP",
         assigned_provider_id: str = DEFAULT_PROVIDER_ID,
+        design_validation_service: DesignValidationService | None = None,
     ) -> None:
         """Store pricing dependencies.
 
@@ -194,10 +202,13 @@ class PathAPricingService:
             currency: Currency code used in customer-facing pricing results.
             assigned_provider_id: Backend-selected provider identifier used for
                 adapter pricing requests.
+            design_validation_service: Backend validator used to revalidate
+                persisted Design customization before Design pricing.
         """
         self.provider_adapter = provider_adapter
         self.currency = currency
         self.assigned_provider_id = assigned_provider_id
+        self.design_validation_service = design_validation_service
 
     def validate_pricing_request(
         self,
@@ -215,6 +226,7 @@ class PathAPricingService:
             PricingRejected: If request data is unsafe, unsupported, or not
                 direct-checkout eligible.
         """
+        self._reject_design_frontend_claims(request)
         self._reject_frontend_pricing_claims(request.frontend_claims)
         self._reject_kit_frontend_claims(request)
         self._validate_quantity(request.quantity)
@@ -225,14 +237,7 @@ class PathAPricingService:
         if request.item_type is PricingItemType.KIT:
             return self._validate_kit_pricing(request)
         if request.item_type is PricingItemType.DESIGN:
-            raise PricingRejected(
-                code="design_pricing_contract_only",
-                message=(
-                    "Design pricing is part of the Path A contract, but full "
-                    "implementation is deferred until design pricing rules are "
-                    "defined."
-                ),
-            )
+            return self._validate_design_pricing(request)
 
         raise PricingRejected(
             code="unsupported_item_type",
@@ -243,19 +248,21 @@ class PathAPricingService:
         self,
         request: PathAPricingRequest,
     ) -> PathAPricingPreview | PathAKitPricingPreview:
-        """Return a public pricing quote preview for an eligible Product or Kit.
+        """Return a pricing quote preview for an eligible Product, Kit, or Design.
 
         Args:
             request: Backend-owned pricing request.
 
         Returns:
-            Customer-facing Product or Kit amounts from the applicable
+            Customer-facing Product, Kit, or Design amounts from the applicable
             temporary quote rule.
 
         Raises:
             PricingRejected: If request data is unsafe, unsupported, not
                 direct-checkout eligible, or unsupported by the public quote.
         """
+        if request.item_type is PricingItemType.DESIGN:
+            return self._preview_design(request)
         if request.item_type is not PricingItemType.KIT:
             return self.preview_price(request)
 
@@ -289,6 +296,29 @@ class PathAPricingService:
             pricing_rule="temporary_kit_contents_base_price_v1",
             provider_quote_reference=validation.provider_quote_reference,
             lines=lines,
+        )
+
+    def _preview_design(self, request: PathAPricingRequest) -> PathAPricingPreview:
+        """Return the temporary persisted Design base-price preview."""
+        self._reject_design_frontend_claims(request)
+        self._reject_frontend_pricing_claims(request.frontend_claims)
+        self._validate_quantity(request.quantity)
+        self._validate_options(request.options)
+
+        validation = self._validate_design_pricing(request)
+        design = self._require_design(request.item)
+        unit_price = design.template.product.base_price
+        subtotal = unit_price * request.quantity
+        return PathAPricingPreview(
+            item_type=PricingItemType.DESIGN,
+            item_id=design.id,
+            quantity=request.quantity,
+            currency=self.currency,
+            customer_unit_price=unit_price,
+            customer_subtotal=subtotal,
+            customer_total=subtotal,
+            pricing_rule="temporary_design_product_base_price_v1",
+            provider_quote_reference=validation.provider_quote_reference,
         )
 
     def preview_price(self, request: PathAPricingRequest) -> PathAPricingPreview:
@@ -417,6 +447,81 @@ class PathAPricingService:
             provider_quote_reference=quote_reference,
         )
 
+    def _validate_design_pricing(
+        self,
+        request: PathAPricingRequest,
+    ) -> PathAPricingValidation:
+        """Validate one persisted owned Design for temporary pricing."""
+        design = self._require_design(request.item)
+        if not design.template.is_active:
+            raise PricingRejected(
+                code="inactive_template",
+                message="Design is not eligible for direct checkout pricing.",
+            )
+        if not design.template.product.is_active:
+            raise PricingRejected(
+                code="inactive",
+                message="Design is not eligible for direct checkout pricing.",
+            )
+        if self.design_validation_service is None:
+            raise PricingRejected(
+                code="design_configuration_unavailable",
+                message="Design configuration is unavailable.",
+            )
+
+        try:
+            accepted_values = self.design_validation_service.validate_customization(
+                template_id=design.template_id,
+                customization_values=design.customization_values,
+            )
+        except DesignValidationError as exc:
+            raise PricingRejected(
+                code="design_configuration_unavailable",
+                message="Design configuration is unavailable.",
+            ) from exc
+
+        provider_request = ProviderItemRequest(
+            item_type=CatalogItemType.DESIGN,
+            item_id=design.id,
+            quantity=request.quantity,
+            assigned_provider_id=self.assigned_provider_id,
+            options=accepted_values,
+        )
+        availability = self.provider_adapter.check_availability(provider_request)
+        pricing = self.provider_adapter.quote_pricing(provider_request)
+        eligibility = self.provider_adapter.check_direct_checkout_eligibility(
+            provider_request
+        )
+        self.provider_adapter.estimate_lead_time(provider_request)
+
+        provider_priceable = (
+            pricing.provider_cost is not None
+            and pricing.supports_requested_configuration
+        )
+        if (
+            availability.state not in LOCAL_DIRECT_CHECKOUT_ELIGIBLE_STATES
+            or not provider_priceable
+            or eligibility.state is not EligibilityState.ELIGIBLE
+        ):
+            raise PricingRejected(
+                code=(
+                    eligibility.reason_code
+                    or pricing.reason_code
+                    or availability.reason_code
+                    or "not_eligible"
+                ),
+                message="Design is not eligible for direct checkout pricing.",
+            )
+
+        return PathAPricingValidation(
+            item_type=PricingItemType.DESIGN,
+            item_id=design.id,
+            quantity=request.quantity,
+            currency=self.currency,
+            provider_cost_input_available=True,
+            provider_quote_reference=pricing.quote_reference,
+        )
+
     def _validate_kit_contents(self, kit: Kit, kit_quantity: int) -> None:
         """Reject invalid fixed Kit composition before provider evaluation."""
         if not kit.is_active:
@@ -484,6 +589,14 @@ class PathAPricingService:
             raise PricingRejected(
                 code="frontend_pricing_claim_not_allowed",
                 message="Extra frontend claims are not accepted for Kit pricing.",
+            )
+
+    def _reject_design_frontend_claims(self, request: PathAPricingRequest) -> None:
+        """Reject every extra public field for persisted Design pricing."""
+        if request.item_type is PricingItemType.DESIGN and request.frontend_claims:
+            raise PricingRejected(
+                code="frontend_pricing_claim_not_allowed",
+                message="Extra frontend claims are not accepted for Design pricing.",
             )
 
     def _reject_frontend_pricing_claims(
@@ -579,7 +692,7 @@ class PathAPricingService:
             )
         return pricing.quote_reference
 
-    def _require_product(self, item: Product | Kit | object) -> Product:
+    def _require_product(self, item: Product | Kit | Design | object) -> Product:
         """Return item as Product or reject mismatched pricing input."""
         if not isinstance(item, Product):
             raise PricingRejected(
@@ -588,11 +701,20 @@ class PathAPricingService:
             )
         return item
 
-    def _require_kit(self, item: Product | Kit | object) -> Kit:
+    def _require_kit(self, item: Product | Kit | Design | object) -> Kit:
         """Return item as Kit or reject mismatched pricing input."""
         if not isinstance(item, Kit):
             raise PricingRejected(
                 code="invalid_pricing_item",
                 message="Kit pricing requires a Kit model.",
+            )
+        return item
+
+    def _require_design(self, item: Product | Kit | Design | object) -> Design:
+        """Return item as Design or reject mismatched pricing input."""
+        if not isinstance(item, Design):
+            raise PricingRejected(
+                code="invalid_pricing_item",
+                message="Design pricing requires a Design model.",
             )
         return item

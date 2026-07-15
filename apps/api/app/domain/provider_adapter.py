@@ -88,7 +88,7 @@ class ProviderItemRequest:
     item_id: int
     quantity: int
     assigned_provider_id: str
-    options: dict[str, str] = field(default_factory=dict)
+    options: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
