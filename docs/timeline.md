@@ -34,8 +34,8 @@ remaining delivery work; it does not redefine that flow.
   customization validation.
 - Public active Template list/detail endpoints with customer-safe active field
   definitions and deterministic ordering.
-- Design customer API endpoints remain part of the current MVP contract
-  backlog.
+- Authenticated Design creation and owner-only retrieval with backend-validated
+  customization and customer-safe responses.
 
 ### Pricing, Checkout, Orders, And Payments
 
@@ -79,7 +79,6 @@ GitHub milestone: `Current MVP`.
 
 - #179 customer sign-in and token acquisition contract.
 - #180 public kit detail endpoint.
-- #182 authenticated Design creation and owner retrieval.
 - #183 Path A kit pricing preview.
 - #184 persisted Design pricing preview.
 - #185 versioned customer-visible cancellation/refund terms source.

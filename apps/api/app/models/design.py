@@ -9,20 +9,27 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
     from app.models.template import Template
+    from app.models.user import User
 
 
 class Design(Base):
     """Persisted customized signage Design derived from one Template.
 
-    The model maps to the `designs` table and stores backend-validated
-    customization values for future pricing, order generation, and provider
-    handoff. It does not validate submitted customization data, redefine
-    TemplateField rules, calculate prices, or expose editing behavior.
+    The model maps to the `designs` table and stores backend-derived customer
+    ownership plus validated customization values for future pricing, order
+    generation, and provider handoff. It does not validate submitted
+    customization data, redefine TemplateField rules, calculate prices, or
+    expose editing behavior.
     """
 
     __tablename__ = "designs"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True,
+    )
     template_id: Mapped[int] = mapped_column(
         ForeignKey("templates.id"),
         nullable=False,
@@ -45,5 +52,9 @@ class Design(Base):
     )
     template: Mapped["Template"] = relationship(
         "Template",
+        back_populates="designs",
+    )
+    customer: Mapped["User"] = relationship(
+        "User",
         back_populates="designs",
     )

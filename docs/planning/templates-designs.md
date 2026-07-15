@@ -21,7 +21,8 @@ Templates, TemplateFields, and Designs have separate responsibilities:
   description, active state, and timestamps.
 - TemplateField stores the allowed customization inputs for a Template, such as
   field name, field type, required state, allowed values, and display order.
-- Design stores one user's validated customization values for one Template.
+- Design stores one authenticated customer's validated customization values for
+  one Template.
   Design records do not redefine Template metadata or TemplateField rules.
 
 ## TemplateField Semantics
@@ -100,6 +101,60 @@ Unknown and inactive Template identifiers both return HTTP 404 with
 `{"detail": "Template not found"}`. Public responses do not expose active-state
 flags, timestamps, provider or pricing data, Design data, or internal ordering
 identifiers.
+
+## Authenticated Design API Contract
+
+Design creation and retrieval require authentication. Ownership is persisted as
+a non-null, indexed `customer_id` foreign key to `users.id`, but public
+responses do not expose that ownership identifier. The backend derives
+`customer_id` only from authenticated request context.
+
+The ownership migration does not infer or fabricate ownership for legacy
+Designs. If Design rows exist before the ownership column is added, migration
+stops before schema mutation and requires an explicit owner-backfill decision.
+
+`POST /api/v1/designs` accepts exactly:
+
+```json
+{
+  "template_id": 1,
+  "customization_values": {
+    "legend": "Emergency exit",
+    "material": "vinyl"
+  }
+}
+```
+
+Extra request fields are forbidden. Successful creation returns HTTP 201 with
+the created Design directly:
+
+```json
+{
+  "id": 7,
+  "template_id": 1,
+  "customization_values": {
+    "legend": "Emergency exit",
+    "material": "vinyl"
+  }
+}
+```
+
+`GET /api/v1/designs/{design_id}` returns the same direct resource shape only
+when the Design belongs to the authenticated customer. Unknown and cross-user
+identifiers both return HTTP 404 with `{"detail": "Design not found"}`.
+
+Unknown and inactive Template identifiers both return HTTP 404 with
+`{"detail": "Template not found"}`. Customer customization errors return HTTP
+400 with the stable validation `code` and customer-safe `message` under
+`detail`. Malformed backend TemplateField configuration returns HTTP 409 with
+`design_configuration_unavailable` and does not expose internal configuration
+details.
+
+Creation validates completely before persistence. The Design repository stages
+the accepted Design without committing, and the Design application service owns
+the successful commit and rollback on persistence or commit failure. Rejected
+creation does not add a Design, assign ownership, commit partial state, or
+trigger external side effects. Retrieval is read-only.
 
 ## MVP Design Customization Contract
 
@@ -194,6 +249,10 @@ values for the selected Template. Future pricing, order generation, and
 provider handoff must use this persisted backend-validated data, never
 frontend-provided customization, price, ownership, or role claims.
 
+Every newly persisted Design must store the authenticated customer's
+backend-derived `customer_id`. Ownership must not be accepted from submitted
+customization or other request fields.
+
 ### Deterministic Requirements
 
 Design customization behavior must remain deterministic for pricing and order
@@ -264,6 +323,7 @@ existing one.
 Minimum MVP Design fields:
 
 - id
+- customer_id
 - template_id
 - customization_values
 - created_at
@@ -280,6 +340,7 @@ The MVP intentionally keeps Design persistence simple.
 Current assumptions:
 
 - Designs are immutable after creation
+- Designs are owned by one authenticated customer
 - Designs belong to exactly one Template
 - TemplateFields define the allowed customization structure
 - `customization_values` is validated at the service layer, not the database
@@ -301,7 +362,7 @@ Current assumptions:
 - GET /api/v1/templates
 - GET /api/v1/templates/{template_id}
 - POST /api/v1/designs
-- GET /api/v1/designs/{id}
+- GET /api/v1/designs/{design_id}
 
 ## Child Issues
 
@@ -313,10 +374,11 @@ Completed:
 - #90 Define Design customization contract
 - #91 Create Design model, migration, repository/service, and tests
 - #92 Create Design validation service with rejection tests
+- #181 Add public Template list and detail endpoints
 
 In progress:
 
-- #181 Add public Template list and detail endpoints
+- #182 Add authenticated Design creation and owner retrieval endpoints
 
 ## Future Issues
 
@@ -340,6 +402,9 @@ In progress:
 - Enforce allowed combinations of fields
 - Prevent injection of invalid design data
 - Do not trust frontend-provided ownership fields
+- Derive Design ownership only from the authenticated current user
+- Filter customer Design retrieval by both Design id and customer id
+- Use identical not-found behavior for unknown and cross-user Designs
 - Rejected design creation must not mutate persisted data
 - Future user-specific Design endpoints must derive ownership from
   authenticated requests, not frontend-provided identifiers
