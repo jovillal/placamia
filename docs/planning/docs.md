@@ -30,14 +30,14 @@ docs, and accepted implementation issues.
 - The Bruno collection under `bruno/placamia-api` is maintained as partial
   local demo/manual-check coverage, not as the complete endpoint source of
   truth.
-- Bruno currently covers health, catalog browsing, authenticated current-user
-  lookup, and payment initialization.
+- Bruno currently covers health, catalog browsing, Product/Kit/Design pricing
+  previews, authenticated current-user lookup, and payment initialization.
 
 ## Child Issues
 
-Open:
+Completed:
 
-- #38 Database diagram
+- #38 Database diagram source in `docs/architecture/database-diagram.dbml`.
 
 ## Future Issues
 

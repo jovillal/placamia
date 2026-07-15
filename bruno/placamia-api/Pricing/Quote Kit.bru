@@ -1,0 +1,29 @@
+meta {
+  name: Quote Kit
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}{{api_prefix}}/pricing/quotes
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "item_type": "kit",
+    "item_id": {{kit_id}},
+    "quantity": {{pricing_quantity}}
+  }
+}
+
+docs {
+  Returns a public fixed-content Kit pricing preview from backend-owned KitItem
+  quantities and Product base prices. Kit pricing does not require or validate
+  `access_token`.
+}

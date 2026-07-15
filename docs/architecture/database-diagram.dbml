@@ -71,6 +71,7 @@ Ref: products.category_id > categories.id
 
 Table templates {
   id integer [pk, increment]
+  product_id integer [not null]
   name varchar(255) [not null]
   description text
   is_active boolean [not null, default: true]
@@ -79,9 +80,12 @@ Table templates {
 
   indexes {
     id [name: "ix_templates_id"]
+    product_id [name: "ix_templates_product_id"]
     name [name: "ix_templates_name"]
   }
 }
+
+Ref: templates.product_id > products.id
 
 Table template_fields {
   id integer [pk, increment]
@@ -106,6 +110,7 @@ Ref: template_fields.template_id > templates.id
 
 Table designs {
   id integer [pk, increment]
+  customer_id integer [not null]
   template_id integer [not null]
   customization_values json [not null]
   created_at timestamptz [not null, default: `now()`]
@@ -113,10 +118,12 @@ Table designs {
 
   indexes {
     id [name: "ix_designs_id"]
+    customer_id [name: "ix_designs_customer_id"]
     template_id [name: "ix_designs_template_id"]
   }
 }
 
+Ref: designs.customer_id > users.id
 Ref: designs.template_id > templates.id
 
 Table kits {

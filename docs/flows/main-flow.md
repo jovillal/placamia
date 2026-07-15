@@ -40,21 +40,23 @@ flowchart TD
     B2[Return template and fields]
     B3[Validate customization]
     B4[Create design]
-    B5[Validate active direct-checkout eligibility]
-    B6[Calculate backend pricing]
-    B7[Create draft order]
-    B8[Initialize payment]
-    B9[Verify payment webhook]
-    B10[Confirm order]
-    B11[Prepare paid-order provider payload]
-    B12[Provider adapter handoff]
-    B13[Update order status]
+    B5[Load Product, Kit, or owner-scoped persisted Design]
+    B6[Revalidate configuration and direct-checkout eligibility]
+    B7[Calculate backend pricing]
+    G1{Order creation implemented for item type?}
+    B8[Create draft order]
+    B9[Initialize payment]
+    B10[Verify payment webhook]
+    B11[Confirm order]
+    B12[Prepare paid-order provider payload]
+    B13[Provider adapter handoff]
+    B14[Update order status]
 
     %% Database lane
-    D1[(Catalog data)]
-    D2[(Templates)]
-    D3[(Design)]
-    D4[(Pricing rules + provider adapter responses)]
+    D1[(Products, Kits, and KitItems)]
+    D2[(Templates + TemplateFields + Product anchor)]
+    D3[(Customer-owned Designs)]
+    D4[(Provider adapter pricing and eligibility responses)]
     D5[(Order + OrderItems)]
     D6[(Payment)]
     D7[(Order status)]
@@ -71,34 +73,42 @@ flowchart TD
     B1 --> U2
     U2 --> B2 --> D2
     B2 --> U3
-    U3 --> B3
+    U3 --> B3 --> D2
     B3 --> B4 --> D3
     B4 --> U4
-    U4 --> B5 --> D4
-    B5 --> B6 --> D4
-    B6 --> U5
+    U4 --> B5
+    B5 -->|Product or Kit| D1
+    B5 -->|Design Template and Product| D2
+    B5 -->|Owned Design| D3
+    D1 --> B6
+    D2 --> B6
+    D3 --> B6
+    B6 --> D4 --> B7
+    B7 --> G1
+    G1 -->|Product| U5
+    G1 -->|Kit or persisted Design| R7[Return pricing preview; order creation remains future work]
     U5 --> U6
-    U6 --> B7 --> D5
-    B7 --> B8
-    B8 --> U7
-    U7 --> B9 --> D6
-    B9 --> B10
-    B10 --> D5
-    B10 --> B11 --> D5
-    B11 --> B12 --> P1
+    U6 --> B8 --> D5
+    B8 --> B9
+    B9 --> U7
+    U7 --> B10 --> D6
+    B10 --> B11
+    B11 --> D5
+    B11 --> B12 --> D5
+    B12 --> B13 --> P1
     P1 --> P2
-    P2 -->|yes| B13
-    P2 -->|yes| P3 --> P4 --> P5 --> B13
-    P5 --> P6 --> B13
-    B13 --> D7
+    P2 -->|yes| B14
+    P2 -->|yes| P3 --> P4 --> P5 --> B14
+    P5 --> P6 --> B14
+    B14 --> D7
     D7 --> U8
 
     %% Rejection paths
     B3 -. invalid customization .-> R1[Reject request]
-    B5 -. not eligible for direct checkout .-> R2[Hide from checkout or reject request]
-    B6 -. invalid pricing input .-> R3[Reject pricing request]
-    B9 -. invalid or failed payment .-> R4[Do not confirm order]
-    B12 -. transmission failed .-> R5[Keep confirmed and retry without duplicate handoff]
+    B6 -. not eligible for direct checkout .-> R2[Hide from checkout or reject request]
+    B7 -. invalid pricing input .-> R3[Reject pricing request]
+    B10 -. invalid or failed payment .-> R4[Do not confirm order]
+    B13 -. transmission failed .-> R5[Keep confirmed and retry without duplicate handoff]
     P2 -->|no| R6[Mark provider rejection]
 ```
 
@@ -116,12 +126,19 @@ Rejected customization must not create a Design record. Templates and Designs
 remain separate domain concepts: a Template is reusable catalog data, while a
 Design is one validated customized instance derived from a Template.
 
+Persisted Design pricing reloads the owner-scoped Design, follows its required
+Template-to-Product relationship, revalidates current TemplateField rules, and
+uses only backend-owned data for provider checks and arithmetic. This pricing
+preview does not create an Order, Payment, or provider handoff.
+
 ## Direct Checkout Eligibility
 
-Before pricing or checkout, the backend must verify that every product, kit, and
-design configuration is eligible for direct checkout:
+Before pricing, the backend must verify that every Product, Kit, and persisted
+Design configuration is eligible for the requested preview. Product checkout
+repeats backend validation before order creation:
 
-1. Product or kit is active in the public catalog
+1. Product or Kit is active, or the persisted Design's Template and related
+   Product are active
 2. Provider adapter availability for the current catalog period is compatible
    with sale
 3. Selected material, size, finish, quantity, and template fields are valid
@@ -129,7 +146,9 @@ design configuration is eligible for direct checkout:
 5. No manual quote, provider confirmation, unsupported file review, or custom
    production decision is required
 
-If any item fails these checks, checkout must not be initialized for that item.
+If any item fails these checks, pricing is rejected and checkout must not be
+initialized. Successful Kit and persisted Design previews remain pricing-only
+until their order creation paths are implemented separately.
 
 ## Order Status Lifecycle
 
