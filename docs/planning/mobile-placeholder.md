@@ -193,7 +193,8 @@ Purpose:
 
 Key actions:
 
-- Submit supported Product or fixed-content Kit pricing inputs.
+- Submit supported Product, fixed-content Kit, or owned persisted Design pricing
+  inputs.
 - Display backend-calculated amount and currency.
 - Reject or block checkout for inactive, unavailable, manual-quote-only,
   non-priceable, or invalid configurations.
@@ -202,10 +203,10 @@ Backend dependencies:
 
 | Dependency | Status | Notes |
 | --- | --- | --- |
-| `POST /api/v1/pricing/quotes` | Implemented | Public pricing preview endpoint. |
+| `POST /api/v1/pricing/quotes` | Implemented | Public Product/Kit and authenticated owner-scoped Design pricing preview endpoint. |
 | Product pricing preview | Implemented | Temporary Path A product rule uses backend `Product.base_price` and quantity. |
 | Kit pricing preview | Implemented | Temporary fixed-content rule uses backend KitItems, Product base prices, and effective quantities. |
-| Design pricing preview | Documented-but-pending | Explicitly deferred until persisted Design pricing rules exist. |
+| Persisted Design pricing preview | Implemented | Owner-scoped persisted customization is revalidated and priced from the Template's related Product base price. |
 | Frontend-supplied totals/provider cost | Intentionally deferred | Must be ignored or rejected; never authoritative. |
 
 ### 9. Checkout Review
@@ -360,7 +361,6 @@ Backend gaps to resolve before connecting each screen to real behavior:
 
 - #179: customer sign-in/token acquisition flow beyond `GET /auth/me`.
 - #180: `GET /api/v1/catalog/kits/{kit_id}` for real kit detail.
-- #184: persisted Design pricing beyond the current product preview slice.
 - #185: versioned customer-visible cancellation/refund terms content source.
 - #186: real-provider payment initialization handoff response. The current
   provider-neutral `POST /api/v1/payments` attempt initialization is already
@@ -409,7 +409,7 @@ Completed:
 
 Backend contract backlog:
 
-- #179, #180, and #184 through #189, mapped individually in
+- #179, #180, and #185 through #189, mapped individually in
   `Minimum API Contract Gaps Before Real Backend Wiring`.
 
 ## Constraints

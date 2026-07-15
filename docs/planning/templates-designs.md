@@ -21,6 +21,8 @@ Templates, TemplateFields, and Designs have separate responsibilities:
   description, active state, and timestamps.
 - TemplateField stores the allowed customization inputs for a Template, such as
   field name, field type, required state, allowed values, and display order.
+- Template belongs to one backend-owned Product that provides the temporary
+  sellable base-price anchor for Designs derived from that Template.
 - Design stores one authenticated customer's validated customization values for
   one Template.
   Design records do not redefine Template metadata or TemplateField rules.
@@ -253,6 +255,11 @@ Every newly persisted Design must store the authenticated customer's
 backend-derived `customer_id`. Ownership must not be accepted from submitted
 customization or other request fields.
 
+Every Template must store one required backend-derived `product_id`. Design
+creation accepts only a Template reference and derives its Product through that
+relationship; clients cannot select or override the Product through Design
+customization or pricing requests.
+
 ### Deterministic Requirements
 
 Design customization behavior must remain deterministic for pricing and order
@@ -268,6 +275,25 @@ generation:
 - future normalization rules must be documented before implementation if
   pricing or provider handoff requires stricter value formatting
 
+### Persisted Design Pricing Boundary
+
+Design pricing requires an authenticated owner and accepts only the persisted
+Design id and requested quantity. The backend reloads the Design, derives its
+Product through the required Template relationship, and revalidates persisted
+customization against current active TemplateFields before provider checks or
+arithmetic. Frontend customization, Product mapping, pricing, provider,
+ownership, role, and arbitrary claims are rejected with the aggregate Design
+pricing error and are never reconstructed into provider options.
+
+Unknown and cross-customer Designs use the same `design_not_found` response.
+Inactive Templates use `inactive_template`, inactive Products use `inactive`,
+and malformed, unsupported, or no-longer-valid persisted customization uses
+`design_configuration_unavailable` without exposing field names, values,
+counts, or validation traces. The temporary amount uses only the related
+Product base price and requested quantity; persisted customization is passed as
+backend-owned Design provider options but does not adjust or appear in the
+customer response.
+
 ### MVP Flexibility
 
 The MVP intentionally leaves these concerns out of the customization contract:
@@ -278,7 +304,7 @@ The MVP intentionally leaves these concerns out of the customization contract:
 - file, image, color, location, or complex nested field types
 - Design editing, versioning, sharing, or collaboration
 - preview rendering, 3D rendering, AR, or AI-assisted customization
-- pricing formulas and order item generation
+- customization price adjustments and order item generation
 
 ## Flow
 
@@ -342,11 +368,15 @@ Current assumptions:
 - Designs are immutable after creation
 - Designs are owned by one authenticated customer
 - Designs belong to exactly one Template
+- Templates belong to exactly one sellable Product
 - TemplateFields define the allowed customization structure
 - `customization_values` is validated at the service layer, not the database
   layer
 - Design validation happens before persistence
 - Pricing will consume persisted validated Design data
+- Temporary Design pricing revalidates persisted customization, uses the
+  related active Product's base price, and sends persisted values only to
+  backend provider checks
 - Design editing/versioning is out of scope for MVP
 - Collaborative/shared Design workflows are out of scope for MVP
 
@@ -363,6 +393,7 @@ Current assumptions:
 - GET /api/v1/templates/{template_id}
 - POST /api/v1/designs
 - GET /api/v1/designs/{design_id}
+- POST /api/v1/pricing/quotes
 
 ## Child Issues
 
@@ -375,15 +406,13 @@ Completed:
 - #91 Create Design model, migration, repository/service, and tests
 - #92 Create Design validation service with rejection tests
 - #181 Add public Template list and detail endpoints
-
-In progress:
-
 - #182 Add authenticated Design creation and owner retrieval endpoints
+- #184 Add persisted authenticated Design pricing preview
 
 ## Future Issues
 
-- #182 adds authenticated Design creation and owner retrieval endpoints.
-- #184 connects persisted Designs to backend pricing.
+- Future issue required: connect priced Designs to checkout and immutable order
+  snapshots.
 - Future issue required: define Design serialization and normalization rules if
   pricing/order requirements require stricter structure guarantees
 
