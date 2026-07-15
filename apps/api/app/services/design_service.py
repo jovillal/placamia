@@ -1,20 +1,22 @@
 from app.models.design import Design
 from app.repositories.design_repository import DesignRepository
 from app.services.design_validation_service import DesignValidationService
+from sqlalchemy.orm import Session
 
 
 class DesignService:
     """Business service for persisted Design records.
 
     The service coordinates validation, backend-derived ownership, persistence,
-    and owner-scoped retrieval while keeping pricing, order creation, endpoint
-    behavior, and editing flows out of this boundary.
+    the creation transaction, and owner-scoped retrieval while keeping pricing,
+    order creation, endpoint behavior, and editing flows out of this boundary.
     """
 
     def __init__(
         self,
         design_repository: DesignRepository,
         design_validation_service: DesignValidationService,
+        db: Session,
     ) -> None:
         """Store collaborators used by Design persistence use cases.
 
@@ -23,9 +25,12 @@ class DesignService:
                 records.
             design_validation_service: Service that validates submitted
                 customization against backend-owned TemplateField definitions.
+            db: Request-scoped database session that owns the creation
+                transaction boundary.
         """
         self.design_repository = design_repository
         self.design_validation_service = design_validation_service
+        self.db = db
 
     def create_design(
         self,
@@ -45,21 +50,29 @@ class DesignService:
             The Design returned by the repository after persistence.
 
         Side effects:
-            Persists one Design only after validation succeeds.
+            Stages and commits one Design only after validation succeeds. Rolls
+            back the transaction if staging or commit fails.
 
         Raises:
             DesignValidationError: When the Template or submitted customization
                 violates the backend-owned Design contract.
+            Exception: Re-raises persistence or commit failures after rollback.
         """
         accepted_values = self.design_validation_service.validate_customization(
             template_id=template_id,
             customization_values=customization_values,
         )
-        return self.design_repository.create_design(
-            customer_id=customer_id,
-            template_id=template_id,
-            customization_values=accepted_values,
-        )
+        try:
+            design = self.design_repository.create_design(
+                customer_id=customer_id,
+                template_id=template_id,
+                customization_values=accepted_values,
+            )
+            self.db.commit()
+            return design
+        except Exception:
+            self.db.rollback()
+            raise
 
     def get_design_for_customer(
         self,

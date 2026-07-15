@@ -34,11 +34,12 @@ class DesignRepository:
                 TemplateField field_name.
 
         Returns:
-            The persisted Design model instance with database-generated fields
+            The staged Design model instance with database-generated fields
             populated.
 
         Side effects:
-            Adds and commits a Design record using the current database session.
+            Adds and flushes a Design record in the current transaction. The
+            application service remains responsible for commit or rollback.
         """
         design = Design(
             customer_id=customer_id,
@@ -46,8 +47,7 @@ class DesignRepository:
             customization_values=customization_values,
         )
         self.db.add(design)
-        self.db.commit()
-        self.db.refresh(design)
+        self.db.flush()
         return design
 
     def get_design_for_customer(

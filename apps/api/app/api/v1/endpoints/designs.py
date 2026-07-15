@@ -44,6 +44,7 @@ def build_design_service(db: Session) -> DesignService:
             TemplateRepository(db),
             TemplateFieldRepository(db),
         ),
+        db,
     )
 
 

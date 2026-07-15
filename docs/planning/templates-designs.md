@@ -150,9 +150,11 @@ Unknown and inactive Template identifiers both return HTTP 404 with
 `design_configuration_unavailable` and does not expose internal configuration
 details.
 
-Creation validates completely before persistence and commits only the accepted
-Design. Rejected creation does not add a Design, assign ownership, commit
-partial state, or trigger external side effects. Retrieval is read-only.
+Creation validates completely before persistence. The Design repository stages
+the accepted Design without committing, and the Design application service owns
+the successful commit and rollback on persistence or commit failure. Rejected
+creation does not add a Design, assign ownership, commit partial state, or
+trigger external side effects. Retrieval is read-only.
 
 ## MVP Design Customization Contract
 
