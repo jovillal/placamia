@@ -21,8 +21,8 @@ class TemplateService:
         """List active reusable base templates available for customization.
 
         Returns:
-            Active templates returned by the repository, currently ordered by
-            name.
+            Active templates returned by the repository, ordered by name and
+            id.
         """
         return self.template_repository.get_active_templates()
 

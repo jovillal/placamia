@@ -48,6 +48,59 @@ document updates before implementation.
 Backend validation is the source of truth for `field_type`, `allowed_values`,
 and submitted customization values.
 
+## Public Template Retrieval Contract
+
+Template retrieval is public and read-only. It does not require a bearer token,
+write database state, or call provider, pricing, checkout, payment, or Design
+persistence behavior.
+
+`GET /api/v1/templates` returns active Templates ordered by `name` and then
+`id`. The collection uses the standard `data` envelope, and each entry exposes
+exactly `id`, `name`, and `description`:
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "Emergency exit template",
+      "description": "Reusable emergency exit sign design."
+    }
+  ]
+}
+```
+
+`GET /api/v1/templates/{template_id}` returns one active Template directly,
+without a `data` envelope. It exposes the Template summary fields plus `fields`:
+
+```json
+{
+  "id": 1,
+  "name": "Emergency exit template",
+  "description": "Reusable emergency exit sign design.",
+  "fields": [
+    {
+      "field_name": "legend",
+      "field_type": "text",
+      "is_required": true,
+      "allowed_values": null,
+      "display_order": 1
+    }
+  ]
+}
+```
+
+Only active TemplateFields are returned. They are ordered by `display_order`
+and then `id`, but their identifiers and `template_id` are not exposed. Each
+field exposes exactly `field_name`, `field_type`, `is_required`,
+`allowed_values`, and `display_order`. A Template with no active fields returns
+an empty `fields` list and does not receive fallback definitions.
+
+Unknown and inactive Template identifiers both return HTTP 404 with
+`{"detail": "Template not found"}`. Public responses do not expose active-state
+flags, timestamps, provider or pricing data, Design data, or internal ordering
+identifiers.
+
 ## MVP Design Customization Contract
 
 `customization_values` is the persisted representation of one validated
@@ -246,7 +299,7 @@ Current assumptions:
 ## Related Endpoints
 
 - GET /api/v1/templates
-- GET /api/v1/templates/{id}
+- GET /api/v1/templates/{template_id}
 - POST /api/v1/designs
 - GET /api/v1/designs/{id}
 
@@ -261,13 +314,14 @@ Completed:
 - #91 Create Design model, migration, repository/service, and tests
 - #92 Create Design validation service with rejection tests
 
+In progress:
+
+- #181 Add public Template list and detail endpoints
+
 ## Future Issues
 
-- Future issue required: create POST /api/v1/designs endpoint with validation
-  and rejection tests
-- Future issue required: create GET /api/v1/designs/{id} endpoint with
-  ownership/security tests
-- Future issue required: connect persisted Designs to backend pricing
+- #182 adds authenticated Design creation and owner retrieval endpoints.
+- #184 connects persisted Designs to backend pricing.
 - Future issue required: define Design serialization and normalization rules if
   pricing/order requirements require stricter structure guarantees
 

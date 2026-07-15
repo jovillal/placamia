@@ -32,8 +32,10 @@ remaining delivery work; it does not redefine that flow.
   and backend-derived purchasability.
 - Template, TemplateField, and Design persistence plus deterministic Design
   customization validation.
-- Template and Design customer API endpoints remain part of the current MVP
-  contract backlog.
+- Public active Template list/detail endpoints with customer-safe active field
+  definitions and deterministic ordering.
+- Design customer API endpoints remain part of the current MVP contract
+  backlog.
 
 ### Pricing, Checkout, Orders, And Payments
 
@@ -77,7 +79,6 @@ GitHub milestone: `Current MVP`.
 
 - #179 customer sign-in and token acquisition contract.
 - #180 public kit detail endpoint.
-- #181 public Template list and detail endpoints.
 - #182 authenticated Design creation and owner retrieval.
 - #183 Path A kit pricing preview.
 - #184 persisted Design pricing preview.

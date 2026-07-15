@@ -30,7 +30,7 @@ Use these top-level groups for MVP API routes:
 | Health | `/api/v1/health` | Runtime health checks for the backend. | Implemented |
 | Auth | `/api/v1/auth` | Authenticated user context and auth-related endpoints. | Implemented |
 | Catalog | `/api/v1/catalog` | Categories, products, and kits that users can browse. | Partially implemented |
-| Templates | `/api/v1/templates` | Design bases and template fields. | Planned |
+| Templates | `/api/v1/templates` | Design bases and template fields. | Implemented |
 | Designs | `/api/v1/designs` | Customized design instances created from templates. | Planned |
 | Pricing | `/api/v1/pricing` | Backend-calculated quotes and pricing validation. | Partially implemented |
 | Orders | `/api/v1/orders` | Draft orders, confirmed orders, and order tracking. | Partially implemented |
@@ -100,6 +100,8 @@ The current implemented API endpoints are:
 | `GET` | `/api/v1/catalog/kits` | Catalog | Public | `{ "data": KitRead[] }` with customer-safe product summaries |
 | `GET` | `/api/v1/catalog/products` | Catalog | Public | `{ "data": ProductRead[], "meta": pagination }` |
 | `GET` | `/api/v1/catalog/products/{product_id}` | Catalog | Public | `ProductRead` object |
+| `GET` | `/api/v1/templates` | Templates | Public | `{ "data": TemplateSummaryRead[] }` |
+| `GET` | `/api/v1/templates/{template_id}` | Templates | Public | `TemplateDetailRead` object with active fields |
 | `POST` | `/api/v1/pricing/quotes` | Pricing | Public | `PricingQuoteResponse` object |
 | `POST` | `/api/v1/orders` | Orders | Required | `OrderRead` object |
 | `GET` | `/api/v1/orders/{order_id}/status` | Orders | Required | `OrderStatusRead` object |
@@ -135,7 +137,5 @@ scoped by planning docs and implementation issues:
 
 ## Scope Notes
 
-This document standardizes API documentation only.
-
-No new endpoints are introduced by this task, and no runtime API behavior is
-changed.
+This document records the implemented and reserved API structure. Runtime
+changes remain scoped by their planning documents and implementation issues.
