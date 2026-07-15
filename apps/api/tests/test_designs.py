@@ -1,8 +1,11 @@
 from datetime import UTC, datetime
+from decimal import Decimal
 
 import pytest
 from app.core.database import Base
+from app.models.category import Category
 from app.models.design import Design
+from app.models.product import Product
 from app.models.template import Template
 from app.models.user import User
 from app.repositories.design_repository import DesignRepository
@@ -37,11 +40,27 @@ def seed_user(db, email: str = "designer@example.com") -> User:
     return user
 
 
+def seed_product(db) -> Product:
+    """Persist one Product used as the Design Template pricing anchor."""
+    product = Product(
+        name="Configurable safety sign",
+        description=None,
+        category=Category(name=f"Safety signs {id(db)}", description=None),
+        base_price=Decimal("20.00"),
+    )
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    return product
+
+
 def test_design_model_persists_customization_values_for_template():
     db = build_session()
     try:
         customer = seed_user(db)
+        product = seed_product(db)
         template = Template(
+            product=product,
             name="Emergency exit template",
             description=None,
         )
@@ -109,7 +128,9 @@ def test_design_repository_persists_design_records():
     db = build_session()
     try:
         customer = seed_user(db)
+        product = seed_product(db)
         template = Template(
+            product=product,
             name="Warning sign template",
             description=None,
         )
@@ -146,7 +167,9 @@ def test_design_repository_retrieves_design_only_for_owner():
     try:
         owner = seed_user(db, "owner@example.com")
         other_customer = seed_user(db, "other@example.com")
+        product = seed_product(db)
         template = Template(
+            product=product,
             name="Fire extinguisher template",
             description=None,
         )
@@ -183,7 +206,9 @@ def test_design_repository_preserves_template_relationship():
     db = build_session()
     try:
         customer = seed_user(db)
+        product = seed_product(db)
         template = Template(
+            product=product,
             name="Mandatory PPE template",
             description=None,
         )
@@ -361,7 +386,11 @@ def test_design_service_rolls_back_a_staged_design_after_repository_failure():
     db = build_session()
     try:
         customer = seed_user(db)
-        template = Template(name="Emergency exit template", description=None)
+        template = Template(
+            product=seed_product(db),
+            name="Emergency exit template",
+            description=None,
+        )
         db.add(template)
         db.commit()
         db.refresh(template)

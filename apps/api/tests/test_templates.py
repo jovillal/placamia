@@ -1,9 +1,12 @@
 import asyncio
 from datetime import UTC, datetime
+from decimal import Decimal
 
 import httpx
 from app.core.database import Base, get_db
 from app.main import app
+from app.models.category import Category
+from app.models.product import Product
 from app.models.template import Template
 from app.models.template_field import TemplateField
 from app.repositories.template_repository import TemplateRepository
@@ -28,6 +31,21 @@ def build_session():
     return testing_session_local()
 
 
+def seed_product(db) -> Product:
+    """Persist one sellable Product used as a Template pricing anchor."""
+    category = Category(name="Safety signs", description=None)
+    product = Product(
+        name="Configurable safety sign",
+        description=None,
+        category=category,
+        base_price=Decimal("20.00"),
+    )
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    return product
+
+
 async def request_templates(path: str = ""):
     """Call a public Template endpoint through the ASGI test transport."""
     transport = httpx.ASGITransport(app=app)
@@ -49,7 +67,9 @@ def template_persistence_snapshot(db):
 def test_template_model_persists_reusable_base_design():
     db = build_session()
     try:
+        product = seed_product(db)
         template = Template(
+            product=product,
             name="Emergency exit template",
             description="Reusable base design for emergency exit signs.",
         )
@@ -58,6 +78,9 @@ def test_template_model_persists_reusable_base_design():
         db.refresh(template)
 
         assert template.id == 1
+        assert template.product_id == product.id
+        assert template.product == product
+        assert product.templates == [template]
         assert template.name == "Emergency exit template"
         assert template.description == "Reusable base design for emergency exit signs."
         assert template.is_active is True
@@ -76,12 +99,21 @@ def test_template_model_table_matches_mvp_fields():
 
         assert columns == {
             "id",
+            "product_id",
             "name",
             "description",
             "is_active",
             "created_at",
             "updated_at",
         }
+        foreign_keys = inspect(db.bind).get_foreign_keys("templates")
+        indexes = inspect(db.bind).get_indexes("templates")
+        assert any(
+            foreign_key["constrained_columns"] == ["product_id"]
+            and foreign_key["referred_table"] == "products"
+            for foreign_key in foreign_keys
+        )
+        assert any(index["column_names"] == ["product_id"] for index in indexes)
     finally:
         db.close()
 
@@ -89,21 +121,26 @@ def test_template_model_table_matches_mvp_fields():
 def test_template_repository_lists_active_templates_by_name_and_id():
     db = build_session()
     try:
+        product = seed_product(db)
         db.add_all(
             [
                 Template(
+                    product=product,
                     name="Warning sign template",
                     description="Reusable base warning sign design.",
                 ),
                 Template(
+                    product=product,
                     name="Emergency exit template",
                     description=None,
                 ),
                 Template(
+                    product=product,
                     name="Emergency exit template",
                     description="Second template with the same display name.",
                 ),
                 Template(
+                    product=product,
                     name="Retired template",
                     description="No longer available for new Designs.",
                     is_active=False,
@@ -129,13 +166,16 @@ def test_template_repository_lists_active_templates_by_name_and_id():
 def test_template_repository_gets_active_template_by_id():
     db = build_session()
     try:
+        product = seed_product(db)
         db.add_all(
             [
                 Template(
+                    product=product,
                     name="Emergency exit template",
                     description=None,
                 ),
                 Template(
+                    product=product,
                     name="Retired template",
                     description="No longer available for new Designs.",
                     is_active=False,
@@ -161,13 +201,16 @@ def test_template_repository_gets_active_template_by_id():
 def test_template_repository_gets_template_by_id_regardless_of_active_state():
     db = build_session()
     try:
+        product = seed_product(db)
         db.add_all(
             [
                 Template(
+                    product=product,
                     name="Emergency exit template",
                     description=None,
                 ),
                 Template(
+                    product=product,
                     name="Retired template",
                     description="No longer available for new Designs.",
                     is_active=False,
@@ -243,19 +286,24 @@ def test_template_service_gets_template_from_repository():
 
 def test_list_templates_endpoint_returns_exact_public_shape_without_authentication():
     db = build_session()
+    product = seed_product(db)
     active_template = Template(
+        product=product,
         name="Emergency exit template",
         description="Reusable emergency exit sign design.",
     )
     duplicate_name_template = Template(
+        product=product,
         name="Emergency exit template",
         description=None,
     )
     later_template = Template(
+        product=product,
         name="Warning sign template",
         description=None,
     )
     inactive_template = Template(
+        product=product,
         name="Retired template",
         description="Not public.",
         is_active=False,
@@ -316,7 +364,9 @@ def test_list_templates_endpoint_returns_exact_public_shape_without_authenticati
 
 def test_get_template_endpoint_returns_active_fields_in_stable_order():
     db = build_session()
+    product = seed_product(db)
     template = Template(
+        product=product,
         name="Emergency exit template",
         description="Reusable emergency exit sign design.",
     )
@@ -407,7 +457,12 @@ def test_get_template_endpoint_returns_active_fields_in_stable_order():
 
 def test_get_template_endpoint_returns_empty_fields_without_fallbacks():
     db = build_session()
-    template = Template(name="Plain template", description=None)
+    product = seed_product(db)
+    template = Template(
+        product=product,
+        name="Plain template",
+        description=None,
+    )
     db.add(
         TemplateField(
             template=template,
@@ -441,7 +496,9 @@ def test_get_template_endpoint_returns_empty_fields_without_fallbacks():
 
 def test_get_template_endpoint_hides_inactive_and_unknown_templates_identically():
     db = build_session()
+    product = seed_product(db)
     inactive_template = Template(
+        product=product,
         name="Retired template",
         description=None,
         is_active=False,
