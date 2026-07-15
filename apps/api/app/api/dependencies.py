@@ -24,25 +24,24 @@ async def get_provider_adapter():
     return LocalMockProviderAdapter()
 
 
-async def get_optional_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    db: Session = Depends(get_db),
-) -> User | None:
-    """Resolve an optional authenticated user from a bearer token.
+def resolve_current_user(
+    credentials: HTTPAuthorizationCredentials | None,
+    db: Session,
+) -> User:
+    """Resolve the authenticated current user from bearer credentials.
 
     Args:
         credentials: Authorization credentials parsed from the request header.
         db: SQLAlchemy session provided by FastAPI dependency injection.
 
     Returns:
-        The active user associated with a supplied verified bearer token, or
-        None when the request supplies no credentials.
+        The active user associated with the verified bearer token.
 
     Side effects:
         Reads user data from the database.
 
     Raises:
-        HTTPException: When supplied credentials are invalid or reference an
+        HTTPException: When credentials are missing, invalid, or reference an
             inactive or missing user.
     """
     unauthorized_exception = HTTPException(
@@ -52,7 +51,7 @@ async def get_optional_current_user(
     )
 
     if credentials is None:
-        return None
+        raise unauthorized_exception
 
     auth_service = AuthService(settings.AUTH_TOKEN_SECRET)
 
@@ -71,29 +70,26 @@ async def get_optional_current_user(
 
 
 async def get_current_user(
-    current_user: User | None = Depends(get_optional_current_user),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
 ) -> User:
     """Require and return the authenticated current user.
 
     Args:
-        current_user: Optional active user resolved from bearer credentials.
+        credentials: Authorization credentials parsed from the request header.
+        db: SQLAlchemy session provided by FastAPI dependency injection.
 
     Returns:
         The authenticated active user.
 
     Side effects:
-        None beyond the optional authentication dependency's database read.
+        Reads user data from the database.
 
     Raises:
-        HTTPException: When the request supplies no authentication credentials.
+        HTTPException: When credentials are missing, invalid, or reference an
+            inactive or missing user.
     """
-    if current_user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return current_user
+    return resolve_current_user(credentials, db)
 
 
 async def require_admin_user(

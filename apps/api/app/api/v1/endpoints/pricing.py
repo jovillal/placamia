@@ -1,4 +1,8 @@
-from app.api.dependencies import get_optional_current_user, get_provider_adapter
+from app.api.dependencies import (
+    bearer_scheme,
+    get_provider_adapter,
+    resolve_current_user,
+)
 from app.core.database import get_db
 from app.models.user import User
 from app.repositories.design_repository import DesignRepository
@@ -23,9 +27,38 @@ from app.services.pricing_service import (
     PricingRejected,
 )
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/pricing", tags=["pricing"])
+
+
+async def _get_pricing_current_user(
+    request: PricingQuoteRequest,
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Resolve authentication only when the quote targets a Design.
+
+    Args:
+        request: Validated pricing quote request body.
+        credentials: Optional bearer credentials supplied by the client.
+        db: SQLAlchemy session provided by FastAPI dependency injection.
+
+    Returns:
+        The active authenticated user for a Design request, or None for public
+        Product and Kit requests regardless of supplied credentials.
+
+    Side effects:
+        Reads user data only for Design requests with verifiable credentials.
+
+    Raises:
+        HTTPException: When a Design request has missing or invalid credentials,
+            or credentials reference an inactive or missing user.
+    """
+    if request.item_type is not PricingItemType.DESIGN:
+        return None
+    return resolve_current_user(credentials, db)
 
 
 @router.post(
@@ -48,7 +81,7 @@ async def preview_pricing_quote(
     request: PricingQuoteRequest,
     db: Session = Depends(get_db),
     provider_adapter=Depends(get_provider_adapter),
-    current_user: User | None = Depends(get_optional_current_user),
+    current_user: User | None = Depends(_get_pricing_current_user),
 ) -> PricingQuoteResponse:
     """Return a backend-owned Product, Kit, or persisted Design preview.
 

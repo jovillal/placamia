@@ -49,8 +49,9 @@ flowchart TD
 ### Key Rules
 - Orders must be created from backend-validated data
 - Frontend price must be ignored
-- Checkout is allowed only for active, fully parametrizable, backend-priceable
-  products, kits, and persisted Design configurations
+- Checkout eligibility is limited to active, fully parametrizable,
+  backend-priceable products, kits, and persisted Design configurations.
+  Design order creation remains separate implementation work.
 - Manual quotes and provider-confirmed pricing are out of scope for the direct
   checkout MVP path
 - Cancellation and refund terms must be shown before payment

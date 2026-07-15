@@ -3,7 +3,8 @@ from decimal import Decimal
 
 import httpx
 import pytest
-from app.api.dependencies import get_optional_current_user, get_provider_adapter
+from app.api.dependencies import get_provider_adapter
+from app.api.v1.endpoints.pricing import _get_pricing_current_user
 from app.core.config import settings
 from app.core.database import Base, get_db
 from app.domain.provider_adapter import (
@@ -232,12 +233,12 @@ def configure_pricing_endpoint_test_with_adapter(
     async def override_provider_adapter():
         return provider_adapter
 
-    async def override_optional_current_user():
+    async def override_pricing_current_user():
         return current_user
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_provider_adapter] = override_provider_adapter
-    app.dependency_overrides[get_optional_current_user] = override_optional_current_user
+    app.dependency_overrides[_get_pricing_current_user] = override_pricing_current_user
 
 
 def assert_pricing_rejection(response, code: str) -> None:
@@ -595,6 +596,7 @@ def test_pricing_quote_endpoint_requires_authentication_for_design_only():
             (CatalogItemType.KIT, kit.id): available_fixture("20.00"),
         },
     )
+    del app.dependency_overrides[_get_pricing_current_user]
 
     try:
         design_response = asyncio.run(
@@ -617,11 +619,57 @@ def test_pricing_quote_endpoint_requires_authentication_for_design_only():
         db.close()
 
 
+@pytest.mark.parametrize("item_type", ["product", "kit"])
+@pytest.mark.parametrize("credential_state", ["missing", "valid", "invalid"])
+def test_public_pricing_ignores_bearer_credential_state(
+    monkeypatch,
+    item_type,
+    credential_state,
+):
+    """Keep public pricing available when clients retain stale credentials."""
+    monkeypatch.setattr(settings, "AUTH_TOKEN_SECRET", "test-token-secret")
+    db = build_session()
+    user = seed_user(db)
+    product = seed_product(db)
+    kit = seed_kit(db, [(product, 1)])
+    configure_pricing_endpoint_test(
+        db,
+        {
+            (CatalogItemType.PRODUCT, product.id): available_fixture("12.00"),
+            (CatalogItemType.KIT, kit.id): available_fixture("20.00"),
+        },
+    )
+    del app.dependency_overrides[_get_pricing_current_user]
+
+    token = None
+    if credential_state == "valid":
+        token = AuthService(settings.AUTH_TOKEN_SECRET).create_access_token(user.id)
+    elif credential_state == "invalid":
+        token = "invalid-token"
+    headers = {"Authorization": f"Bearer {token}"} if token else None
+    item_id = product.id if item_type == "product" else kit.id
+
+    try:
+        response = asyncio.run(
+            post_pricing_quote(
+                {"item_type": item_type, "item_id": item_id, "quantity": 1},
+                headers=headers,
+            )
+        )
+
+        assert response.status_code == 200
+        assert response.json()["item_type"] == item_type
+        assert response.json()["item_id"] == item_id
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
 def test_pricing_quote_endpoint_rejects_invalid_design_bearer_token(monkeypatch):
     monkeypatch.setattr(settings, "AUTH_TOKEN_SECRET", "test-token-secret")
     db = build_session()
     configure_pricing_endpoint_test(db, {})
-    del app.dependency_overrides[get_optional_current_user]
+    del app.dependency_overrides[_get_pricing_current_user]
 
     try:
         response = asyncio.run(
@@ -647,7 +695,7 @@ def test_pricing_quote_endpoint_accepts_valid_design_bearer_token(monkeypatch):
         {(CatalogItemType.DESIGN, design.id): available_fixture("12.00")}
     )
     configure_pricing_endpoint_test_with_adapter(db, adapter, owner)
-    del app.dependency_overrides[get_optional_current_user]
+    del app.dependency_overrides[_get_pricing_current_user]
     token = AuthService(settings.AUTH_TOKEN_SECRET).create_access_token(owner.id)
     persistence_before = persistence_snapshot(db)
 
