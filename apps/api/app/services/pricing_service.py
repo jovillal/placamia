@@ -432,6 +432,12 @@ class PathAPricingService:
                 message="Kit is not eligible for direct checkout pricing.",
             )
 
+        if any(not item.product.is_active for item in kit_items):
+            raise PricingRejected(
+                code="kit_contents_unavailable",
+                message="Kit is not eligible for direct checkout pricing.",
+            )
+
         for item in kit_items:
             if (
                 not isinstance(item.quantity, int)

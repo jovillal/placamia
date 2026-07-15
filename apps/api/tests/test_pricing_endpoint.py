@@ -386,11 +386,27 @@ def test_pricing_quote_endpoint_returns_kit_business_rejections(
         db.close()
 
 
-def test_pricing_quote_endpoint_hides_inactive_required_kit_content():
+def test_pricing_quote_endpoint_hides_mixed_inactive_required_kit_content():
     db = build_session()
-    product = seed_product(db, is_active=False)
-    kit = seed_kit(db, [(product, 1)])
-    configure_pricing_endpoint_test(db, {})
+    active_product = seed_product(db)
+    inactive_product = Product(
+        name="Inactive internal sign",
+        description=None,
+        category_id=active_product.category_id,
+        base_price=Decimal("999.99"),
+        is_active=False,
+    )
+    db.add(inactive_product)
+    db.commit()
+    db.refresh(inactive_product)
+    kit = seed_kit(db, [(active_product, 1), (inactive_product, 1)])
+    configure_pricing_endpoint_test(
+        db,
+        {
+            (CatalogItemType.KIT, kit.id): available_fixture("30.00"),
+            (CatalogItemType.PRODUCT, active_product.id): available_fixture("12.00"),
+        },
+    )
     persistence_before = persistence_snapshot(db)
 
     try:
@@ -405,12 +421,17 @@ def test_pricing_quote_endpoint_hides_inactive_required_kit_content():
         )
 
         assert response.status_code == 400
-        assert response.json() == {
+        payload = response.json()
+        assert payload == {
             "detail": {
                 "code": "kit_contents_unavailable",
                 "message": "Kit is not eligible for direct checkout pricing.",
             }
         }
+        assert set(payload) == {"detail"}
+        assert "lines" not in response.text
+        assert inactive_product.name not in response.text
+        assert "999.99" not in response.text
         assert persistence_snapshot(db) == persistence_before
     finally:
         app.dependency_overrides.clear()

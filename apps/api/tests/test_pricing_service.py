@@ -546,7 +546,8 @@ def test_kit_pricing_rejects_inactive_or_empty_kit(kit, code):
 def test_kit_pricing_aggregates_inactive_required_content():
     inactive_product = build_product(is_active=False)
     kit = build_kit(product=inactive_product)
-    service = pricing_service({})
+    adapter = RecordingProviderAdapter({})
+    service = PathAPricingService(adapter)
 
     assert_rejected_code(
         lambda: service.preview_quote(
@@ -558,12 +559,27 @@ def test_kit_pricing_aggregates_inactive_required_content():
         ),
         "kit_contents_unavailable",
     )
+    assert adapter.requests == []
 
 
-def test_kit_pricing_reports_visible_active_blocker_before_hidden_inactive_content():
-    blocked_product = build_product(product_id=1)
+@pytest.mark.parametrize(
+    "active_fixture",
+    [
+        available_fixture("12.00"),
+        LocalProviderFixture(
+            availability_state=AvailabilityState.MANUAL_QUOTE_REQUIRED,
+            provider_cost=Decimal("12.00"),
+            supports_requested_configuration=True,
+            reason_code="manual_quote_required",
+        ),
+    ],
+)
+def test_kit_pricing_rejects_mixed_inactive_content_before_provider_checks(
+    active_fixture,
+):
+    active_product = build_product(product_id=1)
     inactive_product = build_product(product_id=2, is_active=False)
-    kit = build_kit(product=blocked_product, item_quantity=1)
+    kit = build_kit(product=active_product, item_quantity=1)
     kit.kit_items.append(
         KitItem(
             id=2,
@@ -574,16 +590,13 @@ def test_kit_pricing_reports_visible_active_blocker_before_hidden_inactive_conte
             quantity=1,
         )
     )
-    service = pricing_service(
+    adapter = RecordingProviderAdapter(
         {
-            (CatalogItemType.PRODUCT, blocked_product.id): LocalProviderFixture(
-                availability_state=AvailabilityState.MANUAL_QUOTE_REQUIRED,
-                provider_cost=Decimal("12.00"),
-                supports_requested_configuration=True,
-                reason_code="manual_quote_required",
-            )
+            (CatalogItemType.KIT, kit.id): available_fixture("30.00"),
+            (CatalogItemType.PRODUCT, active_product.id): active_fixture,
         }
     )
+    service = PathAPricingService(adapter)
 
     assert_rejected_code(
         lambda: service.preview_quote(
@@ -593,8 +606,9 @@ def test_kit_pricing_reports_visible_active_blocker_before_hidden_inactive_conte
                 quantity=1,
             )
         ),
-        "manual_quote_required",
+        "kit_contents_unavailable",
     )
+    assert adapter.requests == []
 
 
 @pytest.mark.parametrize(

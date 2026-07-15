@@ -149,6 +149,12 @@ Each line reports the customer-safe Product identity, quantity per Kit,
 effective total quantity, Product base price, and calculated subtotal. Provider
 cost and Product-level provider references remain internal.
 
+Pricing applies a stricter complete-content gate than public catalog reason
+precedence: if any required Product is inactive, the quote rejects immediately
+with `kit_contents_unavailable` before provider checks or line calculation.
+The rejection does not expose the inactive Product's identity, count, or price,
+even when another active required Product has a visible provider blocker.
+
 This interaction is read-only pricing preview. It does not make Kit checkout,
 order creation, payment, or provider handoff part of #183.
 
