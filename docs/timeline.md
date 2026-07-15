@@ -39,8 +39,9 @@ remaining delivery work; it does not redefine that flow.
 
 ### Pricing, Checkout, Orders, And Payments
 
-- Deterministic Product and fixed-content Kit pricing previews with
-  backend-owned totals and trusted provider cost/capability inputs.
+- Deterministic Product, fixed-content Kit, and owned persisted Design pricing
+  previews with backend-owned totals and trusted provider cost/capability
+  inputs.
 - Checkout eligibility and cancellation/refund terms acknowledgement.
 - Authenticated draft order creation, immutable OrderItem snapshots, and
   owner-only order-status retrieval.
@@ -79,7 +80,6 @@ GitHub milestone: `Current MVP`.
 
 - #179 customer sign-in and token acquisition contract.
 - #180 public kit detail endpoint.
-- #184 persisted Design pricing preview.
 - #185 versioned customer-visible cancellation/refund terms source.
 - #186 real payment-provider initialization response.
 - #187 customer payment-status refresh contract.

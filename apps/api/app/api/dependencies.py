@@ -24,11 +24,11 @@ async def get_provider_adapter():
     return LocalMockProviderAdapter()
 
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    db: Session = Depends(get_db),
+def resolve_current_user(
+    credentials: HTTPAuthorizationCredentials | None,
+    db: Session,
 ) -> User:
-    """Resolve the authenticated current user from a bearer token.
+    """Resolve the authenticated current user from bearer credentials.
 
     Args:
         credentials: Authorization credentials parsed from the request header.
@@ -67,6 +67,29 @@ async def get_current_user(
         raise unauthorized_exception
 
     return user
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    """Require and return the authenticated current user.
+
+    Args:
+        credentials: Authorization credentials parsed from the request header.
+        db: SQLAlchemy session provided by FastAPI dependency injection.
+
+    Returns:
+        The authenticated active user.
+
+    Side effects:
+        Reads user data from the database.
+
+    Raises:
+        HTTPException: When credentials are missing, invalid, or reference an
+            inactive or missing user.
+    """
+    return resolve_current_user(credentials, db)
 
 
 async def require_admin_user(

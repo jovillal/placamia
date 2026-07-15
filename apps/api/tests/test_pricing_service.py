@@ -10,9 +10,12 @@ from app.domain.provider_adapter import (
     LocalProviderFixture,
     ProviderItemRequest,
 )
+from app.models.design import Design
 from app.models.kit import Kit
 from app.models.kit_item import KitItem
 from app.models.product import Product
+from app.models.template import Template
+from app.services.design_validation_service import DesignValidationError
 from app.services.pricing_service import (
     MAX_PRICING_QUANTITY,
     PathAPricingRequest,
@@ -897,18 +900,317 @@ def test_pricing_rejects_invalid_or_abusive_quantities(quantity, code):
     )
 
 
-def test_design_pricing_contract_boundary_is_defined_but_deferred():
-    service = pricing_service({})
+def test_design_pricing_uses_product_base_price_and_persisted_provider_options():
+    product = build_product(base_price="25.00")
+    template = Template(
+        id=3,
+        product=product,
+        name="Emergency exit template",
+        description=None,
+        is_active=True,
+    )
+    design = Design(
+        id=7,
+        customer_id=11,
+        template_id=template.id,
+        template=template,
+        customization_values={"legend": "Exit", "width_cm": 30},
+    )
+    adapter = RecordingProviderAdapter(
+        {(CatalogItemType.DESIGN, design.id): available_fixture("15.00")}
+    )
+
+    class AcceptingValidationService:
+        def validate_customization(self, template_id, customization_values):
+            assert template_id == template.id
+            return dict(customization_values)
+
+    service = PathAPricingService(
+        adapter,
+        design_validation_service=AcceptingValidationService(),
+    )
+    request = PathAPricingRequest(
+        item_type=PricingItemType.DESIGN,
+        item=design,
+        quantity=3,
+    )
+
+    result = service.preview_quote(request)
+    repeated_result = service.preview_quote(request)
+
+    assert result == repeated_result
+    assert result.item_type is PricingItemType.DESIGN
+    assert result.item_id == design.id
+    assert result.customer_unit_price == Decimal("25.00")
+    assert result.customer_subtotal == Decimal("75.00")
+    assert result.customer_total == Decimal("75.00")
+    assert result.pricing_rule == "temporary_design_product_base_price_v1"
+    assert result.provider_quote_reference == "local-quote-design-7"
+    assert adapter.requests
+    assert all(
+        provider_request.item_type is CatalogItemType.DESIGN
+        and provider_request.item_id == design.id
+        and provider_request.quantity == 3
+        and provider_request.options == design.customization_values
+        for _, provider_request in adapter.requests
+    )
+
+
+@pytest.mark.parametrize("quantity", [1, MAX_PRICING_QUANTITY])
+def test_design_pricing_accepts_quantity_boundaries(quantity):
+    product = build_product(base_price="25.00")
+    template = Template(
+        id=3,
+        product=product,
+        name="Emergency exit template",
+        description=None,
+        is_active=True,
+    )
+    design = Design(
+        id=7,
+        customer_id=11,
+        template_id=template.id,
+        template=template,
+        customization_values={"legend": "Exit"},
+    )
+
+    class AcceptingValidationService:
+        def validate_customization(self, template_id, customization_values):
+            return dict(customization_values)
+
+    service = PathAPricingService(
+        LocalMockProviderAdapter(
+            {(CatalogItemType.DESIGN, design.id): available_fixture("15.00")}
+        ),
+        design_validation_service=AcceptingValidationService(),
+    )
+
+    result = service.preview_quote(
+        PathAPricingRequest(
+            item_type=PricingItemType.DESIGN,
+            item=design,
+            quantity=quantity,
+        )
+    )
+
+    assert result.quantity == quantity
+    assert result.customer_total == Decimal("25.00") * quantity
+
+
+@pytest.mark.parametrize(
+    ("template_active", "product_active", "code"),
+    [
+        (False, True, "inactive_template"),
+        (True, False, "inactive"),
+    ],
+)
+def test_design_pricing_rejects_inactive_anchor_before_provider_calls(
+    template_active,
+    product_active,
+    code,
+):
+    product = build_product(is_active=product_active)
+    design = Design(
+        id=7,
+        customer_id=11,
+        template_id=3,
+        template=Template(
+            id=3,
+            product=product,
+            name="Template",
+            description=None,
+            is_active=template_active,
+        ),
+        customization_values={"legend": "Exit"},
+    )
+    adapter = RecordingProviderAdapter({})
+    service = PathAPricingService(adapter, design_validation_service=object())
 
     assert_rejected_code(
         lambda: service.preview_quote(
             PathAPricingRequest(
                 item_type=PricingItemType.DESIGN,
-                item=object(),
+                item=design,
                 quantity=1,
             )
         ),
-        "design_pricing_contract_only",
+        code,
+    )
+    assert adapter.requests == []
+
+
+def test_design_pricing_hides_invalid_persisted_configuration():
+    product = build_product()
+    design = Design(
+        id=7,
+        customer_id=11,
+        template_id=3,
+        template=Template(
+            id=3,
+            product=product,
+            name="Template",
+            description=None,
+            is_active=True,
+        ),
+        customization_values={"forged": "value"},
+    )
+
+    class RejectingValidationService:
+        def validate_customization(self, template_id, customization_values):
+            raise DesignValidationError("unknown_template_field", "internal detail")
+
+    adapter = RecordingProviderAdapter({})
+    service = PathAPricingService(
+        adapter,
+        design_validation_service=RejectingValidationService(),
+    )
+
+    assert_rejected_code(
+        lambda: service.preview_quote(
+            PathAPricingRequest(
+                item_type=PricingItemType.DESIGN,
+                item=design,
+                quantity=1,
+            )
+        ),
+        "design_configuration_unavailable",
+    )
+    assert adapter.requests == []
+
+
+@pytest.mark.parametrize(
+    ("fixture", "code"),
+    [
+        (
+            LocalProviderFixture(
+                availability_state=AvailabilityState.TEMPORARILY_UNAVAILABLE,
+                provider_cost=Decimal("15.00"),
+                supports_requested_configuration=True,
+                reason_code="temporarily_unavailable",
+            ),
+            "temporarily_unavailable",
+        ),
+        (
+            LocalProviderFixture(
+                availability_state=AvailabilityState.MANUAL_QUOTE_REQUIRED,
+                provider_cost=Decimal("15.00"),
+                supports_requested_configuration=True,
+                reason_code="manual_quote_required",
+            ),
+            "manual_quote_required",
+        ),
+        (
+            LocalProviderFixture(
+                availability_state=AvailabilityState.OUTSOURCED_NOT_MVP_DIRECT,
+                provider_cost=Decimal("15.00"),
+                supports_requested_configuration=True,
+                reason_code="outsourced_not_mvp_direct",
+            ),
+            "outsourced_not_mvp_direct",
+        ),
+        (
+            LocalProviderFixture(
+                availability_state=AvailabilityState.UNSUPPORTED,
+                provider_cost=Decimal("15.00"),
+                supports_requested_configuration=True,
+                reason_code="unsupported",
+            ),
+            "unsupported",
+        ),
+        (
+            LocalProviderFixture(
+                availability_state=AvailabilityState.AVAILABLE,
+                provider_cost=None,
+                supports_requested_configuration=True,
+                reason_code="provider_cost_missing",
+            ),
+            "provider_cost_missing",
+        ),
+        (
+            LocalProviderFixture(
+                availability_state=AvailabilityState.AVAILABLE,
+                provider_cost=Decimal("15.00"),
+                supports_requested_configuration=False,
+                reason_code="unsupported_configuration",
+            ),
+            "unsupported_configuration",
+        ),
+    ],
+)
+def test_design_pricing_rejects_provider_state_or_missing_cost(fixture, code):
+    product = build_product()
+    design = Design(
+        id=7,
+        customer_id=11,
+        template_id=3,
+        template=Template(
+            id=3,
+            product=product,
+            name="Template",
+            description=None,
+            is_active=True,
+        ),
+        customization_values={"legend": "Exit"},
+    )
+
+    class AcceptingValidationService:
+        def validate_customization(self, template_id, customization_values):
+            return dict(customization_values)
+
+    service = PathAPricingService(
+        LocalMockProviderAdapter({(CatalogItemType.DESIGN, design.id): fixture}),
+        design_validation_service=AcceptingValidationService(),
+    )
+
+    assert_rejected_code(
+        lambda: service.preview_quote(
+            PathAPricingRequest(
+                item_type=PricingItemType.DESIGN,
+                item=design,
+                quantity=1,
+            )
+        ),
+        code,
+    )
+
+
+def test_design_pricing_rejects_explicit_provider_ineligibility():
+    product = build_product()
+    design = Design(
+        id=7,
+        customer_id=11,
+        template_id=3,
+        template=Template(
+            id=3,
+            product=product,
+            name="Template",
+            description=None,
+            is_active=True,
+        ),
+        customization_values={"legend": "Exit"},
+    )
+
+    class AcceptingValidationService:
+        def validate_customization(self, template_id, customization_values):
+            return dict(customization_values)
+
+    service = PathAPricingService(
+        IneligibleProviderAdapter(
+            {(CatalogItemType.DESIGN, design.id): available_fixture("15.00")},
+            CatalogItemType.DESIGN,
+        ),
+        design_validation_service=AcceptingValidationService(),
+    )
+
+    assert_rejected_code(
+        lambda: service.preview_quote(
+            PathAPricingRequest(
+                item_type=PricingItemType.DESIGN,
+                item=design,
+                quantity=1,
+            )
+        ),
+        "provider_not_eligible",
     )
 
 

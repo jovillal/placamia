@@ -9,9 +9,10 @@ be generated from this flow, not maintained manually.
 
 ## MVP Product Decision
 
-The MVP follows Path A: direct checkout for products and kits that are fully
-parametrizable, compatible with provider adapter boundary responses, and
-priceable by backend-owned rules.
+The MVP follows Path A. Product, Kit, and persisted Design configurations can be
+pricing-eligible when they are fully parametrizable, compatible with provider
+adapter boundary responses, and priceable by backend-owned rules. Persisted
+Design pricing eligibility does not by itself implement Design order creation.
 
 The MVP does not use an RFQ gate before checkout. Provider acceptance or
 rejection happens through the provider adapter boundary after verified payment

@@ -13,7 +13,6 @@
   "backendGaps": [
     "Customer sign-in/token acquisition flow beyond GET /auth/me.",
     "GET /api/v1/catalog/kits/{kit_id} for real kit detail.",
-    "Design pricing contract beyond the current Product and fixed-content Kit preview slice.",
     "Customer-visible cancellation/refund terms content source.",
     "Provider-specific payment initialization response for real payment handoff.",
     "Customer payment-status polling or order/payment result reconciliation path.",
@@ -220,7 +219,7 @@
       "purpose": "Show backend-calculated pricing as the only authoritative price source.",
       "mockState": "Static quote sample. The app does not compute or submit totals.",
       "keyActions": [
-        "Submit supported Product or fixed-content Kit pricing inputs in future wiring.",
+        "Submit supported Product, fixed-content Kit, or owned persisted Design pricing inputs in future wiring.",
         "Display backend-calculated amount.",
         "Block checkout for unavailable, manual-quote-only, or non-priceable states."
       ],
@@ -228,7 +227,7 @@
         {
           "name": "POST /api/v1/pricing/quotes",
           "status": "Implemented",
-          "note": "Public pricing preview endpoint."
+          "note": "Public Product/Kit and authenticated owner-scoped Design pricing preview endpoint."
         },
         {
           "name": "Product pricing preview",
@@ -242,8 +241,8 @@
         },
         {
           "name": "Design pricing preview",
-          "status": "Documented-but-pending",
-          "note": "Deferred until persisted Design pricing rules exist."
+          "status": "Implemented",
+          "note": "Persisted owner-scoped Designs revalidate backend customization and use the Template's related Product base price."
         },
         {
           "name": "Frontend-supplied totals/provider cost",

@@ -216,6 +216,64 @@ Content-Type: application/json
 }
 ```
 
+### Persisted Design Pricing Preview
+
+```http
+POST /api/v1/pricing/quotes
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+```json
+{
+  "item_type": "design",
+  "item_id": 7,
+  "quantity": 2
+}
+```
+
+```json
+{
+  "item_type": "design",
+  "item_id": 7,
+  "quantity": 2,
+  "currency": "COP",
+  "customer_unit_price": "20000.00",
+  "customer_subtotal": "40000.00",
+  "preview_total": "40000.00",
+  "pricing_rule": "temporary_design_product_base_price_v1",
+  "provider_quote_reference": "local-quote-design-7"
+}
+```
+
+The backend loads the owned Design, revalidates its persisted customization,
+and derives the Product base price through the Design's Template. Design quote
+requests cannot submit customization, Product, price, provider, or ownership
+fields.
+
+Any extra Design request field returns HTTP 400:
+
+```json
+{
+  "detail": {
+    "code": "frontend_pricing_claim_not_allowed",
+    "message": "Extra frontend claims are not accepted for Design pricing."
+  }
+}
+```
+
+Malformed, unsupported, or no-longer-valid persisted customization is hidden
+behind one aggregate HTTP 400 response:
+
+```json
+{
+  "detail": {
+    "code": "design_configuration_unavailable",
+    "message": "Design configuration is unavailable."
+  }
+}
+```
+
 ## Payment Initialization
 
 ```http

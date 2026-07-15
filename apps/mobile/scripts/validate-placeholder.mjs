@@ -24,6 +24,15 @@ const requiredScreens = [
   "order-list",
   "order-detail-tracking",
 ];
+const requiredBackendGaps = [
+  "Customer sign-in/token acquisition flow beyond GET /auth/me.",
+  "GET /api/v1/catalog/kits/{kit_id} for real kit detail.",
+  "Customer-visible cancellation/refund terms content source.",
+  "Provider-specific payment initialization response for real payment handoff.",
+  "Customer payment-status polling or order/payment result reconciliation path.",
+  "Customer order list endpoint.",
+  "Full customer order detail endpoint if status-only tracking is insufficient.",
+];
 const allowedStatuses = new Set([
   "Implemented",
   "Documented-but-pending",
@@ -66,9 +75,12 @@ assert(
   "guardrails must be present and explicit",
 );
 assert(
-  Array.isArray(contract.backendGaps) && contract.backendGaps.length >= 8,
+  Array.isArray(contract.backendGaps),
   "backend gaps must remain visible",
 );
+for (const gap of requiredBackendGaps) {
+  assert(contract.backendGaps.includes(gap), `missing required backend gap: ${gap}`);
+}
 assert(Array.isArray(contract.screens), "screens must be an array");
 
 const screenIds = new Set(contract.screens.map((screen) => screen.id));

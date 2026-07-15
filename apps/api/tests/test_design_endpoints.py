@@ -1,11 +1,14 @@
 import asyncio
+from decimal import Decimal
 
 import httpx
 import pytest
 from app.api.dependencies import get_current_user
 from app.core.database import Base, get_db
 from app.main import app
+from app.models.category import Category
 from app.models.design import Design
+from app.models.product import Product
 from app.models.template import Template
 from app.models.template_field import TemplateField
 from app.models.user import User
@@ -39,9 +42,26 @@ def seed_user(db, email: str = "designer@example.com") -> User:
     return user
 
 
+def seed_product(db, *, is_active: bool = True) -> Product:
+    """Persist one Product used as the Template pricing anchor."""
+    product = Product(
+        name="Configurable safety sign",
+        description=None,
+        category=Category(name=f"Safety signs {id(db)}", description=None),
+        base_price=Decimal("20.00"),
+        is_active=is_active,
+    )
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    return product
+
+
 def seed_template(db, *, is_active: bool = True) -> Template:
     """Persist one Template with the supported MVP field set."""
+    product = seed_product(db)
     template = Template(
+        product=product,
         name="Emergency exit template",
         description=None,
         is_active=is_active,
@@ -356,7 +376,9 @@ def test_create_design_endpoint_hides_malformed_backend_configuration(
     db = build_session()
     try:
         customer = seed_user(db)
+        product = seed_product(db)
         template = Template(name="Malformed template", description=None)
+        template.product = product
         db.add_all(
             [
                 TemplateField(

@@ -187,8 +187,72 @@ Inactive required contents use the aggregate customer-safe reason
 `kit_contents_unavailable`.
 
 This issue implements pricing preview only. Kit checkout, orders, payment, and
-provider handoff remain outside #183. Design pricing preview remains explicitly
-deferred until persisted Design pricing rules exist.
+provider handoff remain outside #183.
+
+## Temporary Persisted Design Pricing Preview
+
+Issue #184 extends the same quote endpoint to authenticated customer-owned
+Designs. Every Template has one required backend-owned Product relationship,
+and the pricing service derives the sellable anchor through
+`Design -> Template -> Product`. The client cannot submit or override that
+Product relationship.
+
+The temporary `temporary_design_product_base_price_v1` rule is:
+
+- customer unit price: related active backend `Product.base_price`
+- customer subtotal: customer unit price multiplied by requested quantity
+- preview total: subtotal for this slice only
+- persisted customization: revalidated and passed to Design provider checks,
+  but does not change the temporary customer amount
+
+The authenticated request accepts exactly:
+
+```json
+{
+  "item_type": "design",
+  "item_id": 7,
+  "quantity": 2
+}
+```
+
+Successful pricing returns a direct discriminated resource:
+
+```json
+{
+  "item_type": "design",
+  "item_id": 7,
+  "quantity": 2,
+  "currency": "COP",
+  "customer_unit_price": "20.00",
+  "customer_subtotal": "40.00",
+  "preview_total": "40.00",
+  "pricing_rule": "temporary_design_product_base_price_v1",
+  "provider_quote_reference": "local-quote-design-7"
+}
+```
+
+Unknown and cross-customer Designs both return HTTP 404 `design_not_found`
+without revealing ownership. Inactive Templates return HTTP 400
+`inactive_template`, inactive Products return HTTP 400 `inactive`, and
+malformed, unsupported, or no-longer-valid persisted customization returns
+HTTP 400 `design_configuration_unavailable` with the aggregate message
+`Design configuration is unavailable.` Provider availability, capability,
+eligibility, and missing-cost rejection codes remain backend-derived.
+
+Design quote requests forbid `options` and every extra customization, Product,
+price, provider, ownership, role, or arbitrary field. Every extra field returns
+HTTP 400 `frontend_pricing_claim_not_allowed` with the Design-specific message
+`Extra frontend claims are not accepted for Design pricing.` Product and Kit
+quote requests remain public; only Design pricing requires authentication, and
+invalid supplied credentials never downgrade a Design request to anonymous
+access. Provider cost, assignment, availability, eligibility, lead time,
+persisted customization, Product mapping, and ownership are not returned. The
+opaque provider quote reference remains customer-visible for parity with
+Product and Kit previews.
+
+This rule applies no customization adjustment, margin, tax, fee, or discount.
+Those calculations remain deferred until validation documents exact rules.
+Design checkout, orders, payment, and provider handoff remain outside #184.
 
 ## Related Validation Docs
 

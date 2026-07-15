@@ -39,11 +39,15 @@ class KitPricingQuoteRequest(BasePricingQuoteRequest):
 
 
 class DesignPricingQuoteRequest(BasePricingQuoteRequest):
-    """Existing deferred Design pricing request contract."""
+    """Strict authenticated persisted Design pricing request."""
 
     item_type: Literal[PricingItemType.DESIGN]
-    quantity: int
-    options: dict[str, Any] = Field(default_factory=dict)
+    quantity: Any
+
+    model_config = ConfigDict(
+        extra="allow",
+        json_schema_extra={"additionalProperties": False},
+    )
 
 
 PricingQuoteRequest = Annotated[
@@ -93,8 +97,22 @@ class KitPricingQuoteResponse(BaseModel):
     lines: list[KitPricingLineResponse]
 
 
+class DesignPricingQuoteResponse(BaseModel):
+    """Response schema for a persisted customer-owned Design preview."""
+
+    item_type: Literal[PricingItemType.DESIGN]
+    item_id: int
+    quantity: int
+    currency: str
+    customer_unit_price: Decimal
+    customer_subtotal: Decimal
+    preview_total: Decimal
+    pricing_rule: str
+    provider_quote_reference: str | None
+
+
 PricingQuoteResponse = Annotated[
-    ProductPricingQuoteResponse | KitPricingQuoteResponse,
+    ProductPricingQuoteResponse | KitPricingQuoteResponse | DesignPricingQuoteResponse,
     Field(discriminator="item_type"),
 ]
-"""Discriminated Product or Kit pricing quote response."""
+"""Discriminated Product, Kit, or Design pricing quote response."""

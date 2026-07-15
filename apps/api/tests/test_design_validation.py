@@ -1,6 +1,10 @@
+from decimal import Decimal
+
 import pytest
 from app.core.database import Base
+from app.models.category import Category
 from app.models.design import Design
+from app.models.product import Product
 from app.models.template import Template
 from app.models.template_field import TemplateField
 from app.models.user import User
@@ -31,6 +35,19 @@ def build_session():
     return testing_session_local()
 
 
+def seed_product(db) -> Product:
+    """Persist one Product used as the Design Template pricing anchor."""
+    product = Product(
+        name="Configurable safety sign",
+        description=None,
+        category=Category(name=f"Safety signs {id(db)}", description=None),
+        base_price=Decimal("20.00"),
+    )
+    db.add(product)
+    db.commit()
+    return product
+
+
 def build_validation_service(db):
     return DesignValidationService(
         template_repository=TemplateRepository(db),
@@ -39,7 +56,9 @@ def build_validation_service(db):
 
 
 def add_template_with_mvp_fields(db, *, is_active=True):
+    product = seed_product(db)
     template = Template(
+        product=product,
         name="Emergency exit template",
         description=None,
         is_active=is_active,
@@ -206,7 +225,11 @@ def test_design_validation_rejects_missing_required_field():
 def test_design_validation_rejects_unsupported_field_type():
     db = build_session()
     try:
-        template = Template(name="Warning template", description=None)
+        template = Template(
+            product=seed_product(db),
+            name="Warning template",
+            description=None,
+        )
         db.add(
             TemplateField(
                 template=template,

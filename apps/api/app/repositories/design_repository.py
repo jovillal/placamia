@@ -1,6 +1,7 @@
 from app.models.design import Design
+from app.models.template import Template
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 
 class DesignRepository:
@@ -67,6 +68,31 @@ class DesignRepository:
         """
         result = self.db.execute(
             select(Design).where(
+                Design.id == design_id,
+                Design.customer_id == customer_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    def get_design_for_customer_pricing(
+        self,
+        design_id: int,
+        customer_id: int,
+    ) -> Design | None:
+        """Return one owned Design with its pricing anchor loaded.
+
+        Args:
+            design_id: Design identifier to look up.
+            customer_id: Backend-derived authenticated customer identifier.
+
+        Returns:
+            The matching owned Design with Template and Product loaded, or None
+            when no matching owned Design exists.
+        """
+        result = self.db.execute(
+            select(Design)
+            .options(selectinload(Design.template).selectinload(Template.product))
+            .where(
                 Design.id == design_id,
                 Design.customer_id == customer_id,
             )

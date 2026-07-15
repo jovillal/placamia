@@ -1,6 +1,10 @@
 from datetime import UTC, datetime
 
+from decimal import Decimal
+
 from app.core.database import Base
+from app.models.category import Category
+from app.models.product import Product
 from app.models.template import Template
 from app.models.template_field import TemplateField
 from app.repositories.template_field_repository import TemplateFieldRepository
@@ -25,10 +29,25 @@ def build_session():
     return testing_session_local()
 
 
+def seed_product(db) -> Product:
+    """Persist one Product used by TemplateField test Templates."""
+    product = Product(
+        name="Configurable safety sign",
+        description=None,
+        category=Category(name="Safety signs", description=None),
+        base_price=Decimal("20.00"),
+    )
+    db.add(product)
+    db.commit()
+    return product
+
+
 def test_template_field_model_persists_customization_definition():
     db = build_session()
     try:
+        product = seed_product(db)
         template = Template(
+            product=product,
             name="Emergency exit template",
             description=None,
         )
@@ -87,11 +106,14 @@ def test_template_field_model_table_matches_mvp_fields():
 def test_template_field_repository_lists_active_fields_by_display_order_and_id():
     db = build_session()
     try:
+        product = seed_product(db)
         template = Template(
+            product=product,
             name="Emergency exit template",
             description=None,
         )
         other_template = Template(
+            product=product,
             name="Warning template",
             description=None,
         )
@@ -155,7 +177,9 @@ def test_template_field_repository_lists_active_fields_by_display_order_and_id()
 def test_template_field_repository_returns_empty_for_inactive_or_missing_template():
     db = build_session()
     try:
+        product = seed_product(db)
         inactive_template = Template(
+            product=product,
             name="Retired template",
             description=None,
             is_active=False,
