@@ -13,7 +13,6 @@
   "backendGaps": [
     "Customer sign-in/token acquisition flow beyond GET /auth/me.",
     "GET /api/v1/catalog/kits/{kit_id} for real kit detail.",
-    "Design endpoints: POST /designs and GET /designs/{id}.",
     "Kit and Design pricing contracts beyond the current product preview slice.",
     "Customer-visible cancellation/refund terms content source.",
     "Provider-specific payment initialization response for real payment handoff.",
@@ -199,8 +198,13 @@
         },
         {
           "name": "POST /api/v1/designs",
-          "status": "Documented-but-pending",
-          "note": "Needed for persisted Design creation."
+          "status": "Implemented",
+          "note": "Creates an authenticated customer-owned Design only after backend validation."
+        },
+        {
+          "name": "GET /api/v1/designs/{design_id}",
+          "status": "Implemented",
+          "note": "Returns one persisted Design only to its authenticated owner."
         },
         {
           "name": "AI/AR/3D/file-based design generation",

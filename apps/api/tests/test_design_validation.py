@@ -3,6 +3,7 @@ from app.core.database import Base
 from app.models.design import Design
 from app.models.template import Template
 from app.models.template_field import TemplateField
+from app.models.user import User
 from app.repositories.design_repository import DesignRepository
 from app.repositories.template_field_repository import TemplateFieldRepository
 from app.repositories.template_repository import TemplateRepository
@@ -280,8 +281,13 @@ def test_design_validation_rejected_payload_does_not_persist_design_data():
     db = build_session()
     try:
         template = add_template_with_mvp_fields(db)
+        customer = User(email="designer@example.com", full_name="Test Designer")
+        db.add(customer)
+        db.commit()
+        db.refresh(customer)
         design_repository = DesignRepository(db)
         design_repository.create_design(
+            customer_id=customer.id,
             template_id=template.id,
             customization_values={
                 "legend": "Existing valid design",
@@ -302,7 +308,7 @@ def test_design_validation_rejected_payload_does_not_persist_design_data():
             )
 
         assert design_count(db) == 1
-        stored_design = design_repository.get_design_by_id(1)
+        stored_design = design_repository.get_design_for_customer(1, customer.id)
         assert stored_design.customization_values == {
             "legend": "Existing valid design",
             "material": "vinyl",

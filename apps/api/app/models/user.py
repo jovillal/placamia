@@ -8,6 +8,7 @@ from sqlalchemy import Boolean, DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
+    from app.models.design import Design
     from app.models.order import Order
 
 
@@ -57,5 +58,9 @@ class User(Base):
     )
     orders: Mapped[list["Order"]] = relationship(
         "Order",
+        back_populates="customer",
+    )
+    designs: Mapped[list["Design"]] = relationship(
+        "Design",
         back_populates="customer",
     )
