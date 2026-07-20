@@ -128,7 +128,7 @@ Key actions:
 - Browse kits.
 - Inspect kit contents.
 - See whether the kit is directly purchasable.
-- Continue to kit detail when implemented.
+- Continue to kit detail.
 
 Backend dependencies:
 
@@ -156,7 +156,7 @@ Backend dependencies:
 
 | Dependency | Status | Notes |
 | --- | --- | --- |
-| `GET /api/v1/catalog/kits/{kit_id}` | Documented-but-pending | `docs/planning/kits.md` lists this as a future issue. |
+| `GET /api/v1/catalog/kits/{kit_id}` | Implemented | Public direct `KitRead` detail with the same visibility, active-content projection, and eligibility behavior as the Kit list. |
 | Kit pricing interaction | Implemented | Fixed-content Kits use backend KitItem quantities and Product base prices for temporary quote previews. |
 
 ### 7. Template Selection And Rules-Based Design Input
@@ -360,7 +360,6 @@ navigation placeholders if it does not pretend these gaps are implemented.
 Backend gaps to resolve before connecting each screen to real behavior:
 
 - #179: customer sign-in/token acquisition flow beyond `GET /auth/me`.
-- #180: `GET /api/v1/catalog/kits/{kit_id}` for real kit detail.
 - #185: versioned customer-visible cancellation/refund terms content source.
 - #186: real-provider payment initialization handoff response. The current
   provider-neutral `POST /api/v1/payments` attempt initialization is already
@@ -409,7 +408,7 @@ Completed:
 
 Backend contract backlog:
 
-- #179, #180, and #185 through #189, mapped individually in
+- #179 and #185 through #189, mapped individually in
   `Minimum API Contract Gaps Before Real Backend Wiring`.
 
 ## Constraints

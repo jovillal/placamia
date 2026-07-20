@@ -26,7 +26,6 @@ const requiredScreens = [
 ];
 const requiredBackendGaps = [
   "Customer sign-in/token acquisition flow beyond GET /auth/me.",
-  "GET /api/v1/catalog/kits/{kit_id} for real kit detail.",
   "Customer-visible cancellation/refund terms content source.",
   "Provider-specific payment initialization response for real payment handoff.",
   "Customer payment-status polling or order/payment result reconciliation path.",

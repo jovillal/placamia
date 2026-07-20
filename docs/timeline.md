@@ -79,7 +79,6 @@ GitHub milestone: `Current MVP`.
 ### Remaining Customer Contracts
 
 - #179 customer sign-in and token acquisition contract.
-- #180 public kit detail endpoint.
 - #185 versioned customer-visible cancellation/refund terms source.
 - #186 real payment-provider initialization response.
 - #187 customer payment-status refresh contract.

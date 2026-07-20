@@ -32,7 +32,15 @@ flowchart TD
 
     U2 --> B5[Fetch kits]
     B5 --> D3[(Kit data + active contents + adapter-backed eligibility)]
-    D3 --> B6[Return kits with backend-derived eligibility fields]
+    D3 --> B6[Return Kit list with backend-derived eligibility fields]
+    B6 --> U3[User opens Kit detail]
+    U3 --> B7[Fetch Kit detail]
+    B7 --> D3
+    D3 --> B8[Return direct Kit detail with the same public projection]
+    B8 --> U3
+    U3 --> B9[Request Kit pricing preview]
+    B9 --> D4[(Backend-owned fixed Kit pricing)]
+    D4 --> B10[Return pricing preview]
 
     D0 --> B3
     D0 --> B5
@@ -44,6 +52,7 @@ flowchart TD
     B5 -. zero active required contents .-> R2[Hide kit]
     B5 -. omitted inactive required contents .-> R3
     B5 -. unavailable required contents .-> R3[Return kit as not directly purchasable]
+    B7 -. unknown, inactive, empty, or all-inactive .-> R4[Return Kit not found]
 ```
 
 ## Constraints
@@ -68,6 +77,11 @@ flowchart TD
   `kit_contents_unavailable`.
 - Public kit contents use customer-safe product summaries and must not expose
   provider cost, provider assignment, or internal eligibility inputs.
+- Public Kit detail reuses the Kit list visibility, item projection, and
+  eligibility behavior. It returns active rows in KitItem id order and accepts
+  no query parameters.
+- Kit detail may navigate to backend pricing, but catalog detail does not own or
+  expose Kit prices.
 - Weekly provider availability is a soft operational input, not exact inventory
   reservation
 - No write operations allowed

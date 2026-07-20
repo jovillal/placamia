@@ -98,6 +98,7 @@ The current implemented API endpoints are:
 | `GET` | `/api/v1/auth/me` | Auth | Required | `UserRead` object |
 | `GET` | `/api/v1/catalog/categories` | Catalog | Public | `{ "data": CategoryRead[] }` |
 | `GET` | `/api/v1/catalog/kits` | Catalog | Public | `{ "data": KitRead[] }` with customer-safe product summaries |
+| `GET` | `/api/v1/catalog/kits/{kit_id}` | Catalog | Public | Direct `KitRead` with customer-safe active contents |
 | `GET` | `/api/v1/catalog/products` | Catalog | Public | `{ "data": ProductRead[], "meta": pagination }` |
 | `GET` | `/api/v1/catalog/products/{product_id}` | Catalog | Public | `ProductRead` object |
 | `GET` | `/api/v1/templates` | Templates | Public | `{ "data": TemplateSummaryRead[] }` |

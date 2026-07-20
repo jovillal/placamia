@@ -4,7 +4,7 @@ from app.repositories.kit_repository import KitRepository
 from app.schemas.kit import KitItemRead, KitRead
 from app.services.kit_eligibility_service import KitEligibility
 from app.services.kit_service import KitService
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -62,6 +62,65 @@ async def list_kits(
     )
 
 
+@router.get(
+    "/{kit_id}",
+    response_model=KitRead,
+    summary="Get catalog kit",
+    description=(
+        "Returns one visible active catalog Kit with customer-safe active "
+        "Product summaries and backend-derived direct-checkout eligibility "
+        "signals. This endpoint accepts no query parameters."
+    ),
+    responses={
+        404: {"description": "Kit not found"},
+        422: {"description": "Unsupported query parameter"},
+    },
+)
+async def get_kit(
+    kit_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    provider_adapter=Depends(get_provider_adapter),
+) -> KitRead:
+    """Return one publicly visible catalog Kit by id.
+
+    Args:
+        kit_id: Kit identifier from the request path.
+        request: Incoming request used to reject every query parameter.
+        db: SQLAlchemy session provided by FastAPI dependency injection.
+        provider_adapter: Backend-owned provider adapter used to derive public
+            availability and direct-checkout eligibility.
+
+    Returns:
+        The matching public Kit response.
+
+    Side effects:
+        None.
+
+    Raises:
+        HTTPException: When query parameters are supplied or the Kit is not
+            publicly visible.
+    """
+    _reject_kit_detail_query_params(request)
+
+    kit_service = KitService(KitRepository(db))
+    kit = kit_service.get_public_kit(kit_id)
+    if kit is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Kit not found",
+        )
+
+    return _kit_read_from_eligibility(
+        kit=kit,
+        items=kit_service.list_public_kit_items(kit),
+        eligibility=kit_service.get_kit_eligibility(
+            kit=kit,
+            provider_adapter=provider_adapter,
+        ),
+    )
+
+
 def _kit_read_from_eligibility(
     kit,
     items,
@@ -90,3 +149,17 @@ def _kit_item_read(item) -> KitItemRead:
         category_id=item.product.category_id,
         quantity=item.quantity,
     )
+
+
+def _reject_kit_detail_query_params(request: Request) -> None:
+    """Reject every query parameter for the public Kit detail contract."""
+    unsupported_parameters = sorted(set(request.query_params.keys()))
+    if unsupported_parameters:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "code": "unsupported_query_parameter",
+                "message": "Unsupported query parameter.",
+                "unsupported_parameters": unsupported_parameters,
+            },
+        )

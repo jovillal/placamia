@@ -39,6 +39,7 @@ http://localhost:8000
 - `Catalog / List Products`
 - `Catalog / Get Product`
 - `Catalog / List Kits`
+- `Catalog / Get Kit`
 - `Pricing / Quote Product`
 - `Pricing / Quote Kit`
 - `Pricing / Quote Design`
@@ -59,7 +60,7 @@ an eligible authenticated draft order.
 | `base_url` | `http://localhost:8000` | Local API origin. |
 | `api_prefix` | `/api/v1` | Versioned API prefix. |
 | `product_id` | `1` | Product id used by `Catalog / Get Product`. |
-| `kit_id` | `1` | Kit id used by `Pricing / Quote Kit`. |
+| `kit_id` | `1` | Kit id used by `Catalog / Get Kit` and `Pricing / Quote Kit`. |
 | `design_id` | `1` | Owned persisted Design id used by `Pricing / Quote Design`. |
 | `pricing_quantity` | `1` | Quantity used by all pricing preview requests. |
 | `payment_order_id` | `1` | Draft order id used by `Payments / Initialize Payment`. |
