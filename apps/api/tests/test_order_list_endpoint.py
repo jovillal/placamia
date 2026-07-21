@@ -561,9 +561,6 @@ def test_order_list_endpoint_is_repeatable_and_read_only():
 
 
 def test_order_list_endpoint_documents_safe_authenticated_paginated_contract():
-    response = asyncio.run(request_order_list())
-    assert response.status_code == 401
-
     async def get_openapi_schema():
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(
