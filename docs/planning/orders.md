@@ -33,7 +33,8 @@ confirmation is not part of the MVP order creation path.
 5. Paid/confirmed order becomes eligible for provider adapter handoff
 6. Provider adapter records provider acceptance or rejection of the paid order
 7. Provider/production/shipment status updates order state
-8. User can track order status
+8. User can list their owner-scoped order summaries
+9. User can track an owned order's status
 
 ## Status Lifecycle
 
@@ -160,6 +161,7 @@ new documented flows, not silent snapshot rewrites.
 - Order status lifecycle
 - Order and OrderItem models
 - Order creation endpoint
+- Customer Order list endpoint
 - Order status endpoint
 - Order payload/service preparation for provider adapter handoff
 - Provider handoff transmission success recording
@@ -218,11 +220,64 @@ Current state:
   `in_production`; admins can approve requests to move orders to `cancelled`
   or reject them back to the stored prior paid state. Payment confirmation and
   provider fulfillment history remain unchanged.
+- Authenticated customer Order listing is implemented with strict owner-scoped
+  pagination and a dedicated customer-safe summary projection.
+
+## Customer Order List
+
+`GET /api/v1/orders` requires the existing bearer authentication dependency
+and derives ownership only from the authenticated current user. Both the page
+query and count query filter by that backend-derived `customer_id`; global
+Order rows are never loaded and filtered in application code.
+
+The endpoint accepts only `page` and `page_size`. `page` defaults to `1` and
+must be at least `1`. `page_size` defaults to `20` and must be between `1` and
+`100`. Every other query parameter is rejected with HTTP 422
+`unsupported_query_parameter` and sorted unsupported parameter names before
+Order list or count work begins.
+
+Results are ordered by `created_at DESC, id DESC`. Responses use the dedicated
+`OrderSummaryRead`, `OrderListMeta`, and `OrderListResponse` schemas:
+
+```json
+{
+  "data": [
+    {
+      "id": 42,
+      "status": "confirmed",
+      "currency": "COP",
+      "total_amount": "85000.00",
+      "created_at": "2026-07-21T12:00:00Z",
+      "updated_at": "2026-07-21T12:05:00Z"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "page_size": 20,
+    "total_items": 1,
+    "total_pages": 1
+  }
+}
+```
+
+`total_pages` is the ceiling of `total_items / page_size`, or `0` when the
+owner has no Orders. A page beyond the final result returns an empty `data`
+array while preserving owner-scoped totals.
+
+Each summary exposes exactly `id`, `status`, `currency`, `total_amount`,
+`created_at`, and `updated_at`. Currency and total are read from the persisted
+backend-owned Order snapshot and are never recomputed from mutable catalog,
+pricing, or OrderItem state. The list query loads only these scalar summary
+columns and does not eager-load or serialize customer, OrderItem, Payment,
+provider, policy, cancellation provenance, audit, admin, or internal state.
+List reads are deterministic for unchanged persistence and do not mutate Order
+or related records.
 
 
 ## Related Endpoints
 
 - POST /api/v1/orders
+- GET /api/v1/orders
 - GET /api/v1/orders/{order_id}/status
 
 See docs/api/endpoint-structure.md.
@@ -236,6 +291,7 @@ See docs/api/endpoint-structure.md.
 - #33 Create GET order status endpoint with tests
 - #35 Prepare paid-order provider adapter handoff payload
 - #61 Send order to provider
+- #188 Add customer order list endpoint
 
 ## Future Issues
 

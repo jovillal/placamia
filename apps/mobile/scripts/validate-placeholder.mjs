@@ -29,7 +29,6 @@ const requiredBackendGaps = [
   "Customer-visible cancellation/refund terms content source.",
   "Provider-specific payment initialization response for real payment handoff.",
   "Customer payment-status polling or order/payment result reconciliation path.",
-  "Customer order list endpoint.",
   "Full customer order detail endpoint if status-only tracking is insufficient.",
 ];
 const allowedStatuses = new Set([

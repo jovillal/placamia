@@ -1,0 +1,21 @@
+meta {
+  name: List Orders
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}{{api_prefix}}/orders?page={{order_page}}&page_size={{order_page_size}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+docs {
+  Lists one deterministic page of customer-safe Order summaries owned by the
+  authenticated user. Set `access_token`, `order_page`, and `order_page_size`
+  in the Local environment before running this request.
+}

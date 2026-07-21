@@ -68,6 +68,35 @@ class OrderRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class OrderSummaryRead(BaseModel):
+    """Customer-safe persisted Order summary for list responses."""
+
+    id: int
+    status: str
+    currency: str
+    total_amount: Decimal
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderListMeta(BaseModel):
+    """Pagination metadata for an authenticated customer's Order list."""
+
+    page: int
+    page_size: int
+    total_items: int
+    total_pages: int
+
+
+class OrderListResponse(BaseModel):
+    """Owner-scoped customer Order summaries and pagination metadata."""
+
+    data: list[OrderSummaryRead]
+    meta: OrderListMeta
+
+
 class OrderStatusItemRead(BaseModel):
     """Customer-safe item snapshot shown in order tracking responses."""
 
