@@ -6,8 +6,8 @@ from datetime import datetime
 from app.domain.order_lifecycle import OrderStatus
 from app.models.order import Order
 from app.models.order_item import OrderItem
-from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, load_only, raiseload, selectinload
 
 
 class OrderRepository:
@@ -92,6 +92,66 @@ class OrderRepository:
             .order_by(Order.created_at.desc(), Order.id.desc())
         )
         return list(result.scalars().all())
+
+    def get_orders_page_for_customer(
+        self,
+        customer_id: int,
+        *,
+        offset: int,
+        limit: int,
+    ) -> list[Order]:
+        """Return one scalar-only page of an authenticated customer's Orders.
+
+        Args:
+            customer_id: Backend-derived authenticated customer identifier.
+            offset: Number of matching owner-scoped Orders to skip.
+            limit: Maximum number of matching Orders to return.
+
+        Returns:
+            Customer-owned Orders ordered by creation time and id descending.
+
+        Side effects:
+            Reads persisted Order summary columns only. Related customer,
+            OrderItem, and Payment rows are not loaded.
+        """
+        result = self.db.execute(
+            select(Order)
+            .options(
+                load_only(
+                    Order.id,
+                    Order.status,
+                    Order.currency,
+                    Order.total_amount,
+                    Order.created_at,
+                    Order.updated_at,
+                    raiseload=True,
+                ),
+                raiseload("*"),
+            )
+            .where(Order.customer_id == customer_id)
+            .order_by(Order.created_at.desc(), Order.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    def count_orders_for_customer(self, customer_id: int) -> int:
+        """Count Orders owned by one authenticated customer.
+
+        Args:
+            customer_id: Backend-derived authenticated customer identifier.
+
+        Returns:
+            Number of persisted Orders owned by the customer.
+
+        Side effects:
+            Executes one owner-scoped aggregate database read.
+        """
+        return self.db.scalar(
+            select(func.count())
+            .select_from(Order)
+            .where(Order.customer_id == customer_id)
+        )
 
     def record_provider_handoff_sent(
         self,

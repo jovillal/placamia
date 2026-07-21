@@ -14,8 +14,11 @@ from app.schemas.order import (
     OrderCancellationResolutionRequest,
     OrderCancellationResponse,
     OrderCreateRequest,
+    OrderListMeta,
+    OrderListResponse,
     OrderRead,
     OrderStatusRead,
+    OrderSummaryRead,
 )
 from app.services.audit_log_service import AuditLogService
 from app.services.checkout_service import CheckoutEligibilityService
@@ -28,11 +31,73 @@ from app.services.order_cancellation_service import (
 )
 from app.services.order_creation_service import OrderCreationRejected
 from app.services.order_creation_service import OrderCreationService
+from app.services.order_list_service import OrderListService
 from app.services.pricing_service import PathAPricingService
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/orders", tags=["orders"])
+
+ALLOWED_ORDER_LIST_QUERY_PARAMS = frozenset({"page", "page_size"})
+MAX_ORDER_PAGE_SIZE = 100
+
+
+@router.get(
+    "",
+    response_model=OrderListResponse,
+    summary="List customer orders",
+    description=(
+        "Returns a deterministic page of persisted customer-safe Order "
+        "summaries owned by the authenticated user. Supports only page and "
+        "page_size and never recalculates historical totals."
+    ),
+    responses={
+        401: {"description": "Authentication required"},
+        422: {"description": "Invalid or unsupported query parameter"},
+    },
+)
+async def list_customer_orders(
+    request: Request,
+    page: int = Query(default=1, gt=0),
+    page_size: int = Query(default=20, gt=0, le=MAX_ORDER_PAGE_SIZE),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> OrderListResponse:
+    """Return one owner-scoped page of persisted Order summaries.
+
+    Args:
+        request: Incoming request used to reject unsupported query parameters.
+        page: One-based page number. Defaults to 1.
+        page_size: Positive page size up to 100. Defaults to 20.
+        db: SQLAlchemy session provided by FastAPI dependency injection.
+        current_user: Authenticated user resolved from the bearer token.
+
+    Returns:
+        Customer-safe Order summaries and owner-scoped pagination metadata.
+
+    Side effects:
+        Reads persisted Order summary data only. The endpoint does not mutate
+        orders or load customer, OrderItem, Payment, or provider details.
+
+    Raises:
+        HTTPException: When unsupported query parameters are supplied.
+    """
+    _reject_unsupported_order_list_query_params(request)
+
+    result = OrderListService(OrderRepository(db)).list_customer_orders(
+        customer_id=current_user.id,
+        page=page,
+        page_size=page_size,
+    )
+    return OrderListResponse(
+        data=[OrderSummaryRead.model_validate(order) for order in result.orders],
+        meta=OrderListMeta(
+            page=result.page,
+            page_size=result.page_size,
+            total_items=result.total_items,
+            total_pages=result.total_pages,
+        ),
+    )
 
 
 @router.get(
@@ -79,6 +144,22 @@ async def get_order_status(
         )
 
     return OrderStatusRead.model_validate(order)
+
+
+def _reject_unsupported_order_list_query_params(request: Request) -> None:
+    """Reject query parameters outside the customer Order list contract."""
+    unsupported_parameters = sorted(
+        set(request.query_params.keys()) - ALLOWED_ORDER_LIST_QUERY_PARAMS
+    )
+    if unsupported_parameters:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "code": "unsupported_query_parameter",
+                "message": "Unsupported query parameter.",
+                "unsupported_parameters": unsupported_parameters,
+            },
+        )
 
 
 @router.post(

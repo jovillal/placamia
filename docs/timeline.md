@@ -82,7 +82,6 @@ GitHub milestone: `Current MVP`.
 - #185 versioned customer-visible cancellation/refund terms source.
 - #186 real payment-provider initialization response.
 - #187 customer payment-status refresh contract.
-- #188 customer order list endpoint.
 - #189 full customer order detail endpoint.
 
 These issues are scoped independently. Implementations must continue to follow

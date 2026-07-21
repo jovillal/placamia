@@ -308,6 +308,41 @@ behind one aggregate HTTP 400 response:
 }
 ```
 
+## Customer Order List
+
+```http
+GET /api/v1/orders?page=1&page_size=20
+Authorization: Bearer <access_token>
+```
+
+```json
+{
+  "data": [
+    {
+      "id": 42,
+      "status": "confirmed",
+      "currency": "COP",
+      "total_amount": "85000.00",
+      "created_at": "2026-07-21T12:00:00Z",
+      "updated_at": "2026-07-21T12:05:00Z"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "page_size": 20,
+    "total_items": 1,
+    "total_pages": 1
+  }
+}
+```
+
+The backend derives ownership from the bearer token and applies it to both the
+list and count queries. Results use persisted Order totals and currency, order
+by `created_at DESC, id DESC`, and expose no OrderItem, Payment, customer,
+provider, policy, cancellation-provenance, or internal fields. Only `page` and
+`page_size` are supported; other query parameters return HTTP 422
+`unsupported_query_parameter`.
+
 ## Payment Initialization
 
 ```http

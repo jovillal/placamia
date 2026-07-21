@@ -33,7 +33,8 @@ flowchart TD
     U5[User reviews cancellation terms]
     U6[User confirms checkout]
     U7[User completes payment]
-    U8[User tracks order]
+    U8[User opens order history]
+    U9[User tracks order]
 
     %% Backend lane
     B1[Fetch categories, products, kits]
@@ -51,6 +52,8 @@ flowchart TD
     B12[Prepare paid-order provider payload]
     B13[Provider adapter handoff]
     B14[Update order status]
+    B15[List authenticated customer's Order summaries]
+    B16[Return owner-scoped persisted totals and lifecycle states]
 
     %% Database lane
     D1[(Products, Kits, and KitItems)]
@@ -101,7 +104,6 @@ flowchart TD
     P2 -->|yes| P3 --> P4 --> P5 --> B14
     P5 --> P6 --> B14
     B14 --> D7
-    D7 --> U8
 
     %% Rejection paths
     B3 -. invalid customization .-> R1[Reject request]
@@ -110,6 +112,11 @@ flowchart TD
     B10 -. invalid or failed payment .-> R4[Do not confirm order]
     B13 -. transmission failed .-> R5[Keep confirmed and retry without duplicate handoff]
     P2 -->|no| R6[Mark provider rejection]
+
+    U8 --> B15 --> D5
+    D5 --> B16 --> U8
+    U8 --> U9
+    D7 --> U9
 ```
 
 ## Design Lifecycle
@@ -130,6 +137,17 @@ Persisted Design pricing reloads the owner-scoped Design, follows its required
 Template-to-Product relationship, revalidates current TemplateField rules, and
 uses only backend-owned data for provider checks and arithmetic. This pricing
 preview does not create an Order, Payment, or provider handoff.
+
+## Customer Order History
+
+Authenticated customers can list only their own persisted Order summaries
+before opening tracking. The list is owner-scoped in database list and count
+queries, ordered by `created_at DESC, id DESC`, and exposes persisted lifecycle,
+currency, total, and timestamp fields only. It does not recalculate historical
+totals or load OrderItems, Payments, customer relationships, provider details,
+or cancellation provenance. Opening an entry continues to the existing
+owner-scoped tracking flow without changing lifecycle ownership or mutation
+rules.
 
 ## Direct Checkout Eligibility
 

@@ -44,14 +44,16 @@ http://localhost:8000
 - `Pricing / Quote Kit`
 - `Pricing / Quote Design`
 - `Auth / Current User`
+- `Orders / List Orders`
 - `Payments / Initialize Payment`
 
 The catalog and Product/Kit pricing requests are public. `Pricing / Quote
 Design` loads an owner-scoped persisted Design and uses the `access_token`
 environment variable. It returns `401` until a valid local bearer token is
 provided. `Auth / Current User` and `Payments / Initialize Payment` also use
-`access_token`; payment initialization expects `payment_order_id` to point at
-an eligible authenticated draft order.
+`access_token`. `Orders / List Orders` also uses `order_page` and
+`order_page_size`; payment initialization expects `payment_order_id` to point
+at an eligible authenticated draft order.
 
 ## Local Variables
 
@@ -64,4 +66,6 @@ an eligible authenticated draft order.
 | `design_id` | `1` | Owned persisted Design id used by `Pricing / Quote Design`. |
 | `pricing_quantity` | `1` | Quantity used by all pricing preview requests. |
 | `payment_order_id` | `1` | Draft order id used by `Payments / Initialize Payment`. |
+| `order_page` | `1` | One-based page used by `Orders / List Orders`. |
+| `order_page_size` | `20` | Bounded page size used by `Orders / List Orders`. |
 | `access_token` | empty | Optional bearer token for authenticated requests. |

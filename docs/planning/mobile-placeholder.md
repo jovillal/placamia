@@ -299,8 +299,8 @@ Backend dependencies:
 
 | Dependency | Status | Notes |
 | --- | --- | --- |
-| Customer order list endpoint | Documented-but-pending | No `GET /api/v1/orders` customer list endpoint exists in the implemented inventory. |
-| Cross-user order visibility | Intentionally deferred | Mobile must never rely on client filtering for ownership. |
+| `GET /api/v1/orders` | Implemented | Authenticated owner-scoped summaries with deterministic pagination and persisted totals. |
+| Cross-user order visibility | Implemented | Backend list and count queries enforce ownership; mobile must not client-filter ownership. |
 
 ### 13. Order Detail And Tracking
 
@@ -366,7 +366,6 @@ Backend gaps to resolve before connecting each screen to real behavior:
   implemented and must not be presented as a real provider session.
 - #187: customer payment-status polling or documented order/payment result
   reconciliation for mobile state refresh.
-- #188: customer order list endpoint.
 - #189: full customer order detail endpoint.
 
 ## #37 Implementation Guardrails
@@ -408,7 +407,7 @@ Completed:
 
 Backend contract backlog:
 
-- #179 and #185 through #189, mapped individually in
+- #179, #185 through #187, and #189, mapped individually in
   `Minimum API Contract Gaps Before Real Backend Wiring`.
 
 ## Constraints
