@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import httpx
+import pytest
 from app.api.dependencies import get_provider_adapter
 from app.core.database import Base, get_db
 from app.domain.provider_adapter import (
@@ -52,6 +53,19 @@ async def request_kits(params: dict[str, str] | None = None):
         return await client.get("/api/v1/catalog/kits", params=params)
 
 
+async def request_kit_detail(
+    kit_id: int,
+    params: dict[str, str] | None = None,
+):
+    """Call the public kit detail endpoint through the ASGI test transport."""
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+    ) as client:
+        return await client.get(f"/api/v1/catalog/kits/{kit_id}", params=params)
+
+
 def build_provider_adapter_override(fixtures):
     """Build a FastAPI dependency override for deterministic adapter fixtures."""
 
@@ -68,6 +82,74 @@ def available_fixture(cost: str = "12.50") -> LocalProviderFixture:
         provider_cost=Decimal(cost),
         supports_requested_configuration=True,
     )
+
+
+class RecordingProviderAdapter(LocalMockProviderAdapter):
+    """Record provider reads made while projecting public Kit responses."""
+
+    def __init__(self, fixtures) -> None:
+        """Store fixtures and initialize the recorded request list."""
+        super().__init__(fixtures)
+        self.requests = []
+
+    def check_availability(self, request):
+        """Record and execute one availability read."""
+        self.requests.append(("availability", request))
+        return super().check_availability(request)
+
+    def quote_pricing(self, request):
+        """Record and execute one provider pricing read."""
+        self.requests.append(("pricing", request))
+        return super().quote_pricing(request)
+
+    def check_direct_checkout_eligibility(self, request):
+        """Record and execute one direct-checkout eligibility read."""
+        self.requests.append(("eligibility", request))
+        return super().check_direct_checkout_eligibility(request)
+
+    def estimate_lead_time(self, request):
+        """Record and execute one lead-time read."""
+        self.requests.append(("lead_time", request))
+        return super().estimate_lead_time(request)
+
+
+def configure_kit_endpoint_test(db, provider_adapter) -> None:
+    """Install deterministic database and provider dependencies for one test."""
+
+    async def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    async def override_provider_adapter():
+        return provider_adapter
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_provider_adapter] = override_provider_adapter
+
+
+def seed_public_kit(
+    db,
+    *,
+    product_quantity: int = 2,
+) -> tuple[Kit, Product]:
+    """Persist one visible Kit and its active required Product."""
+    product = Product(
+        name="Exit route sign",
+        description="Customer-safe sign description.",
+        category=Category(name="Emergency", description=None),
+        base_price=Decimal("12.50"),
+    )
+    kit = Kit(
+        name="Emergency evacuation kit",
+        description="Common signage for evacuation routes.",
+    )
+    db.add(KitItem(kit=kit, product=product, quantity=product_quantity))
+    db.commit()
+    db.refresh(kit)
+    db.refresh(product)
+    return kit, product
 
 
 def catalog_persistence_snapshot(db):
@@ -1011,3 +1093,483 @@ def test_list_kits_endpoint_is_documented_in_openapi():
     operation = schema["paths"]["/api/v1/catalog/kits"]["get"]
     assert operation["summary"] == "List catalog kits"
     assert "200" in operation["responses"]
+
+
+def test_kit_service_gets_only_publicly_visible_kit_and_orders_items():
+    """Reuse one visibility rule and return active rows by KitItem id."""
+    active_product = Product(
+        id=1,
+        name="Exit route sign",
+        description=None,
+        category_id=1,
+        base_price=Decimal("12.50"),
+        is_active=True,
+    )
+    inactive_product = Product(
+        id=2,
+        name="Retired sign",
+        description=None,
+        category_id=1,
+        base_price=Decimal("9.00"),
+        is_active=False,
+    )
+    later_item = KitItem(
+        id=3,
+        product=active_product,
+        product_id=active_product.id,
+        quantity=1,
+    )
+    first_item = KitItem(
+        id=1,
+        product=active_product,
+        product_id=active_product.id,
+        quantity=2,
+    )
+    inactive_item = KitItem(
+        id=2,
+        product=inactive_product,
+        product_id=inactive_product.id,
+        quantity=4,
+    )
+    visible_kit = Kit(id=1, name="Visible kit", description=None, is_active=True)
+    visible_kit.kit_items = [later_item, inactive_item, first_item]
+    inactive_kit = Kit(id=2, name="Inactive kit", description=None, is_active=False)
+    inactive_kit.kit_items = [
+        KitItem(
+            id=4,
+            product=active_product,
+            product_id=active_product.id,
+            quantity=1,
+        )
+    ]
+
+    class FakeKitRepository:
+        def get_kit_by_id(self, kit_id):
+            return {visible_kit.id: visible_kit, inactive_kit.id: inactive_kit}.get(
+                kit_id
+            )
+
+    service = KitService(FakeKitRepository())
+
+    assert service.get_public_kit(visible_kit.id) is visible_kit
+    assert service.get_public_kit(inactive_kit.id) is None
+    assert service.get_public_kit(999) is None
+    assert service.list_public_kit_items(visible_kit) == [first_item, later_item]
+
+
+def test_get_kit_endpoint_returns_list_parity_without_mutation_or_handoff():
+    db = build_session()
+    kit, product = seed_public_kit(db, product_quantity=3)
+    adapter = RecordingProviderAdapter(
+        {
+            (CatalogItemType.KIT, kit.id): available_fixture("20.00"),
+            (CatalogItemType.PRODUCT, product.id): available_fixture(),
+        }
+    )
+    configure_kit_endpoint_test(db, adapter)
+    persistence_before = catalog_persistence_snapshot(db)
+
+    try:
+        list_response = asyncio.run(request_kits())
+        detail_response = asyncio.run(request_kit_detail(kit.id))
+
+        assert list_response.status_code == 200
+        assert detail_response.status_code == 200
+        assert detail_response.json() == list_response.json()["data"][0]
+        assert detail_response.json() == {
+            "id": kit.id,
+            "name": "Emergency evacuation kit",
+            "description": "Common signage for evacuation routes.",
+            "items": [
+                {
+                    "product_id": product.id,
+                    "name": "Exit route sign",
+                    "description": "Customer-safe sign description.",
+                    "category_id": product.category_id,
+                    "quantity": 3,
+                }
+            ],
+            "availability_state": "available",
+            "direct_checkout_eligible": True,
+            "eligibility_reason": None,
+            "production_lead_time_days": 5,
+            "dispatch_lead_time_days": 1,
+        }
+        assert catalog_persistence_snapshot(db) == persistence_before
+        assert not db.new
+        assert not db.dirty
+        assert not db.deleted
+        assert adapter.handoffs_by_key == {}
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_get_kit_endpoint_uses_required_provider_quantities():
+    db = build_session()
+    kit, product = seed_public_kit(db, product_quantity=4)
+    adapter = RecordingProviderAdapter(
+        {
+            (CatalogItemType.KIT, kit.id): available_fixture("20.00"),
+            (CatalogItemType.PRODUCT, product.id): available_fixture(),
+        }
+    )
+    configure_kit_endpoint_test(db, adapter)
+
+    try:
+        response = asyncio.run(request_kit_detail(kit.id))
+
+        assert response.status_code == 200
+        kit_requests = [
+            request
+            for _, request in adapter.requests
+            if request.item_type is CatalogItemType.KIT
+        ]
+        product_requests = [
+            request
+            for _, request in adapter.requests
+            if request.item_type is CatalogItemType.PRODUCT
+        ]
+        assert len(kit_requests) == 4
+        assert len(product_requests) == 4
+        assert all(request.quantity == 1 for request in kit_requests)
+        assert all(request.quantity == 4 for request in product_requests)
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_get_kit_endpoint_orders_duplicate_rows_without_aggregation():
+    db = build_session()
+    kit, product = seed_public_kit(db, product_quantity=3)
+    first_item = kit.kit_items[0]
+    duplicate_item = KitItem(kit=kit, product=product, quantity=1)
+    db.add(duplicate_item)
+    db.commit()
+    db.refresh(duplicate_item)
+    kit.kit_items = [duplicate_item, first_item]
+    adapter = RecordingProviderAdapter(
+        {
+            (CatalogItemType.KIT, kit.id): available_fixture("20.00"),
+            (CatalogItemType.PRODUCT, product.id): available_fixture(),
+        }
+    )
+    configure_kit_endpoint_test(db, adapter)
+
+    try:
+        response = asyncio.run(request_kit_detail(kit.id))
+
+        assert response.status_code == 200
+        assert [item["quantity"] for item in response.json()["items"]] == [3, 1]
+        assert [item["product_id"] for item in response.json()["items"]] == [
+            product.id,
+            product.id,
+        ]
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+@pytest.mark.parametrize(
+    "hidden_state",
+    ["unknown", "inactive", "empty", "all_inactive"],
+)
+def test_get_kit_endpoint_hides_non_public_kits_without_provider_reads(hidden_state):
+    db = build_session()
+    category = Category(name="Emergency", description=None)
+    active_product = Product(
+        name="Exit route sign",
+        description=None,
+        category=category,
+        base_price=Decimal("12.50"),
+    )
+    inactive_product = Product(
+        name="Secret retired sign",
+        description="Must not leak.",
+        category=category,
+        base_price=Decimal("99.99"),
+        is_active=False,
+    )
+    if hidden_state == "inactive":
+        kit = Kit(name="Retired kit", description=None, is_active=False)
+        db.add(KitItem(kit=kit, product=active_product, quantity=1))
+    elif hidden_state == "empty":
+        kit = Kit(name="Empty kit", description=None)
+        db.add(kit)
+    elif hidden_state == "all_inactive":
+        kit = Kit(name="Hidden contents kit", description=None)
+        db.add(KitItem(kit=kit, product=inactive_product, quantity=7))
+    else:
+        kit = None
+    db.commit()
+    requested_id = kit.id if kit is not None else 999
+    adapter = RecordingProviderAdapter({})
+    configure_kit_endpoint_test(db, adapter)
+    persistence_before = catalog_persistence_snapshot(db)
+
+    try:
+        response = asyncio.run(request_kit_detail(requested_id))
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Kit not found"}
+        assert "Secret retired sign" not in response.text
+        assert adapter.requests == []
+        assert adapter.handoffs_by_key == {}
+        assert catalog_persistence_snapshot(db) == persistence_before
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_get_kit_endpoint_uses_aggregate_reason_for_omitted_inactive_content():
+    db = build_session()
+    kit, active_product = seed_public_kit(db)
+    inactive_product = Product(
+        name="Secret retired sign",
+        description="Must not leak.",
+        category=active_product.category,
+        base_price=Decimal("99.99"),
+        is_active=False,
+    )
+    db.add(KitItem(kit=kit, product=inactive_product, quantity=7))
+    db.commit()
+    adapter = RecordingProviderAdapter(
+        {
+            (CatalogItemType.KIT, kit.id): available_fixture("20.00"),
+            (CatalogItemType.PRODUCT, active_product.id): available_fixture(),
+        }
+    )
+    configure_kit_endpoint_test(db, adapter)
+
+    try:
+        response = asyncio.run(request_kit_detail(kit.id))
+
+        assert response.status_code == 200
+        assert response.json()["eligibility_reason"] == KIT_CONTENTS_UNAVAILABLE_REASON
+        assert response.json()["direct_checkout_eligible"] is False
+        assert len(response.json()["items"]) == 1
+        assert "Secret retired sign" not in response.text
+        assert "99.99" not in response.text
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_get_kit_endpoint_prioritizes_visible_active_content_reason():
+    db = build_session()
+    kit, active_product = seed_public_kit(db)
+    inactive_product = Product(
+        name="Secret retired sign",
+        description=None,
+        category=active_product.category,
+        base_price=Decimal("9.00"),
+        is_active=False,
+    )
+    db.add(KitItem(kit=kit, product=inactive_product, quantity=1))
+    db.commit()
+    adapter = RecordingProviderAdapter(
+        {
+            (CatalogItemType.KIT, kit.id): available_fixture("20.00"),
+            (CatalogItemType.PRODUCT, active_product.id): LocalProviderFixture(
+                availability_state=AvailabilityState.TEMPORARILY_UNAVAILABLE,
+                provider_cost=Decimal("12.50"),
+                supports_requested_configuration=True,
+                reason_code="temporarily_unavailable",
+            ),
+        }
+    )
+    configure_kit_endpoint_test(db, adapter)
+
+    try:
+        response = asyncio.run(request_kit_detail(kit.id))
+
+        assert response.status_code == 200
+        assert response.json()["eligibility_reason"] == "temporarily_unavailable"
+        assert response.json()["direct_checkout_eligible"] is False
+        assert "Secret retired sign" not in response.text
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+@pytest.mark.parametrize(
+    ("item_type", "fixture", "expected_state", "expected_reason"),
+    [
+        (
+            CatalogItemType.KIT,
+            LocalProviderFixture(
+                availability_state=AvailabilityState.TEMPORARILY_UNAVAILABLE,
+                provider_cost=Decimal("20.00"),
+                supports_requested_configuration=True,
+                reason_code="temporarily_unavailable",
+            ),
+            "temporarily_unavailable",
+            "temporarily_unavailable",
+        ),
+        (
+            CatalogItemType.PRODUCT,
+            LocalProviderFixture(
+                availability_state=AvailabilityState.MANUAL_QUOTE_REQUIRED,
+                provider_cost=None,
+                supports_requested_configuration=False,
+                reason_code="manual_quote_required",
+            ),
+            "available",
+            "manual_quote_required",
+        ),
+        (
+            CatalogItemType.PRODUCT,
+            LocalProviderFixture(
+                availability_state=AvailabilityState.OUTSOURCED_NOT_MVP_DIRECT,
+                provider_cost=Decimal("12.50"),
+                supports_requested_configuration=True,
+                reason_code="outsourced_not_mvp_direct",
+            ),
+            "available",
+            "outsourced_not_mvp_direct",
+        ),
+        (
+            CatalogItemType.PRODUCT,
+            LocalProviderFixture(
+                availability_state=AvailabilityState.UNSUPPORTED,
+                provider_cost=Decimal("12.50"),
+                supports_requested_configuration=False,
+                reason_code="unsupported",
+            ),
+            "available",
+            "unsupported",
+        ),
+        (
+            CatalogItemType.PRODUCT,
+            LocalProviderFixture(
+                availability_state=AvailabilityState.AVAILABLE,
+                provider_cost=None,
+                supports_requested_configuration=True,
+                reason_code="provider_cost_missing",
+            ),
+            "available",
+            "provider_cost_missing",
+        ),
+    ],
+)
+def test_get_kit_endpoint_returns_visible_provider_blockers(
+    item_type,
+    fixture,
+    expected_state,
+    expected_reason,
+):
+    db = build_session()
+    kit, product = seed_public_kit(db)
+    fixtures = {
+        (CatalogItemType.KIT, kit.id): available_fixture("20.00"),
+        (CatalogItemType.PRODUCT, product.id): available_fixture(),
+    }
+    fixture_id = kit.id if item_type is CatalogItemType.KIT else product.id
+    fixtures[(item_type, fixture_id)] = fixture
+    adapter = RecordingProviderAdapter(fixtures)
+    configure_kit_endpoint_test(db, adapter)
+
+    try:
+        response = asyncio.run(request_kit_detail(kit.id))
+
+        assert response.status_code == 200
+        assert response.json()["items"][0]["product_id"] == product.id
+        assert response.json()["availability_state"] == expected_state
+        assert response.json()["direct_checkout_eligible"] is False
+        assert response.json()["eligibility_reason"] == expected_reason
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_get_kit_endpoint_rejects_all_query_parameters_without_provider_reads():
+    db = build_session()
+    kit, _ = seed_public_kit(db)
+    adapter = RecordingProviderAdapter({})
+    configure_kit_endpoint_test(db, adapter)
+    persistence_before = catalog_persistence_snapshot(db)
+    submitted_parameters = {
+        "price": "0.01",
+        "provider": "forged",
+        "items": "[]",
+        "availability_state": "available",
+        "direct_checkout_eligible": "true",
+        "production_lead_time_days": "1",
+    }
+
+    try:
+        response = asyncio.run(request_kit_detail(kit.id, params=submitted_parameters))
+
+        assert response.status_code == 422
+        assert response.json() == {
+            "detail": {
+                "code": "unsupported_query_parameter",
+                "message": "Unsupported query parameter.",
+                "unsupported_parameters": sorted(submitted_parameters),
+            }
+        }
+        assert adapter.requests == []
+        assert adapter.handoffs_by_key == {}
+        assert catalog_persistence_snapshot(db) == persistence_before
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_get_kit_endpoint_exposes_only_the_existing_public_contract():
+    db = build_session()
+    kit, product = seed_public_kit(db)
+    adapter = RecordingProviderAdapter(
+        {
+            (CatalogItemType.KIT, kit.id): available_fixture("20.00"),
+            (CatalogItemType.PRODUCT, product.id): available_fixture(),
+        }
+    )
+    configure_kit_endpoint_test(db, adapter)
+
+    try:
+        response = asyncio.run(request_kit_detail(kit.id))
+
+        assert response.status_code == 200
+        assert set(response.json()) == {
+            "id",
+            "name",
+            "description",
+            "items",
+            "availability_state",
+            "direct_checkout_eligible",
+            "eligibility_reason",
+            "production_lead_time_days",
+            "dispatch_lead_time_days",
+        }
+        assert set(response.json()["items"][0]) == {
+            "product_id",
+            "name",
+            "description",
+            "category_id",
+            "quantity",
+        }
+    finally:
+        app.dependency_overrides.clear()
+        db.close()
+
+
+def test_get_kit_endpoint_is_documented_as_public_direct_kit_read():
+    async def get_openapi_schema():
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            return await client.get("/openapi.json")
+
+    response = asyncio.run(get_openapi_schema())
+
+    assert response.status_code == 200
+    operation = response.json()["paths"]["/api/v1/catalog/kits/{kit_id}"]["get"]
+    assert operation["summary"] == "Get catalog kit"
+    assert operation.get("security", []) == []
+    assert operation["responses"]["200"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/KitRead"
+    }
+    assert {"404", "422"} <= set(operation["responses"])

@@ -1,0 +1,16 @@
+meta {
+  name: Get Kit
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{base_url}}{{api_prefix}}/catalog/kits/{{kit_id}}
+  body: none
+  auth: none
+}
+
+docs {
+  Retrieves one visible public Kit with customer-safe active contents and
+  backend-derived eligibility by `kit_id`.
+}

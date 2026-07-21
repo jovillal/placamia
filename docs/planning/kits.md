@@ -17,6 +17,7 @@ responses, and backend-priceable.
 - KitItem model
 - Kit-to-product relationships
 - Public kit listing endpoint
+- Public kit detail endpoint
 - Active product visibility rules for kit contents
 - Direct-checkout eligibility rules for kits
 - Temporary fixed-content Kit pricing preview
@@ -39,9 +40,6 @@ responses, and backend-priceable.
 Implemented:
 
 - GET /api/v1/catalog/kits
-
-Future issue required:
-
 - GET /api/v1/catalog/kits/{kit_id}
 
 ## Child Issues
@@ -51,15 +49,12 @@ Completed:
 - #24 Create Kit and KitItem models, migrations, and tests
 - #25 Create GET kits endpoint with tests
 - #172 Implement approved public kit visibility and content response contract
-
-In progress:
-
 - #176 Use a customer-safe reason for omitted inactive required contents
 - #183 Implement the temporary fixed-content Path A Kit pricing preview
+- #180 Add the public Kit detail endpoint
 
 ## Future Issues
 
-- Future issue required: create kit detail endpoint with tests
 - Future issue required: replace the temporary Kit contents/base-price rule
   after commercial pricing validation is approved
 
@@ -135,6 +130,33 @@ Kit direct checkout follows the catalog availability state contract in
   direct-checkout eligibility
 
 Implementation is tracked by #110 and was refined by #172 and #176.
+
+## Public Kit Detail Behavior
+
+`GET /api/v1/catalog/kits/{kit_id}` is public and returns the existing direct
+`KitRead` representation without a collection `data` wrapper. A Kit is visible
+through detail only when it is active and has at least one active required
+Product, matching the list visibility rule. Unknown, inactive, empty, and
+all-inactive Kits return HTTP 404 with `Kit not found` before provider
+evaluation.
+
+The detail endpoint returns active required-content rows ordered by
+`KitItem.id ASC`. Duplicate KitItem rows remain separate; Product rows are not
+aggregated. Each item exposes exactly `product_id`, `name`, `description`,
+`category_id`, and `quantity`.
+
+Detail eligibility uses `KitEligibilityService` with Kit quantity `1`.
+Kit-level provider requests therefore use quantity `1`, while active Product
+requests use each persisted `KitItem.quantity`. Inactive required Products are
+omitted from `items`; `kit_contents_unavailable` and visible active-content
+reason precedence follow the listing contract above.
+
+The detail contract accepts no query parameters. Every query parameter is
+rejected with HTTP 422 `unsupported_query_parameter` and sorted unsupported
+parameter names before provider evaluation. The response contains no Product
+or Kit price, provider cost, assignment, quote reference, raw payload,
+KitItem id, admin field, or internal trace. Pricing remains a separate request
+to `POST /api/v1/pricing/quotes`.
 
 ## Temporary Kit Pricing Interaction
 
