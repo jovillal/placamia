@@ -13,7 +13,7 @@ reject any item that cannot be priced and validated by backend-owned rules.
 Fixed-content Kits and persisted Designs have pricing previews; their order
 creation paths remain separate work and do not enter this flow.
 
-## Flow Diagram
+## Current Implemented Flow Diagram
 
 ```mermaid
 flowchart TD
@@ -48,6 +48,46 @@ flowchart TD
 ```
 ---
 
+## Approved Wompi Flow
+
+This is the approved production payment flow. It remains pending until the
+provider-specific implementation issues are complete.
+
+```mermaid
+flowchart TD
+    U1[Authenticated customer initializes payment] --> B1[Load owned payable draft Order]
+    B1 --> B2[Create or reuse active Payment safely]
+    B2 --> B3[Persist selected provider and merchant reference]
+    B3 --> D1[(Payment)]
+    B3 --> W1[Wompi adapter builds signed redirect handoff]
+    W1 --> U2[Customer opens Wompi Web Checkout]
+
+    U2 --> W2[Wompi creates one or more transactions]
+    W2 --> W3[POST payments webhooks wompi]
+    W3 --> W4[Verify Wompi checksum and normalize event]
+    W4 -->|invalid| R1[Reject without mutation]
+    W4 -->|valid| B4[Correlate Payment and apply replay protection]
+    B4 --> D2[(Provider transactions and events)]
+    B4 --> B5[Aggregate trusted transaction observations]
+    B5 -->|approved match| B6[Verify Payment and confirm Order]
+    B5 -->|pending or retryable| D1
+    B6 --> D1
+    B6 --> D3[(Order)]
+    B6 --> B7[Send confirmed paid Order to fulfillment provider]
+
+    W2 --> U3[Return customer to PlacamIA]
+    U3 --> B8[Read persisted customer Payment status]
+    B10[Explicit throttled reconciliation] --> B9[Load known transaction ids]
+    B9 --> W5[Query known Wompi transaction id]
+    W5 --> B5
+```
+
+The return path is navigation only. It cannot verify a Payment. The trusted
+paths are an authenticated Wompi webhook and a backend-to-Wompi transaction
+query validated against the persisted Payment.
+
+---
+
 ### Key Rules
 - Orders must be created from backend-validated data
 - Frontend price must be ignored
@@ -65,8 +105,21 @@ flowchart TD
   snapshot state; it must not accept frontend amount, currency, status,
   provider-reference, card-data, ownership, or confirmation claims
 - Payment must be verified via provider webhook
+- Wompi Web Checkout is the initial hosted customer payment handoff; PlacamIA
+  does not collect card or bank credentials.
+- Payment-provider adapters run inside the modular monolith behind a common
+  registry and normalized gateway.
+- The configured default provider is used only when creating a Payment; an
+  existing Payment always uses its persisted provider code.
+- A Payment is one checkout aggregate and may contain multiple Wompi
+  transaction ids under one merchant reference.
+- A declined Wompi transaction remains retryable while the checkout aggregate
+  is active; any later trusted approved transaction verifies the Payment.
+- Production webhooks use provider-specific routes and authentication before
+  entering the common Payment lifecycle service.
 - Paid-order provider handoff happens through the provider adapter boundary
-  only after verified payment
+  only after verified payment. This is the fulfillment-provider boundary, not
+  the payment-provider gateway.
 
 ---
 
@@ -76,6 +129,10 @@ flowchart TD
   does not confirm orders or trigger provider handoff
 - Invalid payments must not mutate order state
 - Replayed payment events must not duplicate state changes
+- Frontend return URLs and query parameters must not confirm payment or mutate
+  canonical Payment state.
+- Customer polling returns persisted canonical state; provider reconciliation
+  must be explicit and throttled.
 - Manufacturing provider confirmation must not be used as a pre-payment
   checkout gate in the MVP direct-checkout path
 - Products or configurations that require manual provider confirmation must be

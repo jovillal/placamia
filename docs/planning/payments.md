@@ -11,7 +11,9 @@ order based only on frontend confirmation.
 
 - Do not store card data.
 - Use a payment provider for payment processing.
-- Store only payment references, statuses, order id, amount, currency, and timestamps.
+- Store only the provider identity, safe payment/transaction/event references,
+  statuses, order id, amount, currency, and timestamps needed for lifecycle,
+  reconciliation, replay protection, and support.
 - Verify payment-provider confirmation before marking an order as paid.
 - Reject invalid or missing webhook signatures.
 - Replayed payment events must not reapply state changes.
@@ -36,6 +38,8 @@ order based only on frontend confirmation.
 - Payment model
 - Payment status lifecycle
 - Payment provider reference
+- Payment provider selection and merchant reference
+- Provider transaction and event history
 - Payment webhook/confirmation endpoint
 - Signature validation
 - Payment-to-order transition
@@ -56,9 +60,12 @@ Canonical payment statuses:
 - `requires_action`: payment provider requires customer-side action before a
   final outcome is available.
 - `verified`: payment provider confirmation has been verified by the backend.
-- `failed`: payment provider reported failed payment.
-- `cancelled`: payment provider or customer cancelled the payment attempt.
-- `expired`: payment provider reported the attempt expired.
+- `failed`: the Payment aggregate can no longer produce a successful provider
+  transaction and failed.
+- `cancelled`: the Payment aggregate was explicitly cancelled and can no longer
+  produce a successful provider transaction.
+- `expired`: the Payment aggregate's checkout-start window ended without an
+  approved transaction.
 
 Terminal payment statuses:
 
@@ -76,12 +83,16 @@ Allowed transitions:
   verified payment-provider confirmation.
 - `pending <-> requires_action` when the payment provider changes the required
   customer/provider processing state.
-- `initiated|pending|requires_action -> failed` when the payment provider
-  reports failed payment.
-- `initiated|pending|requires_action -> cancelled` when the payment provider
-  reports cancellation.
-- `initiated|pending|requires_action -> expired` when the payment provider
-  reports expiration.
+- `initiated|pending|requires_action -> failed` when a trusted aggregate
+  observation proves the Payment can no longer succeed.
+- `initiated|pending|requires_action -> cancelled` when a trusted provider or
+  backend-owned action cancels the aggregate.
+- `initiated|pending|requires_action -> expired` when the checkout-start window
+  ends without an approved transaction and no in-flight transaction remains.
+
+Provider transaction statuses are observations beneath this lifecycle. One
+declined or failed transaction is not itself a transition to terminal Payment
+state while another retry remains possible.
 
 Invalid transitions must be rejected without mutating persisted payment or
 order state. Frontend return pages, frontend payment claims, provider adapter
@@ -164,7 +175,251 @@ Current implementation state:
   orders to the provider handoff transmission service after successful payment
   webhook processing.
 
-## Webhook Signature Verification Boundary
+## Approved Payment Provider Contract
+
+The approved production target is Wompi Web Checkout. The decision and its
+alternatives are recorded in
+`docs/architecture/adr/0004-wompi-payment-provider-boundary.md`.
+
+This target is pending implementation. Until the required issues land, the
+existing `POST /api/v1/payments` response remains provider-neutral metadata and
+the generic `POST /api/v1/payments/webhook` remains a deterministic foundation,
+not a production Wompi contract.
+
+### Provider Boundary
+
+Payment providers are adapters inside the existing modular monolith. A common
+gateway supports:
+
+- initializing a customer checkout handoff
+- authenticating and normalizing a provider webhook
+- retrieving provider status for reconciliation
+
+The adapter translates provider data. Common application services own
+authentication, authorization, backend amount and currency validation, Payment
+lifecycle transitions, persistence, Order confirmation, and downstream
+fulfillment-provider handoff.
+
+A registry resolves adapters by stable `provider_code`. The configured default
+provider is used only for a newly created Payment. Once a Payment exists, every
+operation resolves its adapter from the persisted `Payment.provider_code`,
+never from the current default.
+
+### Payment Aggregate And Identifiers
+
+A Payment represents one PlacamIA checkout aggregate. It may contain multiple
+external provider transactions.
+
+Payment stores:
+
+- `provider_code`: stable adapter identifier, initially `wompi`
+- `merchant_reference`: non-sensitive PlacamIA reference stable for the
+  Payment aggregate
+- `provider_checkout_reference`: optional provider session identifier
+- `checkout_expires_at`: optional deadline for starting another transaction
+- canonical Payment status, amount, currency, and timestamps
+
+For Wompi Web Checkout, `merchant_reference` is the Wompi payment reference and
+is generated as `placamia-payment-{payment_id}` after the Payment id exists.
+Wompi does not currently require a separate durable checkout reference, so
+`provider_checkout_reference` may be null.
+
+Provider transaction ids are stored in a separate
+`payment_provider_transactions` relation with provider status, normalized
+status, amount, currency, provider timestamp, and last observation time. A
+single scalar transaction id on Payment is not canonical because Wompi retries
+can retain one merchant reference while creating another transaction id.
+
+Safe webhook/reconciliation observations are stored in a separate
+`payment_provider_events` relation. Event records include a deterministic
+provider event/replay reference, linked transaction when known, a payload hash,
+and provider/receipt timestamps. Raw provider payloads, signatures, secrets,
+card data, and unnecessary customer data are not persisted.
+
+Database uniqueness includes provider identity:
+
+- `(provider_code, merchant_reference)` for Payment aggregates
+- `(provider_code, provider_transaction_reference)` for provider transactions
+- `(provider_code, provider_event_reference)` for provider events
+
+`Order.payment_provider_reference` records the trusted transaction id that
+verified the Order. It is not used as the Payment aggregate identifier.
+
+### Wompi Checkout Initialization
+
+`POST /api/v1/payments` continues to accept only:
+
+```json
+{
+  "order_id": 42
+}
+```
+
+The backend owns provider selection, amount, currency, merchant reference,
+expiration, return URL, and signature inputs. It rejects non-COP Orders before
+creating a Wompi handoff.
+
+For Wompi, initialization:
+
+1. creates or reuses one active Payment safely under concurrent requests
+2. persists `provider_code = "wompi"` and the stable merchant reference
+3. converts the persisted COP Decimal amount to exact integer cents
+4. sets an expiration 30 minutes after initialization
+5. signs Wompi's reference, amount, currency, expiration, and integrity secret
+   using the provider-required SHA-256 construction
+6. returns a normalized redirect handoff to Wompi Web Checkout
+7. moves the Payment to `requires_action` only after the handoff is available
+
+Wompi Web Checkout initialization constructs the signed redirect locally; it
+does not create a remote Wompi session or make a provider API request. There is
+therefore no provider network timeout or retry policy in the initialization
+request. Missing configuration, invalid return URL, unsupported currency,
+invalid amount conversion, or signature-construction failure returns a safe
+provider-initialization error and leaves no new active Payment committed. A
+retry reuses the same active Payment and merchant reference.
+
+Successful target response:
+
+```json
+{
+  "data": {
+    "payment_id": 123,
+    "order_id": 42,
+    "payment_status": "requires_action",
+    "amount": "85000.00",
+    "currency": "COP",
+    "handoff": {
+      "type": "redirect",
+      "url": "https://checkout.wompi.co/p/?..."
+    },
+    "checkout_expires_at": "2026-07-22T18:30:00Z"
+  }
+}
+```
+
+The response does not expose `provider_code`, provider records, secret values,
+or raw provider data as separate fields. The opaque handoff URL necessarily
+contains Wompi's public checkout parameters, including the public key, merchant
+reference, amount, currency, expiration, and integrity signature. Repeated
+initialization of the same active Payment returns the same merchant reference
+and an equivalent signed handoff. Expiration controls starting a transaction;
+an already-started asynchronous transaction may remain pending afterward.
+
+### Aggregate-Aware Provider Status
+
+Provider status lookup uses all persisted correlation data:
+
+```python
+@dataclass(frozen=True)
+class PaymentStatusQuery:
+    merchant_reference: str
+    provider_checkout_reference: str | None
+    provider_transaction_references: tuple[str, ...]
+```
+
+The adapter decides which identifiers its provider supports. Wompi's documented
+direct transaction lookup uses a transaction id, so reconciliation queries each
+known Wompi transaction id. A signed webhook introduces a trusted candidate
+transaction id. A transaction id from a customer return remains untrusted and
+is ignored by the customer status endpoint. A future explicit reconciliation
+command could accept it only as a candidate and would have to query Wompi and
+validate merchant reference, amount, and currency before persistence.
+
+The normalized provider result contains all observed transactions and an
+aggregate observation. Canonical aggregation follows these rules:
+
+1. Any trusted approved transaction matching persisted Payment amount,
+   currency, and merchant reference makes the Payment `verified`.
+2. Otherwise, any in-flight transaction makes the Payment `pending`.
+3. Otherwise, a declined or failed transaction leaves the Payment
+   `requires_action` while the checkout remains retryable.
+4. `failed`, `cancelled`, and `expired` apply only when the aggregate can no
+   longer produce a successful transaction under provider or application
+   rules.
+
+For example, transaction A `DECLINED` followed by transaction B `APPROVED`
+under the same Wompi reference yields one verified Payment. The first decline
+must not prematurely terminalize the Payment aggregate.
+
+`GET /api/v1/orders/{order_id}/payment-status` returns persisted canonical
+state for the authenticated Order owner and does not call Wompi. Reconciliation
+is a separate explicit, rate-limited application operation and is not an
+external Wompi call on customer polls. If no authenticated provider observation
+supplies a transaction id, the backend cannot pretend to reconcile an unknown
+Wompi transaction through the documented id lookup; webhook retries and
+operational recovery remain the fallback.
+
+### Customer Payment Status Refresh
+
+`GET /api/v1/orders/{order_id}/payment-status` is the customer refresh boundary
+planned by #187. It requires authentication, scopes the Order query by the
+current customer, accepts no query parameters, and returns only persisted
+Payment and Order evidence. Unknown and cross-customer Order ids share the same
+non-disclosing not-found response.
+
+The response contains exactly:
+
+```json
+{
+  "order_id": 42,
+  "order_status": "draft",
+  "payment_status": "pending",
+  "payment_verified_at": null,
+  "is_terminal": false,
+  "should_poll": true,
+  "poll_after_seconds": 3
+}
+```
+
+`initiated`, `pending`, and `requires_action` are non-terminal and use the fixed
+MVP polling hint of three seconds. `verified`, `failed`, `cancelled`, and
+`expired` are terminal and return `should_poll = false` with
+`poll_after_seconds = null`. An Order with no Payment returns
+`payment_status = null`, `is_terminal = false`, `should_poll = false`, and no
+polling hint.
+
+The endpoint never calls Wompi, applies lifecycle transitions, confirms an
+Order, or triggers fulfillment-provider handoff. Every query parameter,
+including a returned Wompi transaction id or forged status claim, is rejected
+before Order or Payment reads.
+
+### Wompi Webhook And Customer Return
+
+Production Wompi events use:
+
+```text
+POST /api/v1/payments/webhooks/wompi
+```
+
+The Wompi route verifies the event checksum using the exact ordered event
+properties, timestamp, and configured event secret required by Wompi. Only
+after authenticity verification may the adapter return a normalized
+`PaymentProviderEvent` to the common webhook application service.
+
+The normalized event includes provider code, replay/event reference, merchant
+reference, optional checkout reference, transaction id, observed status,
+amount, currency, and provider occurrence time. The common service performs
+correlation, replay protection, backend amount/currency checks, lifecycle
+validation, persistence, Order confirmation, and fulfillment-provider handoff.
+
+The Wompi event payload may not contain a conventional event UUID. The adapter
+therefore derives a deterministic replay reference from authenticated event
+fields or a cryptographic hash of the exact verified body. Separate Wompi
+transactions under one merchant reference must produce separate replay keys.
+
+The configured customer return URL is navigation only. Query parameters
+returned to the browser, including a transaction id, never verify Payment or
+confirm an Order by themselves. The frontend discards those claims and performs
+the safe owner-scoped persisted status read without forwarding query parameters.
+
+### Provider Migration Rule
+
+Changing `PAYMENT_PROVIDER_DEFAULT` affects only new Payments. Existing rows
+continue using their persisted provider code and provider-specific webhook
+route. A future provider can therefore run alongside Wompi without a flag-day
+cutover or stranded pending Payments.
+
+## Current Generic Webhook Signature Verification Boundary
 
 Payment webhook authenticity is verified before provider-specific payment
 events are interpreted. The MVP verification foundation is provider-neutral and
@@ -224,12 +479,15 @@ payloads, and full payment data must not be logged by verification code.
 
 - POST /api/v1/payments
 - POST /api/v1/payments/webhook
+- POST /api/v1/payments/webhooks/wompi (approved target; pending implementation)
+- GET /api/v1/orders/{order_id}/payment-status (planned by #187)
 
 See `docs/api/endpoint-structure.md`.
 
 Provider adapter boundary:
 
 - `docs/planning/provider-adapter-contract.md`
+- `docs/architecture/adr/0004-wompi-payment-provider-boundary.md`
 
 ## Child Issues
 
@@ -242,8 +500,13 @@ Provider adapter boundary:
 
 ## Future Issues
 
-- Future issue required: integrate an actual payment provider initialization
-  adapter response when the provider-specific contract is documented.
+- #186: implement the Wompi Web Checkout initialization handoff documented
+  above.
+- #187: implement the authenticated customer Payment-status read and approved
+  reconciliation behavior documented above.
+- Future issue required: implement the provider-specific Wompi webhook route,
+  transaction/event persistence, translation, and migration from the current
+  generic webhook foundation.
 - Future issue required: make payment initialization concurrency-safe before it
   creates external provider payment sessions. The current provider-neutral
   endpoint is sequentially idempotent, but simultaneous first requests can both
@@ -271,6 +534,11 @@ Provider adapter boundary:
   checkout, or provider handoff state.
 - Do not treat payment provider references as globally unique application
   identifiers. Conflict checks must remain Order-scoped and explicit.
+- Do not resolve an existing Payment through the current default provider.
+- Do not treat one external transaction as the Payment aggregate.
+- Do not terminalize a retryable Payment solely because one Wompi transaction
+  was declined or failed.
+- Do not treat the Wompi customer return as payment confirmation.
 
 ## Security Considerations
 
@@ -307,6 +575,11 @@ Payments must include tests for:
 - provider acceptance/rejection is recorded only through the provider adapter
   boundary
 - Provider acceptance is not required to mark a verified payment as paid
+- one merchant reference can store and aggregate multiple provider transactions
+- a declined transaction followed by an approved retry verifies one Payment
+- provider-specific webhook signatures and replay references are validated
+- changing the default provider does not change existing Payment routing
+- customer return data cannot verify a Payment without trusted reconciliation
 
 ## Done When
 

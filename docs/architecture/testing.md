@@ -224,9 +224,18 @@ pricing, checkout, and provider fulfillment.
 ### Payment Integrity
 
 - Payment webhook or confirmation endpoints:
-  - reject invalid signatures
+  - reject invalid provider-specific signatures or checksums
   - reject missing signatures
   - reject replayed events (if idempotency is implemented)
+- Payment initialization tests verify that provider selection, amount,
+  currency, merchant reference, expiration, and signature inputs come only from
+  backend-owned state.
+- Provider migration tests verify that changing the configured default affects
+  new Payments only; existing Payments retain their persisted provider route.
+- Aggregate tests cover multiple provider transaction ids under one merchant
+  reference, including a declined transaction followed by an approved retry.
+- Customer return data alone cannot verify a Payment, confirm an Order, or
+  trigger fulfillment-provider handoff.
 - Orders are not marked as paid without verified payment provider confirmation.
 
 ### Provider Handoff Integrity
@@ -287,6 +296,8 @@ Tests should verify:
 
 - duplicate requests do not create duplicate orders unless intended
 - repeated webhook events do not reapply state changes
+- distinct provider transactions under one merchant reference are not
+  incorrectly rejected as webhook replays
 - idempotency keys (if implemented) behave correctly
 
 ## Abuse and Rate Limiting

@@ -14,8 +14,9 @@ AI-assisted generation, recommendations, and variations are outside the MVP.
 - FastAPI API with SQLAlchemy persistence and Alembic migrations
 - Expo mobile placeholder using static/mock contract data until remaining
   customer API contracts are implemented
-- provider-neutral payment and manufacturing adapter boundaries, currently
-  exercised through deterministic local/mock behavior
+- provider-neutral payment and manufacturing adapter boundaries inside the
+  modular monolith; Wompi Web Checkout is selected for the pending first real
+  payment integration, while current behavior remains deterministic/local
 
 ## Main backend responsibilities
 - authentication, authorization, and customer ownership enforcement
@@ -36,4 +37,6 @@ AI-assisted generation, recommendations, and variations are outside the MVP.
 - project grouping or collaborative workspaces
 - credit or gamified accounting systems
 - RFQ/manual-quote workflows
-- real-provider and carrier integrations beyond the current adapter boundaries
+- real fulfillment-provider and carrier integrations beyond the current
+  adapter boundaries
+- payment providers beyond the selected, pending Wompi Web Checkout integration

@@ -126,14 +126,36 @@ PlacamIA must not store credit/debit card data.
 
 Payment flow must use a payment provider. The backend should only store:
 
-- payment provider reference
-- payment status
+- stable payment provider code and merchant reference
+- optional provider checkout reference and checkout expiration
+- canonical Payment status
+- provider transaction references and normalized transaction observations
+- minimal provider event/replay references and payload hashes
 - order id
 - amount paid
 - currency
 - timestamps
 
-Webhook endpoints must verify payment provider signatures.
+Raw provider payloads, signatures, provider secrets, card/bank credentials, and
+unnecessary customer data must not be stored. A raw payload may be processed in
+memory long enough to verify authenticity and calculate a safe audit hash.
+
+Payment webhooks use provider-specific routes. Each route must apply that
+provider's exact signature/checksum algorithm before parsing the event into a
+normalized application event. Selecting verification from a global current
+provider is forbidden because existing Payments must continue using their
+persisted provider after a default-provider change.
+
+For Wompi:
+
+- the public key, integrity secret, and event secret have separate purposes
+- integrity signatures are generated only from backend-owned reference, amount,
+  currency, expiration, and secret values
+- event checksums are verified from the exact ordered event properties,
+  timestamp, and configured event secret required by Wompi
+- secrets and full signed checkout URLs must not be logged
+- the browser return URL and returned transaction id are untrusted navigation
+  data and cannot verify a Payment without backend reconciliation
 
 Never fulfill an order based only on frontend confirmation.
 
@@ -144,10 +166,17 @@ source, received timestamp, and linked Order/Payment identifiers when
 available. Raw webhook payloads, signatures, secrets, card data, and full
 payment details must not be stored in replay records.
 
-The replay key, Payment mutation, and Order mutation are committed in one
-database transaction before provider handoff is attempted. Replayed event ids
-are rejected with a stable replay error and must not reapply Payment, Order, or
+The replay key, provider transaction/event mutation, Payment mutation, and
+Order mutation are committed in one database transaction before fulfillment-
+provider handoff is attempted. Replayed event references are rejected with a
+stable replay error and must not reapply transaction, Payment, Order, or
 provider handoff state.
+
+One merchant reference may have multiple provider transaction ids. Replay
+protection and uniqueness must distinguish those transactions. A failed or
+declined transaction must not terminalize a retryable Payment aggregate, while
+an approved transaction must match the persisted merchant reference, amount,
+and currency before it can verify Payment.
 
 ### 7. File and Image Security
 

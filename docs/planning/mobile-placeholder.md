@@ -253,7 +253,7 @@ Backend dependencies:
 | Dependency | Status | Notes |
 | --- | --- | --- |
 | `POST /api/v1/payments` | Implemented | Accepts only `order_id`; returns payment id, order id, status, amount, and currency. |
-| Provider-specific payment session/client secret | Documented-but-pending | Future issue required when a real provider initialization contract is documented. |
+| Wompi Web Checkout redirect handoff | Provider-selected; implementation pending | ADR 0004 defines a provider-neutral redirect response; #186 must implement it before mobile wiring. |
 | Card data collection/storage in PlacamIA backend | Intentionally deferred | Backend must not store card data. |
 
 ### 11. Payment Result States
@@ -269,19 +269,20 @@ Customer-visible states:
 | State | Mobile meaning | Backend source |
 | --- | --- | --- |
 | `initiated` | Backend created or reused an active attempt. | `POST /api/v1/payments` |
-| `pending` | Provider processing has not reached a durable outcome. | Payment lifecycle, documented/processed through signed webhook. |
-| `requires_action` | Customer/provider action is needed before final outcome. | Payment lifecycle, documented/processed through signed webhook. |
-| `verified` / success | Payment was verified by backend; order may become confirmed. | Signed webhook processing and order status. |
-| `failed` | Payment failed and order must not be confirmed. | Payment lifecycle, documented/processed through signed webhook. |
-| `cancelled` | Payment was cancelled and order must not be confirmed. | Payment lifecycle, documented/processed through signed webhook. |
-| `expired` | Attempt expired and a new attempt may be needed. | Payment lifecycle, documented/processed through signed webhook. |
+| `pending` | One or more provider transactions are still processing. | Persisted aggregate state from a trusted provider webhook or reconciliation. |
+| `requires_action` | Customer action or another retry is possible. | Persisted aggregate state; one declined Wompi transaction does not necessarily end the Payment. |
+| `verified` / success | At least one trusted matching transaction was approved; order may become confirmed. | Provider-specific webhook or backend reconciliation plus order status. |
+| `failed` | The Payment aggregate can no longer succeed and the order must not be confirmed. | Persisted aggregate state from trusted provider observations. |
+| `cancelled` | The Payment aggregate was cancelled and the order must not be confirmed. | Persisted aggregate state from trusted provider observations. |
+| `expired` | The checkout-start window ended without an approved transaction; a new Payment may be needed. | Persisted aggregate state from trusted provider observations and backend time rules. |
 
 Backend dependencies:
 
 | Dependency | Status | Notes |
 | --- | --- | --- |
 | `POST /api/v1/payments/webhook` | Implemented | Backend/provider boundary only; not called by the mobile app. |
-| Customer payment-status polling endpoint | Documented-but-pending | Not listed in endpoint inventory. #37 should use static/mock states or order status placeholders instead of inventing one, and must not imply real-time payment confirmation. |
+| `POST /api/v1/payments/webhooks/wompi` | Provider-selected; implementation pending | Provider-specific route authenticates Wompi events before common lifecycle processing; never called by mobile. |
+| Customer payment-status polling endpoint | Documented-but-pending | #187 must return persisted canonical aggregate state. Mobile must not query Wompi directly or treat the browser return as confirmation. |
 | Frontend payment success claim | Intentionally deferred | Never marks payment verified or order confirmed. |
 
 ### 12. Order List
@@ -364,9 +365,11 @@ Backend gaps to resolve before connecting each screen to real behavior:
 - #185: versioned customer-visible cancellation/refund terms content source.
 - #186: real-provider payment initialization handoff response. The current
   provider-neutral `POST /api/v1/payments` attempt initialization is already
-  implemented and must not be presented as a real provider session.
+  implemented and must not be presented as a real provider session. ADR 0004
+  selects Wompi Web Checkout and defines the provider-neutral redirect shape.
 - #187: customer payment-status polling or documented order/payment result
-  reconciliation for mobile state refresh.
+  reconciliation for mobile state refresh. The documented read source is
+  persisted Payment aggregate state, not frontend return parameters.
 
 ## #37 Implementation Guardrails
 
