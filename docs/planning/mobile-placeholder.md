@@ -307,6 +307,7 @@ Backend dependencies:
 Purpose:
 
 - Let authenticated customers track backend-owned order lifecycle state.
+- Show immutable customer-safe purchased-item snapshots.
 - Show cancellation request actions only in allowed paid states.
 
 Key actions:
@@ -320,9 +321,9 @@ Backend dependencies:
 
 | Dependency | Status | Notes |
 | --- | --- | --- |
+| `GET /api/v1/orders/{order_id}` | Implemented | Authenticated owner detail using persisted Order and immutable OrderItem snapshots only. |
 | `GET /api/v1/orders/{order_id}/status` | Implemented | Authenticated owner status retrieval. |
 | `POST /api/v1/orders/{order_id}/cancellation-request` | Implemented | Owning customer can request cancellation from `confirmed`, `accepted`, or `in_production`. |
-| Full order detail endpoint | Documented-but-pending | No customer order detail endpoint separate from status exists in the implemented inventory. |
 | Admin/provider mutation endpoints | Implemented, not mobile-facing | Acceptance, production, shipment, delivery, and cancellation review endpoints are admin/provider scope, not customer UI actions. |
 
 Customer-visible status terminology must match the canonical lifecycle:
@@ -366,7 +367,6 @@ Backend gaps to resolve before connecting each screen to real behavior:
   implemented and must not be presented as a real provider session.
 - #187: customer payment-status polling or documented order/payment result
   reconciliation for mobile state refresh.
-- #189: full customer order detail endpoint.
 
 ## #37 Implementation Guardrails
 
@@ -407,7 +407,7 @@ Completed:
 
 Backend contract backlog:
 
-- #179, #185 through #187, and #189, mapped individually in
+- #179 and #185 through #187, mapped individually in
   `Minimum API Contract Gaps Before Real Backend Wiring`.
 
 ## Constraints

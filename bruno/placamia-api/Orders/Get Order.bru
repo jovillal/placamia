@@ -1,0 +1,21 @@
+meta {
+  name: Get Order
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}{{api_prefix}}/orders/{{order_id}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+docs {
+  Retrieves one authenticated owner-scoped Order with customer-safe persisted
+  Order and immutable OrderItem snapshots. Set `access_token` and `order_id`
+  in the Local environment before running this request.
+}

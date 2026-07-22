@@ -54,6 +54,8 @@ flowchart TD
     B14[Update order status]
     B15[List authenticated customer's Order summaries]
     B16[Return owner-scoped persisted totals and lifecycle states]
+    B17[Load authenticated customer's Order detail]
+    B18[Return persisted Order and OrderItem snapshots]
 
     %% Database lane
     D1[(Products, Kits, and KitItems)]
@@ -115,7 +117,8 @@ flowchart TD
 
     U8 --> B15 --> D5
     D5 --> B16 --> U8
-    U8 --> U9
+    U8 --> B17 --> D5
+    D5 --> B18 --> U9
     D7 --> U9
 ```
 
@@ -148,6 +151,13 @@ totals or load OrderItems, Payments, customer relationships, provider details,
 or cancellation provenance. Opening an entry continues to the existing
 owner-scoped tracking flow without changing lifecycle ownership or mutation
 rules.
+
+Full Order detail is also owner-scoped in its database query and returns only
+persisted customer-safe Order and immutable OrderItem snapshot fields. It does
+not recalculate from or load mutable Product, Kit, Template, Design, pricing,
+Payment, or provider relationships. Unknown and cross-customer ids share one
+non-disclosing not-found response, and detail reads do not mutate lifecycle or
+other persisted state.
 
 ## Direct Checkout Eligibility
 

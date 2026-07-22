@@ -162,6 +162,7 @@ new documented flows, not silent snapshot rewrites.
 - Order and OrderItem models
 - Order creation endpoint
 - Customer Order list endpoint
+- Customer Order detail endpoint
 - Order status endpoint
 - Order payload/service preparation for provider adapter handoff
 - Provider handoff transmission success recording
@@ -222,6 +223,8 @@ Current state:
   provider fulfillment history remain unchanged.
 - Authenticated customer Order listing is implemented with strict owner-scoped
   pagination and a dedicated customer-safe summary projection.
+- Authenticated customer Order detail is implemented with owner-scoped
+  persisted Order and immutable OrderItem snapshot projection.
 
 ## Customer Order List
 
@@ -273,11 +276,72 @@ provider, policy, cancellation provenance, audit, admin, or internal state.
 List reads are deterministic for unchanged persistence and do not mutate Order
 or related records.
 
+## Customer Order Detail
+
+`GET /api/v1/orders/{order_id}` requires the existing bearer authentication
+dependency and returns one dedicated direct `OrderDetailRead` response. The
+repository query filters by both `order_id` and the authenticated current
+user's `customer_id`. Unknown and cross-customer ids return the same HTTP 404
+`Order not found` response without revealing whether an Order exists.
+
+The response exposes persisted customer-safe Order fields only:
+
+```json
+{
+  "id": 42,
+  "status": "confirmed",
+  "currency": "COP",
+  "subtotal_amount": "85000.00",
+  "discount_amount": "0.00",
+  "tax_amount": "0.00",
+  "total_amount": "85000.00",
+  "payment_verified_at": "2026-07-21T12:05:00Z",
+  "provider_handoff_sent_at": null,
+  "created_at": "2026-07-21T12:00:00Z",
+  "updated_at": "2026-07-21T12:05:00Z",
+  "items": [
+    {
+      "item_type": "product",
+      "display_name": "Emergency exit sign",
+      "customer_safe_description": "Standard exit signage.",
+      "selected_options": {},
+      "quantity": 2,
+      "unit_price_amount": "42500.00",
+      "line_subtotal_amount": "85000.00",
+      "line_discount_amount": "0.00",
+      "line_tax_amount": "0.00",
+      "line_total_amount": "85000.00",
+      "currency": "COP"
+    }
+  ]
+}
+```
+
+Items are ordered by `OrderItem.id ASC` and use only the persisted immutable
+snapshot columns shown above. Detail reads do not join to or recalculate from
+current Product, Kit, Template, Design, pricing, provider, or fixture state.
+OrderItem ids, catalog foreign keys, ownership, cancellation provenance,
+payment/provider references, policy versions, provider payloads/costs, audit,
+admin, and internal fields are not exposed.
+
+The endpoint accepts no query parameters. Authentication is evaluated first,
+so missing or invalid authentication returns HTTP 401 even when query
+parameters are supplied. Authenticated requests with any query parameter
+return HTTP 422 `unsupported_query_parameter` with sorted names before Order
+detail repository work. Reads are deterministic for unchanged persistence and
+do not mutate Order, OrderItem, Payment, catalog, provider, audit, or other
+state.
+
+The existing `GET /api/v1/orders/{order_id}/status` response remains unchanged.
+Its broader catalog-id and cancellation-provenance fields are separate
+contract-minimization debt and are not part of this detail response.
+
 
 ## Related Endpoints
 
 - POST /api/v1/orders
 - GET /api/v1/orders
+- GET /api/v1/orders/{order_id}
 - GET /api/v1/orders/{order_id}/status
 
 See docs/api/endpoint-structure.md.
@@ -292,6 +356,7 @@ See docs/api/endpoint-structure.md.
 - #35 Prepare paid-order provider adapter handoff payload
 - #61 Send order to provider
 - #188 Add customer order list endpoint
+- #189 Add full customer order detail endpoint
 
 ## Future Issues
 

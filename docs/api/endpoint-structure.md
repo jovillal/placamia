@@ -108,6 +108,7 @@ The current implemented API endpoints are:
 | `POST` | `/api/v1/pricing/quotes` | Pricing | Public for Product/Kit; required for Design | Direct discriminated Product, Kit, or Design pricing quote |
 | `POST` | `/api/v1/orders` | Orders | Required | `OrderRead` object |
 | `GET` | `/api/v1/orders` | Orders | Required | `{ "data": OrderSummaryRead[], "meta": OrderListMeta }` |
+| `GET` | `/api/v1/orders/{order_id}` | Orders | Required | Owner-scoped `OrderDetailRead` with immutable purchased-item snapshots |
 | `GET` | `/api/v1/orders/{order_id}/status` | Orders | Required | `OrderStatusRead` object |
 | `POST` | `/api/v1/orders/{order_id}/cancellation-request` | Orders | Required owner | `OrderCancellationResponse` object |
 | `POST` | `/api/v1/orders/{order_id}/cancellation-request/approve` | Orders | Admin | `OrderCancellationResponse` object |
