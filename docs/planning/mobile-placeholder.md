@@ -367,9 +367,9 @@ Backend gaps to resolve before connecting each screen to real behavior:
   provider-neutral `POST /api/v1/payments` attempt initialization is already
   implemented and must not be presented as a real provider session. ADR 0004
   selects Wompi Web Checkout and defines the provider-neutral redirect shape.
-- #187: customer payment-status polling or documented order/payment result
-  reconciliation for mobile state refresh. The documented read source is
-  persisted Payment aggregate state, not frontend return parameters.
+- #187: customer payment-status polling from the persisted Payment aggregate.
+  It performs no provider reconciliation and does not trust frontend return
+  parameters; reconciliation requires separately scoped backend work.
 
 ## #37 Implementation Guardrails
 

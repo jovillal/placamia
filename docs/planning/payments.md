@@ -440,9 +440,12 @@ correlation, replay protection, backend amount/currency checks, lifecycle
 validation, persistence, Order confirmation, and fulfillment-provider handoff.
 
 The Wompi event payload may not contain a conventional event UUID. The adapter
-therefore derives a deterministic replay reference from authenticated event
-fields or a cryptographic hash of the exact verified body. Separate Wompi
+therefore derives a deterministic replay reference from authenticated, stable
+provider event fields independently of the payload hash. Separate Wompi
 transactions under one merchant reference must produce separate replay keys.
+The webhook implementation issue must define and contract-test the exact field
+tuple. It must not use the payload hash itself as the replay reference because
+that would make replay-reference reuse with changed content undetectable.
 
 Wompi webhook HTTP behavior is explicit:
 
@@ -586,8 +589,10 @@ Provider adapter boundary:
 
 - #186: implement the Wompi Web Checkout initialization handoff documented
   above.
-- #187: implement the authenticated customer Payment-status read and approved
-  reconciliation behavior documented above.
+- #187: implement only the authenticated, owner-scoped, persisted customer
+  Payment-status read documented above. It performs no provider calls.
+- Future issue required: define and implement explicit provider reconciliation,
+  including its trigger, throttling, authorization, and operational ownership.
 - Future issue required: implement the provider-specific Wompi webhook route,
   transaction/event persistence, translation, and migration from the current
   generic webhook foundation.

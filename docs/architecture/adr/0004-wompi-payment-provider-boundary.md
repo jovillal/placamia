@@ -300,9 +300,12 @@ then correlates the event, stores safe event and transaction metadata, applies
 replay protection, validates lifecycle changes, and confirms eligible Orders.
 
 Wompi event identity may not be a conventional event UUID. The adapter must
-produce a deterministic replay key from authenticated provider event fields or
-a cryptographic hash of the exact verified body. The replay key must distinguish
-separate transactions under the same merchant reference.
+produce a deterministic replay key from authenticated, stable provider event
+fields independently of the payload hash. The replay key must distinguish
+separate transactions under the same merchant reference. The webhook
+implementation issue must define and contract-test the exact field tuple; the
+payload hash cannot itself be the replay key because the stored hash is also
+used to detect changed content under an existing replay identity.
 
 Webhook delivery is idempotent at the HTTP boundary:
 
