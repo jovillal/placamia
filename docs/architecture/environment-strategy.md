@@ -110,6 +110,44 @@ If this query returns rows, stop the migration and resolve the duplicate
 payment history through a scoped data-cleanup issue or runbook before applying
 the constraint. Do not delete or merge payment rows ad hoc during deploy.
 
+The Wompi provider-identity rollout uses separate expand and contract
+migrations:
+
+1. The expand migration adds nullable `provider_code` and
+   `merchant_reference`, creates provider transaction/event tables, and
+   backfills every existing Payment as `legacy_generic` with
+   `legacy-payment-{payment_id}` merchant identity.
+2. Existing `payment_provider_reference` and generic webhook replay rows remain
+   unchanged. The migration must not invent Wompi transaction/event rows from
+   generic history.
+3. After the expand migration, run these preflight checks before applying the
+   non-null/unique contract migration:
+
+```sql
+SELECT id
+FROM payments
+WHERE provider_code IS NULL
+   OR merchant_reference IS NULL;
+
+SELECT
+    provider_code,
+    merchant_reference,
+    COUNT(*) AS duplicate_count
+FROM payments
+GROUP BY provider_code, merchant_reference
+HAVING COUNT(*) > 1;
+```
+
+Both queries must return no rows. The contract migration may then make both
+columns non-null and add unique `(provider_code, merchant_reference)`. Enable
+`PAYMENT_PROVIDER_DEFAULT=wompi` only after that migration and Wompi runtime
+configuration are ready.
+
+`legacy_generic` is historical/read-only identity. Active generic Payments are
+not routed to Wompi and require an explicit operational closure decision before
+a new Wompi Payment is created. Existing verified Orders retain their original
+payment reference and verification timestamp.
+
 ## Environment Variables
 
 | Variable | Required Locally | Purpose |
@@ -119,10 +157,43 @@ the constraint. Do not delete or merge payment rows ad hoc during deploy.
 | `DATABASE_URL` | Yes for local runtime | SQLAlchemy connection URL. |
 | `SQLALCHEMY_ECHO` | Yes | SQL logging flag; defaults should remain `false`. |
 | `AUTH_TOKEN_SECRET` | Yes for protected endpoints | Token signing and verification secret. |
+| `PAYMENT_WEBHOOK_SECRET` | Yes for the current generic webhook foundation | Local/test HMAC secret; it is not a Wompi production event secret. |
 
 `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` are documented in
 `apps/api/.env.example` to mirror the local PostgreSQL container. The runtime
 connection currently uses `DATABASE_URL`.
+
+### Planned Wompi Configuration
+
+The Wompi production boundary is approved in ADR 0004 but is not implemented.
+The variables below become active only with the provider-specific implementation
+and must be added to `apps/api/.env.example` in that code change with safe local
+placeholders, never real credentials.
+
+| Variable | Secret | Purpose |
+| --- | --- | --- |
+| `PAYMENT_PROVIDER_DEFAULT` | No | Provider code selected only for newly created Payments; initial value `wompi`. |
+| `PAYMENT_RETURN_URL` | No | Approved absolute PlacamIA URL used for customer navigation after hosted checkout. |
+| `PAYMENT_CHECKOUT_TTL_SECONDS` | No | Backend-owned checkout-start window; initial default `1800` seconds. |
+| `WOMPI_ENVIRONMENT` | No | Explicit `sandbox` or `production` adapter mode. |
+| `WOMPI_PUBLIC_KEY` | No, but runtime-managed | Public commerce key used by Wompi Web Checkout. |
+| `WOMPI_INTEGRITY_SECRET` | Yes | Backend-only secret used to sign checkout integrity values. |
+| `WOMPI_EVENT_SECRET` | Yes | Backend-only secret used to verify Wompi event checksums. |
+
+The adapter maps `WOMPI_ENVIRONMENT` to allowlisted Wompi API and checkout
+hosts. Do not accept an arbitrary provider base URL in production configuration.
+`PAYMENT_RETURN_URL` must use HTTPS outside local/test environments and must be
+validated against an application-owned allowlist.
+
+Changing `PAYMENT_PROVIDER_DEFAULT` affects only new Payments. Existing
+Payments resolve their adapter from persisted `provider_code`, so old Wompi
+webhooks and reconciliation remain valid after a gradual provider migration.
+
+Provider secrets must fail closed when missing. They must not appear in startup
+logs, error responses, audit payloads, or generated checkout URLs. The current
+`PAYMENT_WEBHOOK_SECRET` remains only for the generic implemented foundation
+until provider-specific routes replace it; it must not be reused as either
+Wompi secret.
 
 ## Command Summary
 

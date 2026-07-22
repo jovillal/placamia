@@ -126,28 +126,77 @@ PlacamIA must not store credit/debit card data.
 
 Payment flow must use a payment provider. The backend should only store:
 
-- payment provider reference
-- payment status
+- stable payment provider code and merchant reference
+- optional provider checkout reference and checkout expiration
+- canonical Payment status
+- provider transaction references and normalized transaction observations
+- minimal provider event/replay references and payload hashes
 - order id
 - amount paid
 - currency
 - timestamps
 
-Webhook endpoints must verify payment provider signatures.
+Raw provider payloads, signatures, provider secrets, card/bank credentials, and
+unnecessary customer data must not be stored. A raw payload may be processed in
+memory long enough to verify authenticity and calculate a safe audit hash.
+
+Payment webhooks use provider-specific routes. Each route must apply that
+provider's exact signature/checksum algorithm before parsing the event into a
+normalized application event. Selecting verification from a global current
+provider is forbidden because existing Payments must continue using their
+persisted provider after a default-provider change.
+
+For Wompi:
+
+- the public key, integrity secret, and event secret have separate purposes
+- integrity signatures are generated only from backend-owned reference, amount,
+  currency, expiration, and secret values
+- event checksums are verified from the exact ordered event properties,
+  timestamp, and configured event secret required by Wompi
+- secrets and full signed checkout URLs must not be logged
+- the browser return URL and returned transaction id are untrusted navigation
+  data and cannot verify a Payment without backend reconciliation
 
 Never fulfill an order based only on frontend confirmation.
 
 Payment webhook replay protection is durable. After a webhook signature and
 trusted payment-event fields are validated against backend Order and Payment
-state, the backend stores a minimal replay key containing only the event id,
-source, received timestamp, and linked Order/Payment identifiers when
-available. Raw webhook payloads, signatures, secrets, card data, and full
+state, the backend stores a minimal replay key containing the event reference,
+payload hash, source, received timestamp, and linked Order/Payment identifiers
+when available. Raw webhook payloads, signatures, secrets, card data, and full
 payment details must not be stored in replay records.
 
-The replay key, Payment mutation, and Order mutation are committed in one
-database transaction before provider handoff is attempted. Replayed event ids
-are rejected with a stable replay error and must not reapply Payment, Order, or
-provider handoff state.
+The replay key, provider transaction/event mutation, Payment mutation, and
+Order mutation are committed in one database transaction before fulfillment-
+provider handoff is attempted. An authenticated duplicate whose event reference
+and payload hash match an already-committed event returns HTTP 200
+`already_processed`. It must not reapply transaction, Payment, Order, or
+provider handoff state. This acknowledgement is required when the original HTTP
+response was lost and the provider retries a successfully committed event.
+
+Missing or invalid authentication, replay-reference reuse with a different
+payload hash, and failures before commit return non-2xx without mutation. A
+replay conflict must emit a safe security signal. Authentication is always
+verified before a delivery is treated as an acknowledged duplicate.
+
+One merchant reference may have multiple provider transaction ids. Replay
+protection and uniqueness must distinguish those transactions. A failed or
+declined transaction must not terminalize a retryable Payment aggregate, while
+an approved transaction must match the persisted merchant reference, amount,
+and currency before it can verify Payment.
+
+`checkout_expires_at` blocks new customer transaction starts; it is not proof
+that a provider-accepted transaction cannot settle. A Payment displayed as
+customer-terminal `expired` may move to `pending` or `verified` only from a
+trusted provider webhook or backend reconciliation. A matching late approval
+must be persisted even if another Payment already confirmed the Order; Order
+confirmation and fulfillment handoff remain exactly-once, and the duplicate
+financial outcome produces a safe operations signal.
+
+Legacy provider-neutral Payments are assigned `provider_code =
+"legacy_generic"` during migration and must never resolve to the Wompi adapter.
+Historical generic references remain preserved rather than being relabeled as
+Wompi transaction identity.
 
 ### 7. File and Image Security
 

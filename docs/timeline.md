@@ -48,6 +48,9 @@ remaining delivery work; it does not redefine that flow.
 - Provider-neutral payment initialization, signed webhook verification,
   durable replay protection, Payment persistence, and order confirmation only
   after verified payment.
+- Wompi Web Checkout is selected as the initial production payment provider in
+  ADR 0004; its redirect handoff, provider-specific webhook, transaction/event
+  history, and customer status contract remain implementation work.
 
 ### Provider Handoff And Fulfillment
 
@@ -89,14 +92,16 @@ by each issue.
 
 ## Validation Dependencies
 
-- #99 is HITL and must supply approved commercial/provider findings before
-  #111, customer policy content in #185, or provider-specific assumptions in
-  #186 are treated as production truth.
-- Authentication provider/session choices for #179 and the real payment
-  provider contract for #186 require explicit human decisions before
-  implementation.
+- #99 is HITL and must supply approved commercial/fulfillment-provider findings
+  before #111 or customer policy content in #185 is treated as production
+  truth.
+- Authentication provider/session choices for #179 still require an explicit
+  human decision before implementation.
+- The payment-provider architecture decision for #186 is complete: Wompi Web
+  Checkout is selected in ADR 0004. Merchant onboarding, production credentials,
+  and end-to-end sandbox validation remain deployment prerequisites.
 - Local/mock adapters remain the deterministic development boundary while real
-  provider contracts are pending.
+  payment-provider integrations are pending.
 
 ## Deferred Beyond Current MVP
 

@@ -46,8 +46,8 @@ flowchart TD
     B7[Calculate backend pricing]
     G1{Order creation implemented for item type?}
     B8[Create draft order]
-    B9[Initialize payment]
-    B10[Verify payment webhook]
+    B9[Initialize Payment and redirect handoff]
+    B10[Verify payment-provider observation and aggregate transactions]
     B11[Confirm order]
     B12[Prepare paid-order provider payload]
     B13[Provider adapter handoff]
@@ -63,10 +63,14 @@ flowchart TD
     D3[(Customer-owned Designs)]
     D4[(Provider adapter pricing and eligibility responses)]
     D5[(Order + OrderItems)]
-    D6[(Payment)]
+    D6[(Payment + provider transactions and events)]
     D7[(Order status)]
 
-    %% Provider lane
+    %% Payment provider lane
+    W1[Wompi Web Checkout]
+    W2[Wompi webhook or backend reconciliation]
+
+    %% Fulfillment provider lane
     P1[Assigned provider receives paid order]
     P2{Provider accepts order?}
     P3[Manufacture order]
@@ -95,8 +99,8 @@ flowchart TD
     U5 --> U6
     U6 --> B8 --> D5
     B8 --> B9
-    B9 --> U7
-    U7 --> B10 --> D6
+    B9 --> W1 --> U7
+    U7 --> W2 --> B10 --> D6
     B10 --> B11
     B11 --> D5
     B11 --> B12 --> D5
@@ -121,6 +125,28 @@ flowchart TD
     D5 --> B18 --> U9
     D7 --> U9
 ```
+
+## Payment Provider Boundary
+
+Wompi Web Checkout is the initial production customer-payment handoff. Payment
+provider adapters run inside the modular monolith behind a provider-neutral
+gateway. A new Payment persists its selected provider, stable merchant
+reference, and checkout identity before redirect. Existing Payments always use
+their persisted provider even if the configured default later changes.
+
+One Payment may aggregate multiple Wompi transaction ids created by customer
+retries under the same merchant reference. A trusted approved matching
+transaction verifies the aggregate. An individual decline does not make an
+otherwise retryable aggregate terminal. Checkout expiration closes new starts
+but cannot invalidate a provider-accepted transaction; trusted late settlement
+may recover an expired Payment. Only an authenticated Wompi webhook or validated
+backend reconciliation may change canonical Payment state or confirm an Order;
+the browser return is navigation only. A committed authenticated webhook retry
+receives HTTP 200 without repeating any business effect.
+
+Payment-provider processing remains distinct from the fulfillment-provider
+adapter shown after Order confirmation. See `docs/flows/checkout-flow.md` and
+ADR 0004 for the detailed trust and routing boundaries.
 
 ## Design Lifecycle
 
