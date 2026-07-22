@@ -14,6 +14,8 @@ from app.schemas.order import (
     OrderCancellationResolutionRequest,
     OrderCancellationResponse,
     OrderCreateRequest,
+    OrderDetailItemRead,
+    OrderDetailRead,
     OrderListMeta,
     OrderListResponse,
     OrderRead,
@@ -31,6 +33,7 @@ from app.services.order_cancellation_service import (
 )
 from app.services.order_creation_service import OrderCreationRejected
 from app.services.order_creation_service import OrderCreationService
+from app.services.order_detail_service import OrderDetailService
 from app.services.order_list_service import OrderListService
 from app.services.pricing_service import PathAPricingService
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -101,6 +104,77 @@ async def list_customer_orders(
 
 
 @router.get(
+    "/{order_id}",
+    response_model=OrderDetailRead,
+    summary="Get customer order detail",
+    description=(
+        "Returns one authenticated customer's persisted Order and immutable "
+        "purchased-item snapshots. The response does not recalculate from or "
+        "expose current catalog, Payment relationship, provider references, "
+        "or internal state and accepts no query parameters."
+    ),
+    responses={
+        401: {"description": "Authentication required"},
+        404: {"description": "Order not found"},
+        422: {"description": "Unsupported query parameter"},
+    },
+)
+async def get_customer_order_detail(
+    order_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> OrderDetailRead:
+    """Return customer-safe persisted detail for one owned Order.
+
+    Args:
+        order_id: Order identifier from the route path.
+        request: Incoming request used to reject every query parameter.
+        db: SQLAlchemy session provided by FastAPI dependency injection.
+        current_user: Authenticated user resolved from the bearer token.
+
+    Returns:
+        Customer-safe Order lifecycle, totals, timestamps, and immutable item
+        snapshots read only from approved persisted columns.
+
+    Side effects:
+        Reads owner-scoped Order and OrderItem snapshots only. No persistence,
+        payment, provider, catalog, or audit state is mutated.
+
+    Raises:
+        HTTPException: When query parameters are supplied or the owner-scoped
+            Order does not exist.
+    """
+    _reject_order_detail_query_params(request)
+
+    detail = OrderDetailService(OrderRepository(db)).get_customer_order_detail(
+        order_id=order_id,
+        customer_id=current_user.id,
+    )
+    if detail is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found",
+        )
+
+    order = detail.order
+    return OrderDetailRead(
+        id=order.id,
+        status=order.status,
+        currency=order.currency,
+        subtotal_amount=order.subtotal_amount,
+        discount_amount=order.discount_amount,
+        tax_amount=order.tax_amount,
+        total_amount=order.total_amount,
+        payment_verified_at=order.payment_verified_at,
+        provider_handoff_sent_at=order.provider_handoff_sent_at,
+        created_at=order.created_at,
+        updated_at=order.updated_at,
+        items=[OrderDetailItemRead.model_validate(item) for item in detail.items],
+    )
+
+
+@router.get(
     "/{order_id}/status",
     response_model=OrderStatusRead,
     summary="Get order status",
@@ -151,6 +225,20 @@ def _reject_unsupported_order_list_query_params(request: Request) -> None:
     unsupported_parameters = sorted(
         set(request.query_params.keys()) - ALLOWED_ORDER_LIST_QUERY_PARAMS
     )
+    if unsupported_parameters:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={
+                "code": "unsupported_query_parameter",
+                "message": "Unsupported query parameter.",
+                "unsupported_parameters": unsupported_parameters,
+            },
+        )
+
+
+def _reject_order_detail_query_params(request: Request) -> None:
+    """Reject every query parameter for the customer Order detail contract."""
+    unsupported_parameters = sorted(set(request.query_params.keys()))
     if unsupported_parameters:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

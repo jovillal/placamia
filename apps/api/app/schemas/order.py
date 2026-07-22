@@ -97,6 +97,41 @@ class OrderListResponse(BaseModel):
     meta: OrderListMeta
 
 
+class OrderDetailItemRead(BaseModel):
+    """Customer-safe immutable OrderItem snapshot for Order detail."""
+
+    item_type: str
+    display_name: str
+    customer_safe_description: str | None
+    selected_options: dict[str, Any]
+    quantity: int
+    unit_price_amount: Decimal
+    line_subtotal_amount: Decimal
+    line_discount_amount: Decimal
+    line_tax_amount: Decimal
+    line_total_amount: Decimal
+    currency: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderDetailRead(BaseModel):
+    """Customer-safe persisted Order and purchased-item detail snapshot."""
+
+    id: int
+    status: str
+    currency: str
+    subtotal_amount: Decimal
+    discount_amount: Decimal
+    tax_amount: Decimal
+    total_amount: Decimal
+    payment_verified_at: datetime | None
+    provider_handoff_sent_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+    items: list[OrderDetailItemRead]
+
+
 class OrderStatusItemRead(BaseModel):
     """Customer-safe item snapshot shown in order tracking responses."""
 

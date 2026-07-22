@@ -14,8 +14,7 @@
     "Customer sign-in/token acquisition flow beyond GET /auth/me.",
     "Customer-visible cancellation/refund terms content source.",
     "Provider-specific payment initialization response for real payment handoff.",
-    "Customer payment-status polling or order/payment result reconciliation path.",
-    "Full customer order detail endpoint if status-only tracking is insufficient."
+    "Customer payment-status polling or order/payment result reconciliation path."
   ],
   "screens": [
     {
@@ -364,9 +363,10 @@
       "id": "order-detail-tracking",
       "title": "Order Detail And Tracking",
       "section": "Orders",
-      "purpose": "Show canonical order lifecycle states and cancellation request boundaries.",
-      "mockState": "Static tracking data only. Provider/admin status mutations are not customer actions.",
+      "purpose": "Represent customer-safe persisted purchase detail, canonical lifecycle states, and cancellation request boundaries.",
+      "mockState": "Static detail mirrors the implemented owner-scoped snapshot contract; provider/admin status mutations are not customer actions.",
       "keyActions": [
+        "View immutable purchased-item snapshots.",
         "View canonical status labels.",
         "Show cancellation request only for allowed paid states.",
         "Avoid provider/admin controls."
@@ -383,9 +383,9 @@
           "note": "Owning customer can request cancellation from confirmed, accepted, or in_production."
         },
         {
-          "name": "Full order detail endpoint",
-          "status": "Documented-but-pending",
-          "note": "No customer order detail endpoint separate from status exists yet."
+          "name": "GET /api/v1/orders/{order_id}",
+          "status": "Implemented",
+          "note": "Returns one owner-scoped Order with customer-safe persisted OrderItem snapshots."
         },
         {
           "name": "Admin/provider mutation endpoints",

@@ -153,6 +153,65 @@ class OrderRepository:
             .where(Order.customer_id == customer_id)
         )
 
+    def get_order_detail_for_customer(
+        self,
+        order_id: int,
+        customer_id: int,
+    ) -> Order | None:
+        """Return approved detail snapshots for one customer-owned Order.
+
+        Args:
+            order_id: Order identifier to retrieve.
+            customer_id: Backend-derived authenticated customer identifier.
+
+        Returns:
+            The matching owner-scoped Order with approved OrderItem snapshot
+            columns loaded, or None when no matching owned Order exists.
+
+        Side effects:
+            Reads persisted Order and OrderItem snapshot columns only. Customer,
+            Payment, catalog, provider, and other relationships are not loaded.
+        """
+        result = self.db.execute(
+            select(Order)
+            .options(
+                load_only(
+                    Order.id,
+                    Order.status,
+                    Order.currency,
+                    Order.subtotal_amount,
+                    Order.discount_amount,
+                    Order.tax_amount,
+                    Order.total_amount,
+                    Order.payment_verified_at,
+                    Order.provider_handoff_sent_at,
+                    Order.created_at,
+                    Order.updated_at,
+                    raiseload=True,
+                ),
+                selectinload(Order.items)
+                .load_only(
+                    OrderItem.id,
+                    OrderItem.item_type,
+                    OrderItem.display_name,
+                    OrderItem.customer_safe_description,
+                    OrderItem.selected_options,
+                    OrderItem.quantity,
+                    OrderItem.unit_price_amount,
+                    OrderItem.line_subtotal_amount,
+                    OrderItem.line_discount_amount,
+                    OrderItem.line_tax_amount,
+                    OrderItem.line_total_amount,
+                    OrderItem.currency,
+                    raiseload=True,
+                )
+                .raiseload("*"),
+                raiseload("*"),
+            )
+            .where(Order.id == order_id, Order.customer_id == customer_id)
+        )
+        return result.scalar_one_or_none()
+
     def record_provider_handoff_sent(
         self,
         order: Order,

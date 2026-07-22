@@ -343,6 +343,51 @@ provider, policy, cancellation-provenance, or internal fields. Only `page` and
 `page_size` are supported; other query parameters return HTTP 422
 `unsupported_query_parameter`.
 
+## Customer Order Detail
+
+```http
+GET /api/v1/orders/42
+Authorization: Bearer <access_token>
+```
+
+```json
+{
+  "id": 42,
+  "status": "confirmed",
+  "currency": "COP",
+  "subtotal_amount": "85000.00",
+  "discount_amount": "0.00",
+  "tax_amount": "0.00",
+  "total_amount": "85000.00",
+  "payment_verified_at": "2026-07-21T12:05:00Z",
+  "provider_handoff_sent_at": null,
+  "created_at": "2026-07-21T12:00:00Z",
+  "updated_at": "2026-07-21T12:05:00Z",
+  "items": [
+    {
+      "item_type": "product",
+      "display_name": "Emergency exit sign",
+      "customer_safe_description": "Standard exit signage.",
+      "selected_options": {},
+      "quantity": 2,
+      "unit_price_amount": "42500.00",
+      "line_subtotal_amount": "85000.00",
+      "line_discount_amount": "0.00",
+      "line_tax_amount": "0.00",
+      "line_total_amount": "85000.00",
+      "currency": "COP"
+    }
+  ]
+}
+```
+
+The backend scopes the Order lookup by both route id and authenticated owner.
+Unknown and cross-customer ids return the same `404 Order not found` response.
+All values come from persisted Order and OrderItem snapshots; mutable catalog,
+pricing, Payment, and provider relationships are not used for projection.
+Every query parameter is rejected with HTTP 422
+`unsupported_query_parameter` after successful authentication.
+
 ## Payment Initialization
 
 ```http
