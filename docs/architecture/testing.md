@@ -226,7 +226,9 @@ pricing, checkout, and provider fulfillment.
 - Payment webhook or confirmation endpoints:
   - reject invalid provider-specific signatures or checksums
   - reject missing signatures
-  - reject replayed events (if idempotency is implemented)
+  - return HTTP 200 `already_processed` for authenticated matching duplicates
+    whose original transaction committed
+  - reject a reused replay reference with a different payload hash
 - Payment initialization tests verify that provider selection, amount,
   currency, merchant reference, expiration, and signature inputs come only from
   backend-owned state.
@@ -234,6 +236,13 @@ pricing, checkout, and provider fulfillment.
   new Payments only; existing Payments retain their persisted provider route.
 - Aggregate tests cover multiple provider transaction ids under one merchant
   reference, including a declined transaction followed by an approved retry.
+- Expiration tests prove that no new transaction may start after checkout
+  expiration, a known pending transaction remains valid, and a trusted late
+  approval can move `expired` to `verified`.
+- Late approval after another Payment confirmed the Order records the Payment
+  and operations signal without overwriting confirmation or repeating handoff.
+- Legacy migration tests backfill `legacy_generic` identity, preserve existing
+  generic references, and prove grandfathered rows never resolve to Wompi.
 - Customer return data alone cannot verify a Payment, confirm an Order, or
   trigger fulfillment-provider handoff.
 - Orders are not marked as paid without verified payment provider confirmation.
@@ -295,7 +304,11 @@ Examples:
 Tests should verify:
 
 - duplicate requests do not create duplicate orders unless intended
-- repeated webhook events do not reapply state changes
+- an authenticated webhook retry after a simulated lost successful response
+  receives HTTP 200 without reapplying state changes or external side effects
+- concurrent duplicate delivery commits one event/effect set and acknowledges
+  the committed duplicate
+- authentication is checked before duplicate acknowledgement
 - distinct provider transactions under one merchant reference are not
   incorrectly rejected as webhook replays
 - idempotency keys (if implemented) behave correctly

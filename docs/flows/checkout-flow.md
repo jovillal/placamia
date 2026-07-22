@@ -67,8 +67,9 @@ flowchart TD
     W3 --> W4[Verify Wompi checksum and normalize event]
     W4 -->|invalid| R1[Reject without mutation]
     W4 -->|valid| B4[Correlate Payment and apply replay protection]
-    B4 --> D2[(Provider transactions and events)]
-    B4 --> B5[Aggregate trusted transaction observations]
+    B4 -->|committed duplicate| A1[Return HTTP 200 already processed]
+    B4 -->|new event| D2[(Provider transactions and events)]
+    B4 -->|new event| B5[Aggregate trusted transaction observations]
     B5 -->|approved match| B6[Verify Payment and confirm Order]
     B5 -->|pending or retryable| D1
     B6 --> D1
@@ -77,6 +78,8 @@ flowchart TD
 
     W2 --> U3[Return customer to PlacamIA]
     U3 --> B8[Read persisted customer Payment status]
+    W1 --> E1[Checkout expiration closes new transaction starts]
+    E1 --> D1
     B10[Explicit throttled reconciliation] --> B9[Load known transaction ids]
     B9 --> W5[Query known Wompi transaction id]
     W5 --> B5
@@ -115,8 +118,13 @@ query validated against the persisted Payment.
   transaction ids under one merchant reference.
 - A declined Wompi transaction remains retryable while the checkout aggregate
   is active; any later trusted approved transaction verifies the Payment.
+- Checkout expiration closes new transaction starts but does not invalidate a
+  transaction already accepted by Wompi. Trusted late pending or approved
+  observations may recover a customer-terminal expired Payment.
 - Production webhooks use provider-specific routes and authentication before
   entering the common Payment lifecycle service.
+- An authenticated duplicate of an already-committed Wompi event returns HTTP
+  200 without repeating persistence or fulfillment-provider side effects.
 - Paid-order provider handoff happens through the provider adapter boundary
   only after verified payment. This is the fulfillment-provider boundary, not
   the payment-provider gateway.
@@ -129,6 +137,8 @@ query validated against the persisted Payment.
   does not confirm orders or trigger provider handoff
 - Invalid payments must not mutate order state
 - Replayed payment events must not duplicate state changes
+- Invalid webhook authentication and replay conflicts are rejected; committed
+  authenticated duplicates are acknowledged with HTTP 200.
 - Frontend return URLs and query parameters must not confirm payment or mutate
   canonical Payment state.
 - Customer polling returns persisted canonical state; provider reconciliation

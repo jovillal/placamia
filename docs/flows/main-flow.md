@@ -137,9 +137,12 @@ their persisted provider even if the configured default later changes.
 One Payment may aggregate multiple Wompi transaction ids created by customer
 retries under the same merchant reference. A trusted approved matching
 transaction verifies the aggregate. An individual decline does not make an
-otherwise retryable aggregate terminal. Only an authenticated Wompi webhook or
-validated backend reconciliation may change canonical Payment state or confirm
-an Order; the browser return is navigation only.
+otherwise retryable aggregate terminal. Checkout expiration closes new starts
+but cannot invalidate a provider-accepted transaction; trusted late settlement
+may recover an expired Payment. Only an authenticated Wompi webhook or validated
+backend reconciliation may change canonical Payment state or confirm an Order;
+the browser return is navigation only. A committed authenticated webhook retry
+receives HTTP 200 without repeating any business effect.
 
 Payment-provider processing remains distinct from the fulfillment-provider
 adapter shown after Order confirmation. See `docs/flows/checkout-flow.md` and

@@ -274,7 +274,7 @@ Customer-visible states:
 | `verified` / success | At least one trusted matching transaction was approved; order may become confirmed. | Provider-specific webhook or backend reconciliation plus order status. |
 | `failed` | The Payment aggregate can no longer succeed and the order must not be confirmed. | Persisted aggregate state from trusted provider observations. |
 | `cancelled` | The Payment aggregate was cancelled and the order must not be confirmed. | Persisted aggregate state from trusted provider observations. |
-| `expired` | The checkout-start window ended without an approved transaction; a new Payment may be needed. | Persisted aggregate state from trusted provider observations and backend time rules. |
+| `expired` | The checkout-start window ended; stop polling and offer the documented retry path. A later trusted provider settlement may still update backend state. | Persisted aggregate state from trusted provider observations and backend time rules. |
 
 Backend dependencies:
 

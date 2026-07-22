@@ -239,9 +239,24 @@ Aggregate rules are deterministic:
 3. A declined or failed external transaction does not terminalize the Payment
    while the checkout can still be retried; the Payment remains
    `requires_action`.
-4. The Payment becomes `expired`, `failed`, or `cancelled` only when the
-   aggregate can no longer produce a successful transaction under documented
-   provider or application rules.
+4. `checkout_expires_at` closes the customer handoff to new transaction starts.
+   It does not invalidate a transaction that Wompi already accepted.
+5. If the handoff expires with no known in-flight or approved transaction, the
+   Payment becomes customer-terminal `expired`. A later authenticated `PENDING`
+   observation that proves the provider accepted the transaction before expiry
+   may move it back to `pending`. A later authenticated `APPROVED` observation
+   with the same timing evidence and matching identity, amount, and currency
+   must move it to `verified`.
+6. `failed` or `cancelled` applies only when the aggregate can no longer produce
+   a successful transaction under documented provider or application rules.
+
+`expired` therefore ends customer polling and reuse but is not allowed to deny
+later trusted financial truth. The exceptional `expired -> pending|verified`
+transitions are available only to authenticated provider webhook or
+backend-provider reconciliation sources. Frontend return data cannot use them.
+If another Payment has already confirmed the Order, late verification is still
+recorded without reconfirming the Order or duplicating fulfillment handoff, and
+an operational duplicate-payment alert is required.
 
 The provider adapter reports observations. The application service validates
 the canonical lifecycle transition, backend-owned amount and currency, Order
@@ -289,6 +304,24 @@ produce a deterministic replay key from authenticated provider event fields or
 a cryptographic hash of the exact verified body. The replay key must distinguish
 separate transactions under the same merchant reference.
 
+Webhook delivery is idempotent at the HTTP boundary:
+
+- missing or invalid authentication is rejected without mutation
+- an authenticated new event returns HTTP 200 only after its replay key,
+  provider transaction/event data, Payment change, and eligible Order change
+  commit atomically
+- an authenticated delivery whose same replay key and payload hash already
+  committed returns HTTP 200 with `status = "already_processed"` and does not
+  reapply database mutations or fulfillment-provider side effects
+- the same replay key with a different payload hash is a conflict, is rejected
+  without mutation, and emits a safe security signal
+- an authenticated event that fails before commit returns non-2xx so Wompi may
+  retry it
+
+This distinction covers a lost HTTP response: once PlacamIA committed the first
+delivery, every authentic retry is acknowledged as successful even though no
+business effect is repeated.
+
 The customer return URL is navigation only. A returned Wompi transaction id is
 untrusted and must never directly verify a Payment or confirm an Order. The
 customer status endpoint ignores it and reads persisted state. A future
@@ -299,6 +332,31 @@ Payment.
 Customer status reads use the owned Order id and return persisted canonical
 state. Provider reconciliation is a separate explicit, throttled application
 operation; it is not an external request on the customer polling path.
+
+### Existing Payment Migration
+
+Roll out provider identity without pretending that generic historical data came
+from Wompi:
+
+1. Add `provider_code` and `merchant_reference` as nullable columns, and create
+   provider transaction/event tables without changing the default provider.
+2. Backfill every existing Payment with `provider_code = "legacy_generic"` and
+   `merchant_reference = "legacy-payment-{payment_id}"`.
+3. Preserve existing `payment_provider_reference` and generic webhook replay
+   rows in place. Do not synthesize Wompi transactions or events from data whose
+   provider semantics cannot be proven.
+4. Verify every Payment has a unique `(provider_code, merchant_reference)`, then
+   make both identity columns non-null.
+5. Recognize `legacy_generic` as a read-only historical identity without
+   registering a payment gateway for it. It cannot create new handoffs or be
+   resolved to the Wompi adapter.
+6. Configure `PAYMENT_PROVIDER_DEFAULT = "wompi"` only after schema, backfill,
+   Wompi configuration, and provider-specific routes are ready.
+
+Existing verified Orders retain their payment reference and verification
+timestamp. Existing active generic Payments are grandfathered and must be
+closed through an explicit operational decision before the customer creates a
+new Wompi Payment; they are never silently converted or routed to Wompi.
 
 ### Configuration And Secrets
 
