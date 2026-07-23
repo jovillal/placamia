@@ -284,7 +284,7 @@ class PaymentWebhookProcessingService:
                 event.payment_status,
             )
             try:
-                return self.payment_repository.create_payment(
+                return self.payment_repository.create_legacy_payment(
                     Payment(
                         order_id=event.order_id,
                         status=event.payment_status.value,

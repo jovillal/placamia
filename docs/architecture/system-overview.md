@@ -15,8 +15,9 @@ AI-assisted generation, recommendations, and variations are outside the MVP.
 - Expo mobile placeholder using static/mock contract data until remaining
   customer API contracts are implemented
 - provider-neutral payment and manufacturing adapter boundaries inside the
-  modular monolith; Wompi Web Checkout is selected for the pending first real
-  payment integration, while current behavior remains deterministic/local
+  modular monolith; provider-scoped Payment identity and safe transaction/event
+  history are persisted, while Wompi Web Checkout remains the pending first
+  real payment integration and current runtime behavior stays deterministic/local
 
 ## Main backend responsibilities
 - authentication, authorization, and customer ownership enforcement

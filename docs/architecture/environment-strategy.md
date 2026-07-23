@@ -110,8 +110,8 @@ If this query returns rows, stop the migration and resolve the duplicate
 payment history through a scoped data-cleanup issue or runbook before applying
 the constraint. Do not delete or merge payment rows ad hoc during deploy.
 
-The Wompi provider-identity rollout uses separate expand and contract
-migrations:
+The Wompi provider-identity foundation uses separate implemented expand and
+contract migrations:
 
 1. The expand migration adds nullable `provider_code` and
    `merchant_reference`, creates provider transaction/event tables, and
@@ -142,6 +142,14 @@ Both queries must return no rows. The contract migration may then make both
 columns non-null and add unique `(provider_code, merchant_reference)`. Enable
 `PAYMENT_PROVIDER_DEFAULT=wompi` only after that migration and Wompi runtime
 configuration are ready.
+
+Expand revision `838722b0b76e` adds and backfills the identity columns and
+creates the safe provider transaction/event tables. Contract revision
+`d98b7e31a3a3` performs equivalent null, temporary-reference, and duplicate
+identity guards before enforcing the final constraints. Transitional generic
+writers assign `legacy_generic` and replace their collision-resistant
+temporary reference with `legacy-payment-{payment_id}` before commit, so the
+contract remains valid before the Wompi adapter is enabled.
 
 `legacy_generic` is historical/read-only identity. Active generic Payments are
 not routed to Wompi and require an explicit operational closure decision before

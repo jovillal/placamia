@@ -492,6 +492,8 @@ def test_order_list_endpoint_exposes_only_persisted_safe_summary_fields():
         ]
         order.payments = [
             Payment(
+                provider_code="legacy_generic",
+                merchant_reference=f"legacy-list-{order.id}",
                 status=PaymentStatus.VERIFIED.value,
                 amount=Decimal("85.75"),
                 currency="USD",

@@ -15,6 +15,7 @@ from app.domain.provider_adapter import (
 )
 from app.main import app
 from app.models.category import Category
+from app.models.audit_log import AuditLog
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.payment import Payment
@@ -142,6 +143,8 @@ def seed_payment(
     """Persist one Payment for initialization idempotency tests."""
     payment = Payment(
         order_id=order.id,
+        provider_code="legacy_generic",
+        merchant_reference=f"legacy-seeded-{order.id}-{status.value}",
         status=status.value,
         amount=Decimal(amount),
         currency=order.currency,
@@ -241,7 +244,9 @@ def assert_no_payment_or_order_mutation(db, order_id: int) -> None:
     assert payments_for_order(db, order_id) == []
 
 
-def test_initialize_payment_creates_initiated_payment_from_backend_order_state():
+def test_initialize_payment_creates_initiated_payment_from_backend_order_state(
+    caplog,
+):
     db = build_session()
     try:
         user = seed_user(db)
@@ -259,12 +264,15 @@ def test_initialize_payment_creates_initiated_payment_from_backend_order_state()
         assert payload["payment_status"] == PaymentStatus.INITIATED.value
         assert payload["amount"] == "40.00"
         assert payload["currency"] == "COP"
+        assert "-uncommitted-" not in response.text
 
         payments = payments_for_order(db, order.id)
         assert len(payments) == 1
         assert payments[0].status == PaymentStatus.INITIATED.value
         assert payments[0].amount == Decimal("40.00")
         assert payments[0].currency == "COP"
+        assert payments[0].provider_code == "legacy_generic"
+        assert payments[0].merchant_reference == (f"legacy-payment-{payments[0].id}")
         assert payments[0].payment_provider_reference is None
         assert payments[0].verified_at is None
 
@@ -274,6 +282,8 @@ def test_initialize_payment_creates_initiated_payment_from_backend_order_state()
         assert stored_order.payment_verified_at is None
         assert stored_order.provider_handoff_reference is None
         assert stored_order.provider_handoff_sent_at is None
+        assert db.scalars(select(AuditLog)).all() == []
+        assert "-uncommitted-" not in caplog.text
     finally:
         app.dependency_overrides.clear()
         db.close()

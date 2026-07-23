@@ -19,6 +19,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
     from app.models.order import Order
+    from app.models.payment_provider_event import PaymentProviderEvent
+    from app.models.payment_provider_transaction import PaymentProviderTransaction
 
 
 PAYMENT_STATUS_VALUES = tuple(status.value for status in PaymentStatus)
@@ -53,6 +55,11 @@ class Payment(Base):
             "payment_provider_reference",
             name="uq_payments_order_provider_reference",
         ),
+        UniqueConstraint(
+            "provider_code",
+            "merchant_reference",
+            name="uq_payments_provider_merchant_reference",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -60,6 +67,20 @@ class Payment(Base):
         ForeignKey("orders.id"),
         nullable=False,
         index=True,
+    )
+    provider_code: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        index=True,
+    )
+    merchant_reference: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        index=True,
+    )
+    provider_checkout_reference: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
     )
     status: Mapped[str] = mapped_column(
         String(32),
@@ -74,6 +95,10 @@ class Payment(Base):
         String(255),
         nullable=True,
         index=True,
+    )
+    checkout_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
     verified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
@@ -93,4 +118,12 @@ class Payment(Base):
     order: Mapped["Order"] = relationship(
         "Order",
         back_populates="payments",
+    )
+    provider_transactions: Mapped[list["PaymentProviderTransaction"]] = relationship(
+        "PaymentProviderTransaction",
+        back_populates="payment",
+    )
+    provider_events: Mapped[list["PaymentProviderEvent"]] = relationship(
+        "PaymentProviderEvent",
+        back_populates="payment",
     )

@@ -153,6 +153,8 @@ def seed_payment(
     """Persist one Payment record for webhook persistence tests."""
     payment = Payment(
         order_id=order.id,
+        provider_code="legacy_generic",
+        merchant_reference=f"legacy-webhook-{order.id}-{provider_reference}",
         status=status,
         amount=Decimal(amount),
         currency=currency,

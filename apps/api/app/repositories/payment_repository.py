@@ -1,6 +1,12 @@
+from uuid import uuid4
+
 from app.models.payment import Payment
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+
+LEGACY_GENERIC_PROVIDER_CODE = "legacy_generic"
+LEGACY_PAYMENT_REFERENCE_PREFIX = "legacy-payment"
 
 
 class PaymentRepository:
@@ -40,6 +46,33 @@ class PaymentRepository:
         self.db.refresh(payment)
         return payment
 
+    def create_legacy_payment(self, payment: Payment) -> Payment:
+        """Stage one transitional provider-neutral Payment with final identity.
+
+        Args:
+            payment: New Payment populated from backend-owned Order or trusted
+                generic webhook state, without provider aggregate identity.
+
+        Returns:
+            The staged Payment with `legacy_generic` provider code and a final
+            merchant reference derived from its generated Payment id.
+
+        Side effects:
+            Inserts the Payment under a collision-resistant temporary identity,
+            replaces that identity before returning, and flushes both writes in
+            the caller-owned transaction. No commit is performed.
+        """
+        payment.provider_code = LEGACY_GENERIC_PROVIDER_CODE
+        payment.merchant_reference = (
+            f"{LEGACY_PAYMENT_REFERENCE_PREFIX}-uncommitted-{uuid4().hex}"
+        )
+        self.db.add(payment)
+        self.db.flush()
+        payment.merchant_reference = f"{LEGACY_PAYMENT_REFERENCE_PREFIX}-{payment.id}"
+        self.db.flush()
+        self.db.refresh(payment)
+        return payment
+
     def update_payment(self, payment: Payment) -> Payment:
         """Stage updates to one Payment inside the current transaction.
 
@@ -70,6 +103,27 @@ class PaymentRepository:
             The matching Payment model instance, or None when no row exists.
         """
         return self.db.get(Payment, payment_id)
+
+    def get_payment_by_provider_identity(
+        self,
+        provider_code: str,
+        merchant_reference: str,
+    ) -> Payment | None:
+        """Return one Payment by its provider-scoped merchant identity.
+
+        Args:
+            provider_code: Stable persisted payment-provider identifier.
+            merchant_reference: Backend-owned merchant checkout reference.
+
+        Returns:
+            The matching Payment, or None when the identity is unknown.
+        """
+        return self.db.scalar(
+            select(Payment).where(
+                Payment.provider_code == provider_code,
+                Payment.merchant_reference == merchant_reference,
+            )
+        )
 
     def get_payments_for_order(self, order_id: int) -> list[Payment]:
         """Return Payment records for one Order sorted by newest first.
