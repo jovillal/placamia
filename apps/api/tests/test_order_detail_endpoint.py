@@ -211,6 +211,8 @@ def seed_order(
     ]
     order.payments = [
         Payment(
+            provider_code="legacy_generic",
+            merchant_reference=f"legacy-detail-{order.id}",
             status=PaymentStatus.INITIATED.value,
             amount=order.total_amount,
             currency=order.currency,

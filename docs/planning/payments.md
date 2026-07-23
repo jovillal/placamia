@@ -142,8 +142,19 @@ Current implementation state:
 
 - Payment status lifecycle validation is implemented as deterministic domain
   logic.
-- Payment model persistence is implemented for minimal payment-safe persisted
-  fields through the backend Payment model, repository, and migration.
+- Payment aggregate persistence includes provider-scoped `provider_code`,
+  `merchant_reference`, optional checkout identity/expiry fields, and separate
+  safe provider transaction and event history. Provider transaction ids are
+  not stored as a canonical scalar on Payment.
+- The provider-identity rollout is implemented as expand revision
+  `838722b0b76e` and contract revision `d98b7e31a3a3`. Existing rows are
+  grandfathered as `legacy_generic` with deterministic
+  `legacy-payment-{payment_id}` merchant references without fabricating Wompi
+  history.
+- Until Wompi initialization replaces the provider-neutral path, current
+  generic Payment writers persist a final `legacy_generic` identity before
+  their caller-owned transaction can commit. Those rows are not routable to a
+  real payment-provider adapter.
 - Provider-neutral payment webhook signature verification foundation is
   implemented and used by the payment webhook processing endpoint.
 - Payment webhook processing creates or updates Payment records after signature
@@ -200,9 +211,11 @@ The approved production target is Wompi Web Checkout. The decision and its
 alternatives are recorded in
 `docs/architecture/adr/0004-wompi-payment-provider-boundary.md`.
 
-This target is pending implementation. Until the required issues land, the
-existing `POST /api/v1/payments` response remains provider-neutral metadata and
-the generic `POST /api/v1/payments/webhook` remains a deterministic foundation,
+The provider identity and history persistence foundation is implemented, while
+the Wompi adapter and provider-specific runtime flows remain pending. Until the
+required issues land, the existing `POST /api/v1/payments` response remains
+provider-neutral metadata and the generic `POST /api/v1/payments/webhook`
+remains a deterministic foundation,
 not a production Wompi contract.
 
 ### Provider Boundary
@@ -476,7 +489,8 @@ continue using their persisted provider code and provider-specific webhook
 route. A future provider can therefore run alongside Wompi without a flag-day
 cutover or stranded pending Payments.
 
-Existing provider-neutral rows use this expand/backfill/contract rollout:
+Existing provider-neutral rows use this implemented expand/backfill/contract
+rollout:
 
 1. Add nullable `provider_code` and `merchant_reference` columns and create the
    new transaction/event tables.
@@ -492,6 +506,12 @@ Existing provider-neutral rows use this expand/backfill/contract rollout:
    Wompi.
 6. Enable `PAYMENT_PROVIDER_DEFAULT = "wompi"` only after the migration,
    backfill, Wompi configuration, and provider-specific routes are ready.
+
+Alembic revision `838722b0b76e` implements steps 1 through 3. Revision
+`d98b7e31a3a3` rejects null, temporary, or duplicate identities before applying
+the non-null and unique constraints in step 4. The default provider remains
+unchanged; Wompi enablement and `legacy_generic` routing rejection belong to
+the provider initialization work.
 
 Verified historical Orders retain their existing payment reference and
 verification timestamp. Active generic Payments require an explicit operations

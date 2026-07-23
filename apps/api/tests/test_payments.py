@@ -70,6 +70,10 @@ def build_payment(
 ) -> Payment:
     return Payment(
         order_id=order.id,
+        provider_code="legacy_generic",
+        merchant_reference=(
+            f"legacy-test-{order.id}-{provider_reference or status.value}"
+        ),
         status=status.value,
         amount=amount,
         currency=currency,
@@ -86,6 +90,8 @@ def test_payment_model_links_to_order_and_allows_multiple_payments_per_order():
 
         first_payment = Payment(
             order=order,
+            provider_code="legacy_generic",
+            merchant_reference=f"legacy-test-{order.id}-attempt-1",
             status=PaymentStatus.INITIATED.value,
             amount=Decimal("59.50"),
             currency="COP",
@@ -93,6 +99,8 @@ def test_payment_model_links_to_order_and_allows_multiple_payments_per_order():
         )
         second_payment = Payment(
             order=order,
+            provider_code="legacy_generic",
+            merchant_reference=f"legacy-test-{order.id}-attempt-2",
             status=PaymentStatus.FAILED.value,
             amount=Decimal("59.50"),
             currency="COP",
@@ -249,6 +257,8 @@ def test_payment_model_rejects_invalid_status_value():
         db.add(
             Payment(
                 order_id=order.id,
+                provider_code="legacy_generic",
+                merchant_reference=f"legacy-test-{order.id}-banana",
                 status="banana",
                 amount=Decimal("59.50"),
                 currency="COP",
@@ -385,10 +395,14 @@ def test_payment_table_matches_minimal_payment_safe_fields():
         assert payment_columns == {
             "id",
             "order_id",
+            "provider_code",
+            "merchant_reference",
+            "provider_checkout_reference",
             "status",
             "amount",
             "currency",
             "payment_provider_reference",
+            "checkout_expires_at",
             "verified_at",
             "created_at",
             "updated_at",

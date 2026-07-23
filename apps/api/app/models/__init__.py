@@ -6,6 +6,8 @@ from app.models.kit_item import KitItem
 from app.models.order import Order
 from app.models.order_item import OrderItem, OrderItemType
 from app.models.payment import Payment
+from app.models.payment_provider_event import PaymentProviderEvent
+from app.models.payment_provider_transaction import PaymentProviderTransaction
 from app.models.payment_webhook_event import PaymentWebhookEvent
 from app.models.product import Product
 from app.models.template import Template
@@ -22,6 +24,8 @@ __all__ = [
     "OrderItem",
     "OrderItemType",
     "Payment",
+    "PaymentProviderEvent",
+    "PaymentProviderTransaction",
     "PaymentWebhookEvent",
     "Product",
     "Template",

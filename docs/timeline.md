@@ -48,9 +48,12 @@ remaining delivery work; it does not redefine that flow.
 - Provider-neutral payment initialization, signed webhook verification,
   durable replay protection, Payment persistence, and order confirmation only
   after verified payment.
+- Provider-scoped Payment aggregate identity plus separate safe transaction
+  and event history persistence, with historical generic rows grandfathered as
+  `legacy_generic` through expand/backfill/contract migrations.
 - Wompi Web Checkout is selected as the initial production payment provider in
-  ADR 0004; its redirect handoff, provider-specific webhook, transaction/event
-  history, and customer status contract remain implementation work.
+  ADR 0004; its redirect handoff, provider-specific webhook processing, and
+  customer status contract remain implementation work.
 
 ### Provider Handoff And Fulfillment
 

@@ -1,6 +1,10 @@
 from app.models.payment import Payment
-from sqlalchemy import select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
+
+
+LEGACY_GENERIC_PROVIDER_CODE = "legacy_generic"
+LEGACY_PAYMENT_REFERENCE_PREFIX = "legacy-payment"
 
 
 class PaymentRepository:
@@ -40,6 +44,62 @@ class PaymentRepository:
         self.db.refresh(payment)
         return payment
 
+    def create_legacy_payment(self, payment: Payment) -> Payment:
+        """Stage one transitional provider-neutral Payment with final identity.
+
+        Args:
+            payment: New Payment populated from backend-owned Order or trusted
+                generic webhook state, without provider aggregate identity.
+
+        Returns:
+            The staged Payment with `legacy_generic` provider code and a final
+            merchant reference derived from its allocated Payment id.
+
+        Side effects:
+            Allocates the Payment id, inserts one row with its final identity,
+            and flushes it in the caller-owned transaction. No provisional
+            merchant reference is written and no commit is performed.
+        """
+        payment.id = self._allocate_payment_id()
+        payment.provider_code = LEGACY_GENERIC_PROVIDER_CODE
+        payment.merchant_reference = f"{LEGACY_PAYMENT_REFERENCE_PREFIX}-{payment.id}"
+        self.db.add(payment)
+        self.db.flush()
+        self.db.refresh(payment)
+        return payment
+
+    def _allocate_payment_id(self) -> int:
+        """Allocate the next Payment id without inserting provisional data.
+
+        Returns:
+            The next database-owned integer Payment identifier.
+
+        Side effects:
+            Advances the PostgreSQL Payment sequence. SQLite test databases
+            read the next available row id inside their isolated transaction.
+
+        Raises:
+            RuntimeError: If the configured database dialect is unsupported or
+                PostgreSQL cannot resolve its Payment id sequence.
+        """
+        dialect_name = self.db.get_bind().dialect.name
+        if dialect_name == "postgresql":
+            payment_id = self.db.scalar(
+                text("SELECT nextval(pg_get_serial_sequence('payments', 'id'))")
+            )
+        elif dialect_name == "sqlite":
+            payment_id = self.db.scalar(
+                select(func.coalesce(func.max(Payment.id), 0) + 1)
+            )
+        else:
+            raise RuntimeError(
+                f"Unsupported Payment id allocation dialect: {dialect_name}."
+            )
+
+        if payment_id is None:
+            raise RuntimeError("Payment id sequence could not be resolved.")
+        return int(payment_id)
+
     def update_payment(self, payment: Payment) -> Payment:
         """Stage updates to one Payment inside the current transaction.
 
@@ -70,6 +130,27 @@ class PaymentRepository:
             The matching Payment model instance, or None when no row exists.
         """
         return self.db.get(Payment, payment_id)
+
+    def get_payment_by_provider_identity(
+        self,
+        provider_code: str,
+        merchant_reference: str,
+    ) -> Payment | None:
+        """Return one Payment by its provider-scoped merchant identity.
+
+        Args:
+            provider_code: Stable persisted payment-provider identifier.
+            merchant_reference: Backend-owned merchant checkout reference.
+
+        Returns:
+            The matching Payment, or None when the identity is unknown.
+        """
+        return self.db.scalar(
+            select(Payment).where(
+                Payment.provider_code == provider_code,
+                Payment.merchant_reference == merchant_reference,
+            )
+        )
 
     def get_payments_for_order(self, order_id: int) -> list[Payment]:
         """Return Payment records for one Order sorted by newest first.

@@ -135,7 +135,7 @@ class PaymentInitializationService:
                 created=False,
             )
 
-        payment = self.payment_repository.create_payment(
+        payment = self.payment_repository.create_legacy_payment(
             Payment(
                 order_id=order.id,
                 status=PaymentStatus.INITIATED.value,
