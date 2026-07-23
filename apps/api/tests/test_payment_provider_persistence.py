@@ -17,7 +17,7 @@ from app.repositories.payment_provider_transaction_repository import (
     PaymentProviderTransactionRepository,
 )
 from app.repositories.payment_repository import PaymentRepository
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, func, inspect, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -252,6 +252,54 @@ def test_payment_provider_event_repository_stores_safe_independent_identity():
             linked_event,
             unlinked_event,
         ]
+    finally:
+        db.close()
+
+
+def test_payment_provider_event_rejects_cross_payment_transaction_without_mutation():
+    db = build_session()
+    try:
+        transaction_order = seed_order(db, email="transaction@example.com")
+        event_order = seed_order(db, email="event@example.com")
+        transaction_payment = seed_payment(
+            db,
+            transaction_order,
+            provider_code="wompi",
+            merchant_reference="transaction-payment",
+        )
+        event_payment = seed_payment(
+            db,
+            event_order,
+            provider_code="other_provider",
+            merchant_reference="event-payment",
+        )
+        transaction = PaymentProviderTransactionRepository(db).create_transaction(
+            payment=transaction_payment,
+            provider_transaction_reference="wompi-transaction-a",
+            provider_status="PENDING",
+            normalized_status=PaymentStatus.PENDING.value,
+            amount=Decimal("59.50"),
+            currency="COP",
+            provider_created_at=None,
+        )
+        event_repository = PaymentProviderEventRepository(db)
+
+        with pytest.raises(
+            ValueError,
+            match="must belong to the same Payment",
+        ):
+            event_repository.create_event(
+                payment=event_payment,
+                payment_provider_transaction=transaction,
+                provider_event_reference="cross-payment-event",
+                payload_hash="d" * 64,
+                provider_occurred_at=None,
+            )
+
+        assert db.scalar(select(func.count()).select_from(PaymentProviderEvent)) == 0
+        assert not any(
+            isinstance(instance, PaymentProviderEvent) for instance in db.new
+        )
     finally:
         db.close()
 

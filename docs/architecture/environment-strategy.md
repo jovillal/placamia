@@ -147,9 +147,10 @@ Expand revision `838722b0b76e` adds and backfills the identity columns and
 creates the safe provider transaction/event tables. Contract revision
 `d98b7e31a3a3` performs equivalent null, temporary-reference, and duplicate
 identity guards before enforcing the final constraints. Transitional generic
-writers assign `legacy_generic` and replace their collision-resistant
-temporary reference with `legacy-payment-{payment_id}` before commit, so the
-contract remains valid before the Wompi adapter is enabled.
+writers allocate the database-owned Payment id first and insert only
+`legacy_generic` plus the final `legacy-payment-{payment_id}` identity, so no
+provisional merchant reference reaches persistence or SQL statement logging.
+The contract remains valid before the Wompi adapter is enabled.
 
 `legacy_generic` is historical/read-only identity. Active generic Payments are
 not routed to Wompi and require an explicit operational closure decision before

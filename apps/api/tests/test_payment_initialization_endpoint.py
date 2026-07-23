@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from decimal import Decimal
 
 import httpx
@@ -14,8 +15,8 @@ from app.domain.provider_adapter import (
     LocalProviderFixture,
 )
 from app.main import app
-from app.models.category import Category
 from app.models.audit_log import AuditLog
+from app.models.category import Category
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.payment import Payment
@@ -249,6 +250,8 @@ def test_initialize_payment_creates_initiated_payment_from_backend_order_state(
 ):
     db = build_session()
     try:
+        caplog.set_level(logging.INFO, logger="sqlalchemy.engine.Engine")
+        db.bind.echo = True
         user = seed_user(db)
         product = seed_product(db)
         order = seed_order(db, user)
@@ -273,6 +276,7 @@ def test_initialize_payment_creates_initiated_payment_from_backend_order_state(
         assert payments[0].currency == "COP"
         assert payments[0].provider_code == "legacy_generic"
         assert payments[0].merchant_reference == (f"legacy-payment-{payments[0].id}")
+        assert payments[0].merchant_reference in caplog.text
         assert payments[0].payment_provider_reference is None
         assert payments[0].verified_at is None
 
