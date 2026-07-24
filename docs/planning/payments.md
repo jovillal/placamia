@@ -151,10 +151,9 @@ Current implementation state:
   grandfathered as `legacy_generic` with deterministic
   `legacy-payment-{payment_id}` merchant references without fabricating Wompi
   history.
-- Until Wompi initialization replaces the provider-neutral path, current
-  generic Payment writers persist a final `legacy_generic` identity before
-  their caller-owned transaction can commit. Those rows are not routable to a
-  real payment-provider adapter.
+- Historical generic Payment writers persist a final `legacy_generic` identity
+  before their caller-owned transaction can commit. Those rows are not
+  routable to a real payment-provider adapter.
 - Provider-neutral payment webhook signature verification foundation is
   implemented and used by the payment webhook processing endpoint.
 - Payment webhook processing creates or updates Payment records after signature
@@ -187,16 +186,15 @@ Current implementation state:
   the database level. Populated-environment deploys must run the duplicate
   `(order_id, payment_provider_reference)` preflight query documented in
   `docs/architecture/environment-strategy.md` before applying this constraint.
-- Payment initialization is implemented as `POST /api/v1/payments` for
-  authenticated owners of eligible draft Orders. The endpoint accepts only
-  `order_id`, derives amount, currency, ownership, and initial `initiated`
-  status from backend Order/OrderItem state, and rejects frontend payment,
-  pricing, provider-reference, card-data, status, ownership, or confirmation
-  claims.
-- Payment initialization returns an existing non-terminal Payment attempt for
-  the same eligible draft Order instead of duplicating active attempts.
-  Terminal Payment attempts allow a new initialization while leaving prior
-  Payment history intact.
+- Wompi Web Checkout initialization is implemented as
+  `POST /api/v1/payments`. It accepts only `order_id`, locks the owner-scoped
+  payable draft Order, derives every checkout value from backend state, builds
+  the signed hosted-checkout redirect locally, and commits a new Payment
+  directly as `requires_action`.
+- Initialization reuses only an unexpired Wompi `requires_action` Payment.
+  Active generic or unknown providers are non-routable; pending Wompi Payments
+  remain in progress; stale restartable Wompi Payments are expired and
+  replaced atomically; terminal history remains preserved.
 - Provider handoff transmission service validates verified payment status,
   confirmed order state, persisted payment verification timestamp, and
   backend-owned provider assignment before payload generation and adapter
@@ -211,12 +209,11 @@ The approved production target is Wompi Web Checkout. The decision and its
 alternatives are recorded in
 `docs/architecture/adr/0004-wompi-payment-provider-boundary.md`.
 
-The provider identity and history persistence foundation is implemented, while
-the Wompi adapter and provider-specific runtime flows remain pending. Until the
-required issues land, the existing `POST /api/v1/payments` response remains
-provider-neutral metadata and the generic `POST /api/v1/payments/webhook`
-remains a deterministic foundation,
-not a production Wompi contract.
+The provider identity/history foundation and Wompi hosted-checkout
+initialization adapter are implemented. The generic
+`POST /api/v1/payments/webhook` remains a deterministic foundation rather than
+a production Wompi event contract; provider-specific webhook processing and
+the customer persisted-status read remain pending.
 
 ### Provider Boundary
 
@@ -293,7 +290,8 @@ creating a Wompi handoff.
 
 For Wompi, initialization:
 
-1. creates or reuses one active Payment safely under concurrent requests
+1. locks the owner-scoped Order with PostgreSQL `SELECT ... FOR UPDATE` and
+   creates or reuses one active Payment safely under concurrent requests
 2. persists `provider_code = "wompi"` and the stable merchant reference
 3. converts the persisted COP Decimal amount to exact integer cents
 4. sets an expiration 30 minutes after initialization
@@ -308,7 +306,9 @@ therefore no provider network timeout or retry policy in the initialization
 request. Missing configuration, invalid return URL, unsupported currency,
 invalid amount conversion, or signature-construction failure returns a safe
 provider-initialization error and leaves no new active Payment committed. A
-retry reuses the same active Payment and merchant reference.
+retry reuses only the same unexpired `requires_action` Wompi Payment, merchant
+reference, and expiration. A new or replacement Payment returns HTTP 201; a
+reused handoff returns HTTP 200.
 
 Successful target response:
 
@@ -336,6 +336,15 @@ reference, amount, currency, expiration, and integrity signature. Repeated
 initialization of the same active Payment returns the same merchant reference
 and an equivalent signed handoff. Expiration controls starting a transaction;
 an already-started asynchronous transaction may remain pending afterward.
+
+The implemented reuse matrix is deliberately narrow. Unexpired
+`requires_action` is reused. `pending` returns `payment_in_progress` even after
+checkout expiry. Unexpired `initiated` returns `payment_state_invalid`.
+Expired `initiated` or `requires_action` is moved to `expired` with the
+backend-owned `checkout_window_elapsed` trigger and replaced in the same locked
+transaction. Historical `expired`, `failed`, and `cancelled` Payments permit a
+new eligible attempt. Active `legacy_generic` or unknown provider codes return
+`payment_provider_not_routable`; they never fall back to Wompi.
 
 ### Aggregate-Aware Provider Status
 
@@ -600,6 +609,7 @@ Provider adapter boundary:
 
 - #62 Define payment status lifecycle
 - #53 Implement Path A payment webhook signature verification test foundation
+- #186 Implement Wompi Web Checkout initialization handoff
 
 ## Related Security Milestone
 
@@ -607,22 +617,13 @@ Provider adapter boundary:
 
 ## Future Issues
 
-- #186: implement the Wompi Web Checkout initialization handoff documented
-  above.
 - #187: implement only the authenticated, owner-scoped, persisted customer
   Payment-status read documented above. It performs no provider calls.
 - Future issue required: define and implement explicit provider reconciliation,
   including its trigger, throttling, authorization, and operational ownership.
-- Future issue required: implement the provider-specific Wompi webhook route,
+- #201: implement the provider-specific Wompi webhook route,
   transaction/event persistence, translation, and migration from the current
   generic webhook foundation.
-- Future issue required: make payment initialization concurrency-safe before it
-  creates external provider payment sessions. The current provider-neutral
-  endpoint is sequentially idempotent, but simultaneous first requests can both
-  observe no active Payment and create separate `initiated` rows.
-- Future issue required: add payment-provider-specific secret and sensitive
-  payload examples to audit redaction tests when the real provider contract
-  documents concrete header names, secret fields, tokens, or payload keys.
 
 ## Constraints
 

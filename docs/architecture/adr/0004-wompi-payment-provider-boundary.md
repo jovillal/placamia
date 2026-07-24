@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted on 2026-07-22. Implementation remains pending.
+Accepted on 2026-07-22. Wompi Web Checkout initialization is implemented;
+provider-specific webhook and customer-status work remain pending.
 
 ## Context
 

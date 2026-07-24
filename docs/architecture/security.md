@@ -231,6 +231,8 @@ Do not log:
 - refresh tokens
 - payment card data
 - full secrets
+- payment integrity signatures or concatenated signature preimages
+- full signed checkout or handoff URLs
 - unnecessary personal data
 
 ### 9. API Protection
@@ -319,7 +321,18 @@ case-insensitive fragments:
 - `access_token`
 - `api_key`
 - `private_key`
+- `signature`
+- `signed_url`
+- `handoff_url`
+- `checkout_url`
 - `environment`
+
+For Wompi, keys such as `wompi_integrity_secret`, `signature_preimage`,
+`signature:integrity`, `signed_checkout_url`, and `handoff_url` are therefore
+redacted before audit persistence. Application and SQL logs must avoid these
+values at the source. The `pub_test_` and `pub_prod_` prefixes identify public
+checkout keys, while `test_integrity_` and `prod_integrity_` identify secrets;
+prefix validation must not log either configured value.
 
 Value-based redaction is intentionally deterministic and conservative. It only
 redacts explicitly documented token/key patterns:

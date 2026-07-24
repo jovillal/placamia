@@ -172,12 +172,12 @@ payment reference and verification timestamp.
 `apps/api/.env.example` to mirror the local PostgreSQL container. The runtime
 connection currently uses `DATABASE_URL`.
 
-### Planned Wompi Configuration
+### Wompi Configuration
 
-The Wompi production boundary is approved in ADR 0004 but is not implemented.
-The variables below become active only with the provider-specific implementation
-and must be added to `apps/api/.env.example` in that code change with safe local
-placeholders, never real credentials.
+Wompi hosted-checkout initialization reads the following variables at request
+time after authentication and owner-scoped Order lookup. Safe sandbox
+placeholders are present in `apps/api/.env.example`; real credentials remain
+deployment-managed secrets.
 
 | Variable | Secret | Purpose |
 | --- | --- | --- |
@@ -187,22 +187,25 @@ placeholders, never real credentials.
 | `WOMPI_ENVIRONMENT` | No | Explicit `sandbox` or `production` adapter mode. |
 | `WOMPI_PUBLIC_KEY` | No, but runtime-managed | Public commerce key used by Wompi Web Checkout. |
 | `WOMPI_INTEGRITY_SECRET` | Yes | Backend-only secret used to sign checkout integrity values. |
-| `WOMPI_EVENT_SECRET` | Yes | Backend-only secret used to verify Wompi event checksums. |
-
-The adapter maps `WOMPI_ENVIRONMENT` to allowlisted Wompi API and checkout
-hosts. Do not accept an arbitrary provider base URL in production configuration.
-`PAYMENT_RETURN_URL` must use HTTPS outside local/test environments and must be
-validated against an application-owned allowlist.
+Both environments use the fixed allowlisted hosted-checkout URL
+`https://checkout.wompi.co/p/`. `WOMPI_ENVIRONMENT` validates `pub_test_` plus
+`test_integrity_` prefixes for sandbox and `pub_prod_` plus `prod_integrity_`
+for production. Do not accept an arbitrary provider base URL.
+`PAYMENT_RETURN_URL` must use HTTPS when `ENV=production`; only `ENV=local` or
+`ENV=test` may use HTTP, and then only for `localhost` or `127.0.0.1`.
+`WOMPI_ENVIRONMENT` does not relax this deployment-level return URL policy.
 
 Changing `PAYMENT_PROVIDER_DEFAULT` affects only new Payments. Existing
 Payments resolve their adapter from persisted `provider_code`, so old Wompi
 webhooks and reconciliation remain valid after a gradual provider migration.
 
-Provider secrets must fail closed when missing. They must not appear in startup
-logs, error responses, audit payloads, or generated checkout URLs. The current
-`PAYMENT_WEBHOOK_SECRET` remains only for the generic implemented foundation
-until provider-specific routes replace it; it must not be reused as either
-Wompi secret.
+Provider secrets must fail closed when missing. The integrity secret,
+concatenated signature preimage, generated signature, and full signed URL must
+not appear in startup/SQL/application logs, error responses, audit payloads, or
+persistence. The signed URL is returned only as the opaque customer handoff.
+The current `PAYMENT_WEBHOOK_SECRET` remains only for the generic implemented
+foundation until #201 adds a separately configured Wompi event secret; it must
+not be reused as the Wompi integrity or event secret.
 
 ## Command Summary
 

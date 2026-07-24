@@ -60,7 +60,7 @@ class PaymentRepository:
             and flushes it in the caller-owned transaction. No provisional
             merchant reference is written and no commit is performed.
         """
-        payment.id = self._allocate_payment_id()
+        payment.id = self.allocate_payment_id()
         payment.provider_code = LEGACY_GENERIC_PROVIDER_CODE
         payment.merchant_reference = f"{LEGACY_PAYMENT_REFERENCE_PREFIX}-{payment.id}"
         self.db.add(payment)
@@ -68,7 +68,7 @@ class PaymentRepository:
         self.db.refresh(payment)
         return payment
 
-    def _allocate_payment_id(self) -> int:
+    def allocate_payment_id(self) -> int:
         """Allocate the next Payment id without inserting provisional data.
 
         Returns:

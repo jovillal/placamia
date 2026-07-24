@@ -39,6 +39,15 @@ def test_sqlalchemy_echo_can_be_enabled_explicitly(monkeypatch):
     assert settings.SQLALCHEMY_ECHO is True
 
 
+def test_settings_load_application_environment(monkeypatch):
+    """Confirm the deployment environment is available to security policies."""
+    monkeypatch.setenv("ENV", "production")
+
+    settings = Settings()
+
+    assert settings.ENV == "production"
+
+
 def test_parse_bool_accepts_common_truthy_values():
     """Validate accepted truthy values for environment booleans.
 

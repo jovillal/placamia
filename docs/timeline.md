@@ -45,15 +45,17 @@ remaining delivery work; it does not redefine that flow.
 - Checkout eligibility and cancellation/refund terms acknowledgement.
 - Authenticated draft order creation, immutable OrderItem snapshots, and
   owner-only order-status retrieval.
-- Provider-neutral payment initialization, signed webhook verification,
-  durable replay protection, Payment persistence, and order confirmation only
-  after verified payment.
+- Signed Wompi Web Checkout initialization with owner-scoped Order locking,
+  deterministic redirect construction, exact backend-owned values, and
+  retry-safe Payment reuse/replacement.
+- Provider-neutral signed webhook verification, durable replay protection,
+  Payment persistence, and order confirmation only after verified payment.
 - Provider-scoped Payment aggregate identity plus separate safe transaction
   and event history persistence, with historical generic rows grandfathered as
   `legacy_generic` through expand/backfill/contract migrations.
-- Wompi Web Checkout is selected as the initial production payment provider in
-  ADR 0004; its redirect handoff, provider-specific webhook processing, and
-  customer status contract remain implementation work.
+- Wompi Web Checkout is selected in ADR 0004 and its redirect handoff is
+  implemented. Provider-specific webhook processing and the customer persisted
+  status contract remain implementation work.
 
 ### Provider Handoff And Fulfillment
 
@@ -86,7 +88,6 @@ GitHub milestone: `Current MVP`.
 
 - #179 customer sign-in and token acquisition contract.
 - #185 versioned customer-visible cancellation/refund terms source.
-- #186 real payment-provider initialization response.
 - #187 customer payment-status refresh contract.
 
 These issues are scoped independently. Implementations must continue to follow
@@ -100,11 +101,12 @@ by each issue.
   truth.
 - Authentication provider/session choices for #179 still require an explicit
   human decision before implementation.
-- The payment-provider architecture decision for #186 is complete: Wompi Web
-  Checkout is selected in ADR 0004. Merchant onboarding, production credentials,
-  and end-to-end sandbox validation remain deployment prerequisites.
-- Local/mock adapters remain the deterministic development boundary while real
-  payment-provider integrations are pending.
+- Wompi Web Checkout initialization is implemented. Merchant onboarding,
+  production credentials, and end-to-end sandbox validation remain deployment
+  prerequisites.
+- Local/mock fulfillment adapters remain the deterministic manufacturing
+  boundary; Wompi production enablement still depends on deployment-managed
+  credentials and merchant readiness.
 
 ## Deferred Beyond Current MVP
 

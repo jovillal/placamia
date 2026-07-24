@@ -25,7 +25,8 @@ body:json {
 }
 
 docs {
-  Initializes or returns a backend-owned payment attempt for an authenticated
-  user's eligible draft order. Set `access_token` and `payment_order_id` in the
-  Local environment before running this request.
+  Creates or reuses the signed Wompi Web Checkout redirect for an authenticated
+  user's eligible draft Order. The backend owns amount, currency, provider,
+  reference, expiration, return URL, and signature inputs. Set `access_token`
+  and `payment_order_id` before running this request.
 }

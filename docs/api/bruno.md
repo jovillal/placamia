@@ -55,7 +55,9 @@ provided. `Auth / Current User` and `Payments / Initialize Payment` also use
 `access_token`. `Orders / List Orders` also uses `order_page` and
 `order_page_size`, while `Orders / Get Order` uses `order_id`; payment
 initialization expects `payment_order_id` to point at an eligible authenticated
-draft order.
+draft order. With valid local Wompi sandbox configuration, it returns the
+backend-owned `requires_action` Payment plus an opaque hosted-checkout redirect;
+the browser return does not confirm payment.
 
 ## Local Variables
 

@@ -232,6 +232,12 @@ pricing, checkout, and provider fulfillment.
 - Payment initialization tests verify that provider selection, amount,
   currency, merchant reference, expiration, and signature inputs come only from
   backend-owned state.
+- Payment initialization includes a real PostgreSQL independent-session race
+  test in CI proving Order-row locking yields one new response, one reuse
+  response, and one active Payment identity.
+- SQL statement/parameter logging tests prove the Wompi integrity secret,
+  signature preimage, signature, and full signed checkout URL are absent while
+  safe Payment lifecycle fields remain observable.
 - Provider migration tests verify that changing the configured default affects
   new Payments only; existing Payments retain their persisted provider route.
 - Aggregate tests cover multiple provider transaction ids under one merchant

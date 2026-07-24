@@ -13,8 +13,7 @@
   "backendGaps": [
     "Customer sign-in/token acquisition flow beyond GET /auth/me.",
     "Customer-visible cancellation/refund terms content source.",
-    "Provider-specific payment initialization response for real payment handoff.",
-    "Customer payment-status polling or order/payment result reconciliation path."
+    "Customer persisted payment-status polling endpoint."
   ],
   "screens": [
     {
@@ -282,23 +281,23 @@
       "id": "payment-initiation",
       "title": "Payment Initiation",
       "section": "Payment",
-      "purpose": "Represent backend-owned payment attempt initialization without card handling or provider secrets.",
-      "mockState": "No payment provider SDK, payment session, card collection, or live backend call.",
+      "purpose": "Represent the backend-owned Wompi hosted-checkout redirect without card handling or provider secret exposure.",
+      "mockState": "Static handoff state mirrors the implemented redirect contract; the placeholder makes no live backend or Wompi call.",
       "keyActions": [
-        "Start payment placeholder.",
-        "Show initiated or retry-safe active attempt state.",
+        "Start payment redirect placeholder.",
+        "Show requires_action or retry-safe active attempt state.",
         "Keep order unconfirmed until backend verification."
       ],
       "dependencies": [
         {
           "name": "POST /api/v1/payments",
           "status": "Implemented",
-          "note": "Accepts only order_id and returns provider-neutral payment data."
+          "note": "Accepts only order_id and returns a backend-owned Wompi redirect handoff with persisted amount, currency, and expiration."
         },
         {
-          "name": "Provider-specific payment session/client secret",
-          "status": "Documented-but-pending",
-          "note": "Future issue required when real provider contract is documented."
+          "name": "Wompi Web Checkout redirect",
+          "status": "Implemented",
+          "note": "Backend constructs the signed hosted-checkout URL locally and never exposes the integrity secret."
         },
         {
           "name": "Card data collection/storage in PlacamIA backend",
@@ -322,7 +321,12 @@
         {
           "name": "POST /api/v1/payments/webhook",
           "status": "Implemented",
-          "note": "Backend/provider boundary only; not called by the mobile app."
+          "note": "Generic backend/provider foundation only; not a production Wompi route and never called by mobile."
+        },
+        {
+          "name": "POST /api/v1/payments/webhooks/wompi",
+          "status": "Documented-but-pending",
+          "note": "#201 will authenticate Wompi events before common lifecycle processing; never called by mobile."
         },
         {
           "name": "Customer payment-status polling endpoint",
