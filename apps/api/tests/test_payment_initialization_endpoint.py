@@ -229,6 +229,7 @@ def available_provider_fixture() -> LocalProviderFixture:
 class ValidPaymentSettings:
     """Safe deterministic Wompi sandbox settings for endpoint tests."""
 
+    ENV = "test"
     PAYMENT_PROVIDER_DEFAULT = "wompi"
     PAYMENT_RETURN_URL = "http://localhost:3000/payments/return"
     PAYMENT_CHECKOUT_TTL_SECONDS = "1800"
@@ -1006,6 +1007,7 @@ def test_initialize_payment_owner_lookup_precedes_provider_configuration():
 @pytest.mark.parametrize(
     ("field", "value"),
     [
+        ("ENV", None),
         ("PAYMENT_PROVIDER_DEFAULT", None),
         ("PAYMENT_RETURN_URL", None),
         ("PAYMENT_CHECKOUT_TTL_SECONDS", "60"),

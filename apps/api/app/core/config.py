@@ -49,6 +49,7 @@ class Settings:
             Reads environment variables already loaded from `apps/api/.env`.
         """
         self.APP_NAME: str = os.getenv("APP_NAME", "PlacamIA API")
+        self.ENV: str | None = os.getenv("ENV")
         self.DATABASE_URL: str | None = os.getenv("DATABASE_URL")
         self.SQLALCHEMY_ECHO: bool = parse_bool(os.getenv("SQLALCHEMY_ECHO"))
         self.AUTH_TOKEN_SECRET: str | None = os.getenv("AUTH_TOKEN_SECRET")

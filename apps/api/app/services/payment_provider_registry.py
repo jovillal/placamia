@@ -8,6 +8,8 @@ from app.domain.payment_provider_gateway import PaymentProviderGateway
 from app.services.wompi_payment_provider import WompiPaymentProvider
 
 WOMPI_PROVIDER_CODE = "wompi"
+SUPPORTED_APPLICATION_ENVIRONMENTS = frozenset({"local", "test", "production"})
+LOCAL_APPLICATION_ENVIRONMENTS = frozenset({"local", "test"})
 SUPPORTED_WOMPI_ENVIRONMENTS = frozenset({"sandbox", "production"})
 WOMPI_KEY_PREFIXES = {
     "sandbox": ("pub_test_", "test_integrity_"),
@@ -89,8 +91,14 @@ class ConfiguredPaymentProviderRuntimeFactory:
             Reads configured values. It performs no network or persistence
             operation and does not log credentials.
         """
-        environment = _required_text(self._settings, "WOMPI_ENVIRONMENT")
-        if environment not in SUPPORTED_WOMPI_ENVIRONMENTS:
+        application_environment = _required_text(self._settings, "ENV")
+        if application_environment not in SUPPORTED_APPLICATION_ENVIRONMENTS:
+            raise PaymentProviderConfigurationError(
+                "Payment provider configuration is unavailable."
+            )
+
+        wompi_environment = _required_text(self._settings, "WOMPI_ENVIRONMENT")
+        if wompi_environment not in SUPPORTED_WOMPI_ENVIRONMENTS:
             raise PaymentProviderConfigurationError(
                 "Payment provider configuration is unavailable."
             )
@@ -100,7 +108,7 @@ class ConfiguredPaymentProviderRuntimeFactory:
             self._settings,
             "WOMPI_INTEGRITY_SECRET",
         )
-        public_prefix, integrity_prefix = WOMPI_KEY_PREFIXES[environment]
+        public_prefix, integrity_prefix = WOMPI_KEY_PREFIXES[wompi_environment]
         if not public_key.startswith(public_prefix) or not integrity_secret.startswith(
             integrity_prefix
         ):
@@ -109,7 +117,7 @@ class ConfiguredPaymentProviderRuntimeFactory:
             )
 
         return_url = _required_text(self._settings, "PAYMENT_RETURN_URL")
-        _validate_return_url(return_url, environment)
+        _validate_return_url(return_url, application_environment)
         checkout_ttl_seconds = _checkout_ttl_seconds(self._settings)
         default_provider_code = getattr(
             self._settings,
@@ -159,7 +167,7 @@ def _checkout_ttl_seconds(settings: object) -> int:
     return value
 
 
-def _validate_return_url(return_url: str, environment: str) -> None:
+def _validate_return_url(return_url: str, application_environment: str) -> None:
     """Reject unsafe or structurally invalid customer return URLs."""
     parsed = urlsplit(return_url)
     if (
@@ -175,7 +183,7 @@ def _validate_return_url(return_url: str, environment: str) -> None:
     if parsed.scheme == "https":
         return
     if (
-        environment == "sandbox"
+        application_environment in LOCAL_APPLICATION_ENVIRONMENTS
         and parsed.scheme == "http"
         and parsed.hostname in LOCAL_RETURN_HOSTS
     ):

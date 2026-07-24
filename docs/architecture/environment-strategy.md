@@ -191,8 +191,9 @@ Both environments use the fixed allowlisted hosted-checkout URL
 `https://checkout.wompi.co/p/`. `WOMPI_ENVIRONMENT` validates `pub_test_` plus
 `test_integrity_` prefixes for sandbox and `pub_prod_` plus `prod_integrity_`
 for production. Do not accept an arbitrary provider base URL.
-`PAYMENT_RETURN_URL` must use HTTPS outside local/test environments; sandbox
-may use HTTP only for `localhost` or `127.0.0.1`.
+`PAYMENT_RETURN_URL` must use HTTPS when `ENV=production`; only `ENV=local` or
+`ENV=test` may use HTTP, and then only for `localhost` or `127.0.0.1`.
+`WOMPI_ENVIRONMENT` does not relax this deployment-level return URL policy.
 
 Changing `PAYMENT_PROVIDER_DEFAULT` affects only new Payments. Existing
 Payments resolve their adapter from persisted `provider_code`, so old Wompi

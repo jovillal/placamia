@@ -129,6 +129,7 @@ def test_wompi_checkout_rejects_caller_return_url_override():
 class StubSettings:
     """Minimal settings object used to contract-test provider configuration."""
 
+    ENV = "local"
     PAYMENT_PROVIDER_DEFAULT = "wompi"
     PAYMENT_RETURN_URL = "http://localhost:3000/payments/return"
     PAYMENT_CHECKOUT_TTL_SECONDS = "1800"
@@ -156,6 +157,8 @@ def test_provider_runtime_factory_builds_valid_sandbox_runtime():
         ("PAYMENT_RETURN_URL", "https:///return"),
         ("PAYMENT_RETURN_URL", "https://user@example.com/return"),
         ("PAYMENT_RETURN_URL", "https://example.com/return#fragment"),
+        ("ENV", None),
+        ("ENV", "staging"),
         ("PAYMENT_CHECKOUT_TTL_SECONDS", None),
         ("PAYMENT_CHECKOUT_TTL_SECONDS", "0"),
         ("PAYMENT_CHECKOUT_TTL_SECONDS", "-1"),
@@ -206,8 +209,10 @@ def test_production_rejects_sandbox_key_prefixes(field, value):
         ConfiguredPaymentProviderRuntimeFactory(settings).create()
 
 
-def test_sandbox_accepts_loopback_http_return_url():
+@pytest.mark.parametrize("application_environment", ["local", "test"])
+def test_local_and_test_accept_loopback_http_return_url(application_environment):
     settings = StubSettings()
+    settings.ENV = application_environment
     settings.PAYMENT_RETURN_URL = "http://127.0.0.1:3000/payments/return"
 
     runtime = ConfiguredPaymentProviderRuntimeFactory(settings).create()
@@ -215,9 +220,19 @@ def test_sandbox_accepts_loopback_http_return_url():
     assert runtime.return_url == settings.PAYMENT_RETURN_URL
 
 
+def test_production_rejects_loopback_http_with_wompi_sandbox():
+    settings = StubSettings()
+    settings.ENV = "production"
+    settings.PAYMENT_RETURN_URL = "http://localhost:3000/payments/return"
+
+    with pytest.raises(PaymentProviderConfigurationError):
+        ConfiguredPaymentProviderRuntimeFactory(settings).create()
+
+
 def test_sandbox_and_production_use_same_fixed_checkout_host():
     sandbox_runtime = ConfiguredPaymentProviderRuntimeFactory(StubSettings()).create()
     production_settings = StubSettings()
+    production_settings.ENV = "production"
     production_settings.PAYMENT_RETURN_URL = "https://placamia.example/payments/return"
     production_settings.WOMPI_ENVIRONMENT = "production"
     production_settings.WOMPI_PUBLIC_KEY = "pub_prod_contract-key"
