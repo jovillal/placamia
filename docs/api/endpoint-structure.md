@@ -113,7 +113,7 @@ The current implemented API endpoints are:
 | `POST` | `/api/v1/orders/{order_id}/cancellation-request` | Orders | Required owner | `OrderCancellationResponse` object |
 | `POST` | `/api/v1/orders/{order_id}/cancellation-request/approve` | Orders | Admin | `OrderCancellationResponse` object |
 | `POST` | `/api/v1/orders/{order_id}/cancellation-request/reject` | Orders | Admin | `OrderCancellationResponse` object |
-| `POST` | `/api/v1/payments` | Payments | Required owner | `{ "data": PaymentInitializationData }` |
+| `POST` | `/api/v1/payments` | Payments | Required owner | `{ "data": PaymentInitializationData }` with Wompi redirect handoff |
 | `POST` | `/api/v1/payments/webhook` | Payments | Signed provider webhook | `PaymentWebhookResponse` object |
 | `POST` | `/api/v1/provider/orders/{order_id}/acceptance` | Provider | Admin | `ProviderAcceptanceDecisionResponse` object |
 | `POST` | `/api/v1/provider/orders/{order_id}/production-progress` | Provider | Admin | `ProviderProductionProgressResponse` object |

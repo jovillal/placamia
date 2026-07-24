@@ -4,6 +4,9 @@ from app.domain.provider_adapter import LocalMockProviderAdapter
 from app.models.user import User, UserRole
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthenticationError, AuthService
+from app.services.payment_provider_registry import (
+    ConfiguredPaymentProviderRuntimeFactory,
+)
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
@@ -22,6 +25,19 @@ async def get_provider_adapter():
         None.
     """
     return LocalMockProviderAdapter()
+
+
+async def get_payment_provider_runtime_factory():
+    """Return a lazy payment-provider runtime factory.
+
+    Returns:
+        Factory that validates Wompi configuration only when the authenticated
+        payment initialization service requests it.
+
+    Side effects:
+        None. Provider configuration is not evaluated by this dependency.
+    """
+    return ConfiguredPaymentProviderRuntimeFactory(settings)
 
 
 def resolve_current_user(

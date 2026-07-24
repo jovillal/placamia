@@ -53,6 +53,16 @@ class Settings:
         self.SQLALCHEMY_ECHO: bool = parse_bool(os.getenv("SQLALCHEMY_ECHO"))
         self.AUTH_TOKEN_SECRET: str | None = os.getenv("AUTH_TOKEN_SECRET")
         self.PAYMENT_WEBHOOK_SECRET: str | None = os.getenv("PAYMENT_WEBHOOK_SECRET")
+        self.PAYMENT_PROVIDER_DEFAULT: str | None = os.getenv(
+            "PAYMENT_PROVIDER_DEFAULT"
+        )
+        self.PAYMENT_RETURN_URL: str | None = os.getenv("PAYMENT_RETURN_URL")
+        self.PAYMENT_CHECKOUT_TTL_SECONDS: str | None = os.getenv(
+            "PAYMENT_CHECKOUT_TTL_SECONDS"
+        )
+        self.WOMPI_ENVIRONMENT: str | None = os.getenv("WOMPI_ENVIRONMENT")
+        self.WOMPI_PUBLIC_KEY: str | None = os.getenv("WOMPI_PUBLIC_KEY")
+        self.WOMPI_INTEGRITY_SECRET: str | None = os.getenv("WOMPI_INTEGRITY_SECRET")
 
 
 settings = Settings()

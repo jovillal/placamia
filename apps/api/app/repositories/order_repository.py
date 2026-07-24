@@ -77,6 +77,36 @@ class OrderRepository:
         )
         return result.scalar_one_or_none()
 
+    def get_order_for_customer_for_update(
+        self,
+        order_id: int,
+        customer_id: int,
+    ) -> Order | None:
+        """Lock and return one authenticated customer's Order for payment work.
+
+        Args:
+            order_id: Order identifier to lock.
+            customer_id: Backend-derived authenticated customer identifier.
+
+        Returns:
+            The matching customer-owned Order with item and Product state
+            loaded, or None when no owned Order exists.
+
+        Side effects:
+            Acquires a PostgreSQL row lock held by the caller-owned transaction
+            until commit or rollback. SQLite ignores the lock clause in
+            isolated unit tests.
+        """
+        result = self.db.execute(
+            select(Order)
+            .options(
+                selectinload(Order.items).selectinload(OrderItem.product),
+            )
+            .where(Order.id == order_id, Order.customer_id == customer_id)
+            .with_for_update()
+        )
+        return result.scalar_one_or_none()
+
     def get_orders_for_customer(self, customer_id: int) -> list[Order]:
         """Return orders owned by one authenticated customer id.
 

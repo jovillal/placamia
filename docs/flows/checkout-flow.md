@@ -29,9 +29,11 @@ flowchart TD
     U2 --> B4[Create draft order]
     B4 --> D3[(Order)]
 
-    B4 --> B5[Initialize payment]
-
-    U3[User completes payment] --> B6[Receive payment webhook]
+    B4 --> B5[Lock Order and initialize Wompi Payment]
+    B5 --> D4[(Payment)]
+    B5 --> W1[Build signed Wompi redirect]
+    W1 --> U3[User completes payment]
+    U3 --> B6[Receive payment webhook]
 
     B6 --> B7[Verify signature and replay safety]
 
@@ -50,8 +52,9 @@ flowchart TD
 
 ## Approved Wompi Flow
 
-This is the approved production payment flow. It remains pending until the
-provider-specific implementation issues are complete.
+This is the approved production payment flow. Hosted-checkout initialization
+through `W1` is implemented. The Wompi-specific webhook, customer status read,
+and explicit reconciliation nodes remain scoped to their own issues.
 
 ```mermaid
 flowchart TD

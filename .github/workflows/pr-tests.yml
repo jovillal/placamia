@@ -9,6 +9,23 @@ jobs:
   api-tests:
     name: API tests
     runs-on: ubuntu-latest
+    env:
+      TEST_POSTGRES_DATABASE_URL: postgresql+psycopg2://placamia:placamia@localhost:5432/placamia_test
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: placamia
+          POSTGRES_PASSWORD: placamia
+          POSTGRES_DB: placamia_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U placamia -d placamia_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout

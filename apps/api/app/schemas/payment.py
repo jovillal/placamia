@@ -1,4 +1,6 @@
+from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -16,13 +18,19 @@ class PaymentInitializationRequest(BaseModel):
     order_id: int = Field(..., gt=0)
 
 
+class PaymentRedirectHandoff(BaseModel):
+    """Customer-safe redirect handoff for hosted payment checkout."""
+
+    type: Literal["redirect"]
+    url: str
+
+
 class PaymentInitializationData(BaseModel):
     """Customer-safe payment initialization response data.
 
-    The response exposes only backend-owned identifiers, canonical status, and
-    amount/currency values needed by the frontend to correlate the payment
-    attempt. It does not include card data, provider secrets, raw provider
-    payloads, or payment-confirmation fields.
+    The response exposes backend-owned Payment values and the opaque redirect
+    URL needed to continue checkout. It excludes card data, provider secrets,
+    raw provider payloads, and payment-confirmation fields.
     """
 
     payment_id: int
@@ -30,6 +38,8 @@ class PaymentInitializationData(BaseModel):
     payment_status: str
     amount: Decimal
     currency: str
+    handoff: PaymentRedirectHandoff
+    checkout_expires_at: datetime
 
 
 class PaymentInitializationResponse(BaseModel):

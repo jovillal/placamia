@@ -407,17 +407,38 @@ Content-Type: application/json
   "data": {
     "payment_id": 1,
     "order_id": 1,
-    "payment_status": "initiated",
+    "payment_status": "requires_action",
     "amount": "54000.00",
-    "currency": "COP"
+    "currency": "COP",
+    "handoff": {
+      "type": "redirect",
+      "url": "https://checkout.wompi.co/p/?..."
+    },
+    "checkout_expires_at": "2026-07-24T18:30:00Z"
   }
 }
 ```
 
-The request must not include amount, currency, ownership, status, provider
-reference, card data, or payment confirmation claims. The backend derives those
-values from the authenticated draft Order and its immutable OrderItem
-snapshots.
+The request must not include amount, currency, ownership, status, provider,
+reference, expiration, return URL, signature, card data, or confirmation
+claims. The backend locks the authenticated draft Order, derives those values
+from persisted state, and constructs the Wompi redirect locally without a
+provider API call. HTTP 201 creates a new or replacement Payment; HTTP 200
+reuses an unexpired `requires_action` Wompi Payment without extending expiry.
+The redirect is navigation only and never verifies Payment or confirms Order.
+
+Initialization returns safe stable errors:
+
+- HTTP 400 for Order/item eligibility, `unsupported_payment_currency`, or
+  `invalid_payment_amount`
+- HTTP 404 `order_not_found` for unknown and cross-customer Orders
+- HTTP 409 `payment_provider_not_routable`, `payment_in_progress`, or
+  `payment_state_invalid`
+- HTTP 503 `payment_provider_unavailable` for invalid provider configuration or
+  local handoff construction failure
+
+The HTTP 503 response is deliberately redacted and never names a configuration
+variable, key, secret, signature preimage, signature, or signed URL.
 
 ## Authentication Error
 

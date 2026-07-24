@@ -22,6 +22,10 @@ SENSITIVE_AUDIT_DETAIL_KEYS = (
     "access_token",
     "api_key",
     "private_key",
+    "signature",
+    "signed_url",
+    "handoff_url",
+    "checkout_url",
     "environment",
 )
 

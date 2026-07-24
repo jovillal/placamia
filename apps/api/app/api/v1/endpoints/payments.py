@@ -1,4 +1,8 @@
-from app.api.dependencies import get_current_user, get_provider_adapter
+from app.api.dependencies import (
+    get_current_user,
+    get_payment_provider_runtime_factory,
+    get_provider_adapter,
+)
 from app.core.config import settings
 from app.core.database import get_db
 from app.domain.payment_lifecycle import PaymentStatus
@@ -13,6 +17,7 @@ from app.schemas.payment import (
     PaymentInitializationData,
     PaymentInitializationRequest,
     PaymentInitializationResponse,
+    PaymentRedirectHandoff,
     PaymentWebhookResponse,
 )
 from app.services.paid_order_handoff_orchestration_service import (
@@ -22,6 +27,7 @@ from app.services.payment_initialization_service import (
     PaymentInitializationRejected,
     PaymentInitializationService,
 )
+from app.services.payment_provider_registry import PaymentProviderRuntimeFactory
 from app.services.payment_webhook_processing_service import (
     PaymentWebhookProcessingRejected,
     PaymentWebhookProcessingService,
@@ -45,16 +51,22 @@ router = APIRouter(prefix="/payments", tags=["payments"])
     response_model=PaymentInitializationResponse,
     summary="Initialize payment",
     description=(
-        "Initializes a provider-neutral Payment attempt for an authenticated "
-        "customer's eligible draft order. The backend derives ownership, "
-        "amount, currency, and initial status from persisted Order state and "
-        "rejects frontend payment, pricing, provider, ownership, or "
-        "confirmation claims."
+        "Creates or reuses a signed Wompi Web Checkout redirect for an "
+        "authenticated customer's eligible draft Order. Ownership, amount, "
+        "currency, provider, merchant reference, expiration, return URL, and "
+        "signature inputs are backend-owned. Initialization never verifies "
+        "payment or confirms the Order."
     ),
     responses={
+        201: {
+            "model": PaymentInitializationResponse,
+            "description": "New Wompi checkout created",
+        },
         400: {"description": "Payment initialization rejected"},
         401: {"description": "Authentication required"},
         404: {"description": "Order not found for authenticated user"},
+        409: {"description": "Existing Payment cannot be initialized"},
+        503: {"description": "Payment provider unavailable"},
     },
 )
 async def initialize_payment(
@@ -63,8 +75,11 @@ async def initialize_payment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     provider_adapter: ProviderAdapter = Depends(get_provider_adapter),
+    payment_provider_runtime_factory: PaymentProviderRuntimeFactory = Depends(
+        get_payment_provider_runtime_factory
+    ),
 ) -> PaymentInitializationResponse:
-    """Initialize or return a backend-owned payment attempt for a draft Order.
+    """Create or reuse a backend-owned hosted checkout for a draft Order.
 
     Args:
         payload: Strict request containing only the Order identifier.
@@ -74,18 +89,18 @@ async def initialize_payment(
         current_user: Authenticated user resolved from the bearer token.
         provider_adapter: Provider adapter dependency used only to revalidate
             current direct-checkout eligibility and priceability.
+        payment_provider_runtime_factory: Lazy validated payment-provider
+            registry and application checkout configuration.
 
     Returns:
-        Provider-neutral response containing the Payment identifier, Order
-        identifier, canonical Payment status, and backend-owned amount and
-        currency.
+        Customer-safe redirect handoff plus backend-owned Payment metadata.
 
     Side effects:
-        Creates one `initiated` Payment row only when the authenticated draft
-        Order is payable and has no existing non-terminal payment attempt.
-        Existing non-terminal attempts are returned without creating a duplicate
-        row. The endpoint never stores card data, confirms the Order, or
-        triggers provider handoff.
+        Locks the owner-scoped Order until commit/rollback. It may expire one
+        stale restartable checkout and creates at most one `requires_action`
+        Wompi Payment only after local handoff construction. It never stores
+        card data, verifies Payment, confirms the Order, or triggers
+        fulfillment-provider handoff.
 
     Raises:
         HTTPException: When authentication, ownership, request shape, Order
@@ -96,10 +111,11 @@ async def initialize_payment(
         OrderRepository(db),
         PaymentRepository(db),
         provider_adapter,
+        payment_provider_runtime_factory,
     )
 
     try:
-        result = service.initialize_payment(
+        result = await service.initialize_payment(
             order_id=payload.order_id,
             current_user=current_user,
         )
@@ -118,6 +134,11 @@ async def initialize_payment(
             payment_status=result.payment.status,
             amount=result.payment.amount,
             currency=result.payment.currency,
+            handoff=PaymentRedirectHandoff(
+                type=result.checkout_session.handoff.type,
+                url=result.checkout_session.handoff.url,
+            ),
+            checkout_expires_at=result.checkout_session.expires_at,
         )
     )
 
@@ -238,11 +259,18 @@ def _payment_initialization_rejection(
     exc: PaymentInitializationRejected,
 ) -> HTTPException:
     """Return a safe HTTP error response for rejected payment initialization."""
-    status_code = (
-        status.HTTP_404_NOT_FOUND
-        if exc.code == "order_not_found"
-        else status.HTTP_400_BAD_REQUEST
-    )
+    if exc.code == "order_not_found":
+        status_code = status.HTTP_404_NOT_FOUND
+    elif exc.code == "payment_provider_unavailable":
+        status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    elif exc.code in {
+        "payment_provider_not_routable",
+        "payment_in_progress",
+        "payment_state_invalid",
+    }:
+        status_code = status.HTTP_409_CONFLICT
+    else:
+        status_code = status.HTTP_400_BAD_REQUEST
     return HTTPException(
         status_code=status_code,
         detail={"code": exc.code, "message": str(exc)},

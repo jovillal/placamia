@@ -240,6 +240,7 @@ Purpose:
 
 - Initialize or reuse a backend-owned payment attempt for the authenticated
   customer's eligible draft order.
+- Continue through the backend-created Wompi hosted-checkout redirect.
 - Avoid card storage and provider secret exposure.
 
 Key actions:
@@ -252,8 +253,8 @@ Backend dependencies:
 
 | Dependency | Status | Notes |
 | --- | --- | --- |
-| `POST /api/v1/payments` | Implemented | Accepts only `order_id`; returns payment id, order id, status, amount, and currency. |
-| Wompi Web Checkout redirect handoff | Provider-selected; implementation pending | ADR 0004 defines a provider-neutral redirect response; #186 must implement it before mobile wiring. |
+| `POST /api/v1/payments` | Implemented | Accepts only `order_id`; returns backend-owned Payment data, expiration, and a signed Wompi redirect handoff. |
+| Wompi Web Checkout redirect handoff | Implemented | Backend constructs the hosted-checkout URL locally; mobile must treat it as navigation, not payment confirmation. |
 | Card data collection/storage in PlacamIA backend | Intentionally deferred | Backend must not store card data. |
 
 ### 11. Payment Result States
@@ -268,7 +269,7 @@ Customer-visible states:
 
 | State | Mobile meaning | Backend source |
 | --- | --- | --- |
-| `initiated` | Backend created or reused an active attempt. | `POST /api/v1/payments` |
+| `initiated` | Unexpected intermediate Wompi initialization state; no handoff is returned. | Persisted backend state requiring operational review or expiration. |
 | `pending` | One or more provider transactions are still processing. | Persisted aggregate state from a trusted provider webhook or reconciliation. |
 | `requires_action` | Customer action or another retry is possible. | Persisted aggregate state; one declined Wompi transaction does not necessarily end the Payment. |
 | `verified` / success | At least one trusted matching transaction was approved; order may become confirmed. | Provider-specific webhook or backend reconciliation plus order status. |
@@ -281,7 +282,7 @@ Backend dependencies:
 | Dependency | Status | Notes |
 | --- | --- | --- |
 | `POST /api/v1/payments/webhook` | Implemented | Backend/provider boundary only; not called by the mobile app. |
-| `POST /api/v1/payments/webhooks/wompi` | Provider-selected; implementation pending | Provider-specific route authenticates Wompi events before common lifecycle processing; never called by mobile. |
+| `POST /api/v1/payments/webhooks/wompi` | Documented-but-pending | #201 authenticates Wompi events before common lifecycle processing; never called by mobile. |
 | Customer payment-status polling endpoint | Documented-but-pending | #187 must return persisted canonical aggregate state. Mobile must not query Wompi directly or treat the browser return as confirmation. |
 | Frontend payment success claim | Intentionally deferred | Never marks payment verified or order confirmed. |
 
@@ -363,10 +364,6 @@ Backend gaps to resolve before connecting each screen to real behavior:
 
 - #179: customer sign-in/token acquisition flow beyond `GET /auth/me`.
 - #185: versioned customer-visible cancellation/refund terms content source.
-- #186: real-provider payment initialization handoff response. The current
-  provider-neutral `POST /api/v1/payments` attempt initialization is already
-  implemented and must not be presented as a real provider session. ADR 0004
-  selects Wompi Web Checkout and defines the provider-neutral redirect shape.
 - #187: customer payment-status polling from the persisted Payment aggregate.
   It performs no provider reconciliation and does not trust frontend return
   parameters; reconciliation requires separately scoped backend work.

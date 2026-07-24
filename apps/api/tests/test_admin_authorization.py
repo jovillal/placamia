@@ -289,6 +289,11 @@ def test_audit_log_service_redacts_expanded_sensitive_key_names():
                 "access_token": "do-not-store",
                 "api_key": "do-not-store",
                 "private_key": "do-not-store",
+                "wompi_integrity_secret": "do-not-store",
+                "signature_preimage": "do-not-store",
+                "signature:integrity": "do-not-store",
+                "signed_checkout_url": "do-not-store",
+                "handoff_url": "do-not-store",
                 "nested": [{"refresh_token": "do-not-store"}],
                 "safe_note": "keep this",
             },
@@ -302,6 +307,11 @@ def test_audit_log_service_redacts_expanded_sensitive_key_names():
         assert stored_audit_log.event_details["access_token"] == "[REDACTED]"
         assert stored_audit_log.event_details["api_key"] == "[REDACTED]"
         assert stored_audit_log.event_details["private_key"] == "[REDACTED]"
+        assert stored_audit_log.event_details["wompi_integrity_secret"] == "[REDACTED]"
+        assert stored_audit_log.event_details["signature_preimage"] == "[REDACTED]"
+        assert stored_audit_log.event_details["signature:integrity"] == "[REDACTED]"
+        assert stored_audit_log.event_details["signed_checkout_url"] == "[REDACTED]"
+        assert stored_audit_log.event_details["handoff_url"] == "[REDACTED]"
         assert (
             stored_audit_log.event_details["nested"][0]["refresh_token"] == "[REDACTED]"
         )

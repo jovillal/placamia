@@ -27,8 +27,7 @@ const requiredScreens = [
 const requiredBackendGaps = [
   "Customer sign-in/token acquisition flow beyond GET /auth/me.",
   "Customer-visible cancellation/refund terms content source.",
-  "Provider-specific payment initialization response for real payment handoff.",
-  "Customer payment-status polling or order/payment result reconciliation path.",
+  "Customer persisted payment-status polling endpoint.",
 ];
 const allowedStatuses = new Set([
   "Implemented",

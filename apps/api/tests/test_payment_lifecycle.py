@@ -91,6 +91,31 @@ def test_payment_status_transition_accepts_valid_provider_lifecycle_events(
 
 
 @pytest.mark.parametrize(
+    "current_status",
+    [PaymentStatus.INITIATED, PaymentStatus.REQUIRES_ACTION],
+)
+def test_checkout_window_elapsed_expires_only_restartable_payment(current_status):
+    transition = transition_payment_status(
+        current_status,
+        PaymentStatus.EXPIRED,
+        PaymentTransitionTrigger.CHECKOUT_WINDOW_ELAPSED,
+        event_source=PaymentEventSource.PAYMENT_INITIALIZATION,
+    )
+
+    assert transition.to_status is PaymentStatus.EXPIRED
+
+
+def test_checkout_window_elapsed_cannot_expire_pending_payment():
+    with pytest.raises(PaymentLifecycleError):
+        transition_payment_status(
+            PaymentStatus.PENDING,
+            PaymentStatus.EXPIRED,
+            PaymentTransitionTrigger.CHECKOUT_WINDOW_ELAPSED,
+            event_source=PaymentEventSource.PAYMENT_INITIALIZATION,
+        )
+
+
+@pytest.mark.parametrize(
     ("current_status", "target_status", "trigger"),
     [
         (

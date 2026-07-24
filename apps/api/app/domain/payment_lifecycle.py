@@ -28,6 +28,7 @@ class PaymentTransitionTrigger(StrEnum):
     PROVIDER_FAILED = "provider_failed"
     PROVIDER_CANCELLED = "provider_cancelled"
     PROVIDER_EXPIRED = "provider_expired"
+    CHECKOUT_WINDOW_ELAPSED = "checkout_window_elapsed"
 
 
 class PaymentEventSource(StrEnum):
@@ -35,6 +36,7 @@ class PaymentEventSource(StrEnum):
 
     PAYMENT_PROVIDER_WEBHOOK = "payment_provider_webhook"
     PAYMENT_PROVIDER_RECONCILIATION = "payment_provider_reconciliation"
+    PAYMENT_INITIALIZATION = "payment_initialization"
     FRONTEND_RETURN = "frontend_return"
     PROVIDER_ADAPTER = "provider_adapter"
 
@@ -151,13 +153,19 @@ PAYMENT_STATUS_TRANSITIONS: dict[
         {PaymentTransitionTrigger.PROVIDER_CANCELLED}
     ),
     (PaymentStatus.INITIATED, PaymentStatus.EXPIRED): frozenset(
-        {PaymentTransitionTrigger.PROVIDER_EXPIRED}
+        {
+            PaymentTransitionTrigger.PROVIDER_EXPIRED,
+            PaymentTransitionTrigger.CHECKOUT_WINDOW_ELAPSED,
+        }
     ),
     (PaymentStatus.PENDING, PaymentStatus.EXPIRED): frozenset(
         {PaymentTransitionTrigger.PROVIDER_EXPIRED}
     ),
     (PaymentStatus.REQUIRES_ACTION, PaymentStatus.EXPIRED): frozenset(
-        {PaymentTransitionTrigger.PROVIDER_EXPIRED}
+        {
+            PaymentTransitionTrigger.PROVIDER_EXPIRED,
+            PaymentTransitionTrigger.CHECKOUT_WINDOW_ELAPSED,
+        }
     ),
 }
 """Allowed Path A payment transitions keyed by source and destination status."""
